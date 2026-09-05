@@ -64,6 +64,17 @@ return [
     |
     */
 
+    'panel' => [
+        'path' => env('NEXOR_PANEL_PATH', 'vue'),
+    ],
+
+    'panel_assets' => [
+        'packages/nexor-cms/resources/css/admin.css',
+        'packages/nexor-cms/resources/js/panel/main.js',
+    ],
+
+    'panel_extensions' => [],
+
     // Пакет подключён path-репозиторием, поэтому Vite собирает исходники из
     // packages/: каталог vendor/ перечислен в .gitignore, а Tailwind не читает
     // шаблоны из игнорируемых путей.

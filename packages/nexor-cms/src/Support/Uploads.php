@@ -13,6 +13,11 @@ class Uploads
 {
     public const DISK = 'public';
 
+    public static function disk(): string
+    {
+        return config('nexor.storage.disk', self::DISK);
+    }
+
     /**
      * @return string|null The path to persist, or null when the file was removed.
      */
@@ -21,7 +26,7 @@ class Uploads
         if ($request->hasFile($field)) {
             self::delete($current);
 
-            return $request->file($field)->store($directory, self::DISK);
+            return $request->file($field)->store($directory, self::disk());
         }
 
         if ($request->boolean($field.'_remove')) {
@@ -33,10 +38,18 @@ class Uploads
         return $current;
     }
 
+    /**
+     * Public URL of a stored file, or null when there is nothing stored.
+     */
+    public static function url(?string $path): ?string
+    {
+        return $path ? Storage::disk(self::disk())->url($path) : null;
+    }
+
     public static function delete(?string $path): void
     {
-        if ($path && Storage::disk(self::DISK)->exists($path)) {
-            Storage::disk(self::DISK)->delete($path);
+        if ($path && Storage::disk(self::disk())->exists($path)) {
+            Storage::disk(self::disk())->delete($path);
         }
     }
 }

@@ -10,6 +10,7 @@ use Nexor\Cms\Http\Controllers\IblockElementController;
 use Nexor\Cms\Http\Controllers\IblockPropertyController;
 use Nexor\Cms\Http\Controllers\IblockSectionController;
 use Nexor\Cms\Http\Controllers\IblockTypeController;
+use Nexor\Cms\Http\Controllers\PanelController;
 use Nexor\Cms\Http\Controllers\ProfileController;
 use Nexor\Cms\Http\Controllers\RoleController;
 use Nexor\Cms\Http\Controllers\SettingController;
@@ -36,6 +37,11 @@ Route::post('logout', [LoginController::class, 'destroy'])->name('logout')->midd
 
 Route::middleware(['auth', 'nexor.admin'])->group(function () use ($guard): void {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Vue panel: one shell for every path below it, routing happens client-side.
+    Route::get(trim(config('nexor.panel.path', 'vue'), '/').'/{any?}', PanelController::class)
+        ->where('any', '.*')
+        ->name('panel');
 
     Route::controller(ProfileController::class)->prefix('profile')->name('profile.')->group(function (): void {
         Route::get('/', 'edit')->name('edit');

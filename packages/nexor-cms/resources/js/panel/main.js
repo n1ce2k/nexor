@@ -1,0 +1,87 @@
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
+
+import App from './App.vue';
+import { createPanelRouter } from './router';
+import { api, ApiError } from './api';
+import * as registry from './registry';
+import { useSession } from './stores/session';
+import { useUi } from './stores/ui';
+
+import FieldBoolean from './components/fields/FieldBoolean.vue';
+import FieldFile from './components/fields/FieldFile.vue';
+import FieldSelect from './components/fields/FieldSelect.vue';
+import FieldText from './components/fields/FieldText.vue';
+import FieldTextarea from './components/fields/FieldTextarea.vue';
+
+/**
+ * Built-in property editors. Registered exactly the way a host application
+ * would register its own, so nothing here is privileged.
+ */
+function registerBuiltInFields() {
+    ['string', 'integer', 'decimal', 'date', 'datetime', 'color'].forEach((type) => {
+        registry.registerField(type, FieldText);
+    });
+
+    ['text', 'html', 'json'].forEach((type) => registry.registerField(type, FieldTextarea));
+
+    registry.registerField('boolean', FieldBoolean);
+
+    ['select', 'element', 'section', 'user'].forEach((type) => registry.registerField(type, FieldSelect));
+
+    ['file', 'image'].forEach((type) => registry.registerField(type, FieldFile));
+}
+
+/**
+ * Public surface for host applications. Extensions register against this
+ * before `mount()` is called from the panel's Blade shell.
+ */
+const Nexor = {
+    api,
+    ApiError,
+    registry: registry.registry,
+    registerField: registry.registerField,
+    registerPage: registry.registerPage,
+    registerMenuItem: registry.registerMenuItem,
+    registerColumn: registry.registerColumn,
+    on: registry.on,
+    emit: registry.emit,
+    stores: { useSession, useUi },
+    booted: false,
+
+    /** Deferred callbacks let a late-loading bundle still register in time. */
+    ready(callback) {
+        this.booted ? callback(this) : queue.push(callback);
+    },
+
+    mount(selector = '#nexor-panel') {
+        const element = document.querySelector(selector);
+
+        if (!element) {
+            return null;
+        }
+
+        registerBuiltInFields();
+        queue.forEach((callback) => callback(this));
+        this.booted = true;
+
+        const app = createApp(App);
+
+        app.use(createPinia());
+        app.use(createPanelRouter(element.dataset.base ?? '/admin/vue'));
+        app.mount(element);
+
+        return app;
+    },
+};
+
+const queue = [];
+
+window.Nexor = Nexor;
+
+// The shell calls mount() itself once extension bundles have loaded.
+if (document.querySelector('#nexor-panel')?.dataset.autoMount !== 'false') {
+    document.addEventListener('DOMContentLoaded', () => Nexor.mount());
+}
+
+export default Nexor;

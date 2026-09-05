@@ -172,7 +172,7 @@ class PropertyValues
             $element->values()->create([
                 'property_id' => $property->id,
                 'sort' => $sort += 100,
-                'value_string' => $file->store('properties/'.$property->code, Uploads::DISK),
+                'value_string' => $file->store('properties/'.$property->code, Uploads::disk()),
             ]);
         }
     }

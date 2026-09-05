@@ -1,0 +1,97 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Nexor\Cms\Models\ActivityLog;
+use Tests\Concerns\CreatesAdminUsers;
+use Tests\TestCase;
+
+class AdminAuthTest extends TestCase
+{
+    use CreatesAdminUsers, RefreshDatabase;
+
+    public function test_login_page_is_reachable_without_authentication(): void
+    {
+        $this->get(route('admin.login'))
+            ->assertOk()
+            ->assertSee('Панель управления');
+    }
+
+    public function test_guests_are_redirected_from_the_dashboard(): void
+    {
+        $this->get(route('admin.dashboard'))->assertRedirect(route('admin.login'));
+    }
+
+    public function test_a_user_with_panel_access_can_sign_in(): void
+    {
+        $user = $this->adminWith();
+
+        $this->post(route('admin.login'), [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->assertRedirect(route('admin.dashboard'));
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertNotNull($user->fresh()->last_login_at);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'login', 'user_id' => $user->id]);
+    }
+
+    public function test_wrong_credentials_are_rejected_and_logged(): void
+    {
+        $user = $this->adminWith();
+
+        $this->post(route('admin.login'), [
+            'email' => $user->email,
+            'password' => 'not-the-password',
+        ])->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+        $this->assertSame(1, ActivityLog::query()->where('action', 'login_failed')->count());
+    }
+
+    public function test_a_blocked_user_cannot_sign_in(): void
+    {
+        $user = $this->adminWith();
+        $user->update(['is_active' => false]);
+
+        $this->post(route('admin.login'), [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+    }
+
+    public function test_a_user_without_panel_access_is_signed_out_again(): void
+    {
+        $user = User::factory()->create(['is_active' => true]);
+
+        $this->post(route('admin.login'), [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+    }
+
+    public function test_signing_out_ends_the_session(): void
+    {
+        $user = $this->adminWith();
+
+        $this->actingAs($user)
+            ->post(route('admin.logout'))
+            ->assertRedirect(route('admin.login'));
+
+        $this->assertGuest();
+    }
+
+    public function test_the_dashboard_renders_for_an_admin(): void
+    {
+        $this->actingAs($this->adminWith())
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Рабочий стол');
+    }
+}

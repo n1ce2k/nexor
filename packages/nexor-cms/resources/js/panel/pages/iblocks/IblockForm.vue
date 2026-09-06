@@ -28,6 +28,7 @@ const form = useForm({
     iblock_type_id: null,
     code: '',
     name: '',
+    element_name: '',
     description: '',
     list_url: '',
     section_url: '',
@@ -58,6 +59,13 @@ const paginationHint = computed(() => session.paginationTemplates
 const loadsOnDemand = computed(() => form.fields.pagination_template === 'pagination_btnload');
 
 const showsChunkSize = computed(() => loadsOnDemand.value || form.fields.has_load_more);
+
+/** Preview of the caption the element list will show. */
+const addLabel = computed(() => {
+    const name = (form.fields.element_name ?? '').trim();
+
+    return name === '' ? 'Добавить' : `Добавить ${name}`;
+});
 
 function onName(value) {
     form.fields.name = value;
@@ -97,6 +105,7 @@ onMounted(async () => {
                 iblock_type_id: data.data.iblock_type_id,
                 code: data.data.code,
                 name: data.data.name,
+                element_name: data.data.element_name ?? '',
                 description: data.data.description ?? '',
                 list_url: data.data.list_url ?? '',
                 section_url: data.data.section_url ?? '',
@@ -165,6 +174,14 @@ onMounted(async () => {
                         <NField label="Сортировка" :error="form.error('sort')">
                             <NInput v-model="form.fields.sort" type="number" min="0" />
                         </NField>
+
+                        <div class="sm:col-span-2">
+                            <NField label="Название сущности"
+                                    :hint="`Как называется одна запись инфоблока. Кнопка станет «${addLabel}»; оставьте пустым — будет просто «Добавить».`"
+                                    :error="form.error('element_name')">
+                                <NInput v-model="form.fields.element_name" placeholder="товар" class="sm:max-w-xs" />
+                            </NField>
+                        </div>
 
                         <div class="sm:col-span-2">
                             <NField label="Описание" :error="form.error('description')">

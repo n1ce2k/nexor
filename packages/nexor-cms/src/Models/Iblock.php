@@ -15,7 +15,7 @@ use Nexor\Cms\Enums\PaginationTemplate;
 use Nexor\Cms\Support\Permissions;
 
 #[Fillable([
-    'iblock_type_id', 'code', 'name', 'picture', 'description',
+    'iblock_type_id', 'code', 'name', 'element_name', 'picture', 'description',
     'list_url', 'section_url', 'detail_url',
     'has_sections', 'has_page', 'is_active', 'sort', 'settings',
     'pagination_template', 'per_page', 'has_load_more', 'load_more_size',
@@ -104,6 +104,19 @@ class Iblock extends Model
     public function elements(): HasMany
     {
         return $this->hasMany(IblockElement::class);
+    }
+
+    /**
+     * Caption of the «добавить» button, e.g. «Добавить товар».
+     *
+     * An infoblock that never said what its elements are called just gets
+     * «Добавить» — better than a made-up word in the interface.
+     */
+    public function addElementLabel(): string
+    {
+        $name = trim((string) $this->element_name);
+
+        return $name === '' ? 'Добавить' : 'Добавить '.$name;
     }
 
     /**

@@ -17,6 +17,8 @@ import PropertyForm from './pages/properties/PropertyForm.vue';
 import PropertyIndex from './pages/properties/PropertyIndex.vue';
 import RoleForm from './pages/roles/RoleForm.vue';
 import RoleIndex from './pages/roles/RoleIndex.vue';
+import SectionForm from './pages/sections/SectionForm.vue';
+import SectionIndex from './pages/sections/SectionIndex.vue';
 import SiteSettings from './pages/settings/SiteSettings.vue';
 import PhpConsole from './pages/tools/PhpConsole.vue';
 import SqlConsole from './pages/tools/SqlConsole.vue';
@@ -30,6 +32,9 @@ const routes = [
     { path: '/iblocks/:iblock/elements', name: 'elements.index', component: ElementIndex, props: true },
     { path: '/iblocks/:iblock/elements/create', name: 'elements.create', component: ElementForm, props: true },
     { path: '/iblocks/:iblock/elements/:element/edit', name: 'elements.edit', component: ElementForm, props: true },
+    { path: '/iblocks/:iblock/sections', name: 'sections.index', component: SectionIndex, props: true },
+    { path: '/iblocks/:iblock/sections/create', name: 'sections.create', component: SectionForm, props: true },
+    { path: '/iblocks/:iblock/sections/:section/edit', name: 'sections.edit', component: SectionForm, props: true },
 
     // Структура
     { path: '/iblocks', name: 'iblocks.index', component: IblockIndex, meta: { permission: 'iblocks.view' } },

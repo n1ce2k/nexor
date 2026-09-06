@@ -20,7 +20,7 @@ class IblockSectionController extends ApiController
         abort_unless($iblock->has_sections, 404);
 
         $sections = $iblock->sections()
-            ->withCount('elements')
+            ->withCount(['elements', 'children'])
             ->when($request->filled('search'), fn ($query) => $query->where(
                 'name', 'like', '%'.$request->string('search')->trim().'%',
             ))

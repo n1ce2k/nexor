@@ -16,7 +16,7 @@ use Nexor\Cms\Support\Permissions;
 #[Fillable([
     'iblock_type_id', 'code', 'name', 'picture', 'description',
     'list_url', 'section_url', 'detail_url',
-    'has_sections', 'is_active', 'sort', 'settings',
+    'has_sections', 'has_page', 'is_active', 'sort', 'settings',
 ])]
 class Iblock extends Model
 {
@@ -36,6 +36,7 @@ class Iblock extends Model
     {
         return [
             'has_sections' => 'boolean',
+            'has_page' => 'boolean',
             'is_active' => 'boolean',
             'sort' => 'integer',
             'settings' => 'array',

@@ -31,6 +31,7 @@ class IblockRequest extends FormRequest
             'section_url' => ['nullable', 'string', 'max:255'],
             'detail_url' => ['nullable', 'string', 'max:255'],
             'has_sections' => ['boolean'],
+            'has_page' => ['boolean'],
             'is_active' => ['boolean'],
             'sort' => ['nullable', 'integer', 'min:0', 'max:999999'],
         ];
@@ -57,6 +58,7 @@ class IblockRequest extends FormRequest
             'name' => 'название',
             'description' => 'описание',
             'picture' => 'картинка',
+            'has_page' => 'создание страницы',
             'list_url' => 'URL списка',
             'section_url' => 'URL раздела',
             'detail_url' => 'URL детальной страницы',

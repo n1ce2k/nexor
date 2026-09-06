@@ -14,13 +14,15 @@ export function useNavigation() {
 
     return computed(() => {
         const groups = [];
+        const custom = registry.menuItems.filter((item) => !item.permission || session.can(item.permission));
+        const extras = (group) => custom.filter((item) => item.group === group);
 
         groups.push({
             label: null,
             items: [{ label: 'Рабочий стол', icon: 'dashboard', to: { name: 'dashboard' } }],
         });
 
-        // Content: one entry per infoblock, nested under its type.
+        // Контент: one entry per infoblock, nested under its type.
         const byType = {};
 
         session.iblocks.forEach((iblock) => {
@@ -38,14 +40,9 @@ export function useNavigation() {
             children,
         }));
 
-        const custom = registry.menuItems.filter((item) => !item.permission || session.can(item.permission));
+        groups.push({ label: 'Контент', items: [...content, ...extras('Контент')] });
 
-        const contentExtras = custom.filter((item) => item.group === 'Контент');
-
-        if (content.length || contentExtras.length) {
-            groups.push({ label: 'Контент', items: [...content, ...contentExtras] });
-        }
-
+        // Структура
         const structure = [];
 
         if (session.can('iblocks.view')) {
@@ -56,12 +53,38 @@ export function useNavigation() {
             structure.push({ label: 'Типы инфоблоков', icon: 'database', to: { name: 'iblock-types.index' } });
         }
 
-        structure.push(...custom.filter((item) => item.group === 'Структура'));
+        groups.push({ label: 'Структура', items: [...structure, ...extras('Структура')] });
 
-        if (structure.length) {
-            groups.push({ label: 'Структура', items: structure });
+        // Настройки: mail and the developer console, each with its own subtree.
+        const settings = [];
+        const mail = [];
+
+        if (session.can('mail.view')) {
+            mail.push(
+                { label: 'SMTP почта', to: { name: 'mail.smtp' } },
+                { label: 'Почтовые шаблоны', to: { name: 'mail.templates' } },
+            );
         }
 
+        if (mail.length) {
+            settings.push({ label: 'Почта', icon: 'document', children: mail });
+        }
+
+        // The console is super-admin only, mirroring the server-side check.
+        if (session.isSuperAdmin) {
+            settings.push({
+                label: 'Инструменты',
+                icon: 'database',
+                children: [
+                    { label: 'SQL запрос', to: { name: 'tools.sql' } },
+                    { label: 'PHP-строка', to: { name: 'tools.php' } },
+                ],
+            });
+        }
+
+        groups.push({ label: 'Настройки', items: [...settings, ...extras('Настройки')] });
+
+        // Администрирование
         const admin = [];
 
         if (session.can('users.view')) {
@@ -73,18 +96,14 @@ export function useNavigation() {
         }
 
         if (session.can('settings.view')) {
-            admin.push({ label: 'Настройки', icon: 'settings', to: { name: 'settings' } });
+            admin.push({ label: 'Настройки сайта', icon: 'settings', to: { name: 'settings' } });
         }
 
         if (session.can('logs.view')) {
             admin.push({ label: 'Журнал действий', icon: 'clock', to: { name: 'logs' } });
         }
 
-        admin.push(...custom.filter((item) => item.group === 'Администрирование'));
-
-        if (admin.length) {
-            groups.push({ label: 'Администрирование', items: admin });
-        }
+        groups.push({ label: 'Администрирование', items: [...admin, ...extras('Администрирование')] });
 
         const ungrouped = custom.filter((item) => !item.group);
 

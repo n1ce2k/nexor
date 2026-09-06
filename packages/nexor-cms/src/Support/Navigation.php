@@ -29,12 +29,12 @@ class Navigation
                     self::link('Рабочий стол', 'dashboard', 'admin.dashboard'),
                 ],
             ],
-            [
-                'label' => null,
-                'items' => [
-                    self::link('Сайт', 'dashboard', 'home'),
-                ],
-            ],
+            //            [
+            //                'label' => null,
+            //                'items' => [
+            //                    self::link('Сайт', 'dashboard', 'home'),
+            //                ],
+            //            ],
             [
                 'label' => 'Контент',
                 'items' => self::contentItems($user),
@@ -54,7 +54,7 @@ class Navigation
                 'items' => self::filtered([
                     'users.view' => fn () => self::link('Пользователи', 'users', 'admin.users.index', pattern: 'admin.users.*'),
                     'roles.view' => fn () => self::link('Роли и права', 'shield', 'admin.roles.index', pattern: 'admin.roles.*'),
-                    'settings.view' => fn () => self::link('Настройки', 'settings', 'admin.settings.index', pattern: 'admin.settings.*'),
+                    'settings.view' => fn () => self::link('Настройки сайта', 'settings', 'admin.settings.index', pattern: 'admin.settings.*'),
                     'logs.view' => fn () => self::link('Журнал действий', 'clock', 'admin.logs.index', pattern: 'admin.logs.*'),
                 ], $user),
             ],

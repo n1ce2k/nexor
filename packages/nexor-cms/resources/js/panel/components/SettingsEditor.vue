@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import NBadge from './ui/NBadge.vue';
 import NButton from './ui/NButton.vue';
 import NCard from './ui/NCard.vue';
+import NEditor from './ui/NEditor.vue';
 import NField from './ui/NField.vue';
 import NIcon from './ui/NIcon.vue';
 import NInput from './ui/NInput.vue';
@@ -219,9 +220,11 @@ defineExpose({ save, busy, load });
                     <NField :label="setting.name" :hint="setting.hint">
                         <NToggle v-if="setting.type === 'boolean'" v-model="values[setting.input]" label="Включено" />
 
-                        <textarea v-else-if="setting.type === 'text' || setting.type === 'html'"
+                        <NEditor v-else-if="setting.type === 'html'" v-model="values[setting.input]" rows="14rem" />
+
+                        <textarea v-else-if="setting.type === 'text'"
                                   v-model="values[setting.input]" rows="5"
-                                  :class="['field-input resize-y', setting.type === 'html' && 'font-mono text-xs']"></textarea>
+                                  class="field-input resize-y"></textarea>
 
                         <NSelect v-else-if="setting.type === 'select'" v-model="values[setting.input]"
                                  :options="setting.options ?? []" placeholder="— не выбрано —" />

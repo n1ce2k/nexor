@@ -5,6 +5,7 @@ import NBadge from '../../components/ui/NBadge.vue';
 import NButton from '../../components/ui/NButton.vue';
 import NCard from '../../components/ui/NCard.vue';
 import NField from '../../components/ui/NField.vue';
+import NHtmlInput from '../../components/ui/NHtmlInput.vue';
 import NInput from '../../components/ui/NInput.vue';
 import NPageHeader from '../../components/ui/NPageHeader.vue';
 import NSelect from '../../components/ui/NSelect.vue';
@@ -160,8 +161,11 @@ onMounted(async () => {
                         </NField>
 
                         <NField label="Текст письма" :error="form.error('body')">
-                            <textarea v-model="form.fields.body" rows="16"
-                                      :class="['field-input resize-y', form.fields.body_type === 'html' && 'font-mono text-xs']"></textarea>
+                            <NHtmlInput v-if="form.fields.body_type === 'html'" v-model="form.fields.body"
+                                        rows="22rem" />
+
+                            <textarea v-else v-model="form.fields.body" rows="16"
+                                      class="field-input resize-y"></textarea>
                         </NField>
                     </div>
                 </NCard>

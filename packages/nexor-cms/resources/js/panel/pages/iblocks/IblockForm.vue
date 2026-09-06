@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import NButton from '../../components/ui/NButton.vue';
 import NCard from '../../components/ui/NCard.vue';
 import NField from '../../components/ui/NField.vue';
+import NHtmlInput from '../../components/ui/NHtmlInput.vue';
 import NInput from '../../components/ui/NInput.vue';
 import NPageHeader from '../../components/ui/NPageHeader.vue';
 import NSelect from '../../components/ui/NSelect.vue';
@@ -167,7 +168,7 @@ onMounted(async () => {
 
                         <div class="sm:col-span-2">
                             <NField label="Описание" :error="form.error('description')">
-                                <textarea v-model="form.fields.description" rows="3" class="field-input resize-y"></textarea>
+                                <NHtmlInput v-model="form.fields.description" rows="12rem" />
                             </NField>
                         </div>
                     </div>

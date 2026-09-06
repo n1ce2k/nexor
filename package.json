@@ -22,6 +22,7 @@
         "@alpinejs/focus": "^3.17.1",
         "alpinejs": "^3.17.1",
         "pinia": "^4.0.3",
+        "quill": "^2.0.3",
         "vue": "^3.5.42",
         "vue-router": "^5.3.1"
     }

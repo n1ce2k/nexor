@@ -10,6 +10,7 @@ use Nexor\Cms\Http\Resources\IblockResource;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Support\ActivityLogger;
 use Nexor\Cms\Support\Nexor;
+use Nexor\Cms\Support\PageGenerator;
 use Nexor\Cms\Support\Uploads;
 
 class IblockController extends ApiController
@@ -48,6 +49,8 @@ class IblockController extends ApiController
         $iblock->picture = Uploads::handle($request, 'picture', null, Nexor::directory('iblocks'));
         $iblock->save();
 
+        $this->syncPage($iblock);
+
         ActivityLogger::created($iblock);
 
         return IblockResource::make($iblock->load('type'))
@@ -62,6 +65,8 @@ class IblockController extends ApiController
         $iblock->picture = Uploads::handle($request, 'picture', $iblock->picture, Nexor::directory('iblocks'));
         $iblock->save();
 
+        $this->syncPage($iblock);
+
         ActivityLogger::updated($iblock);
 
         return IblockResource::make($iblock->load('type'))
@@ -75,5 +80,23 @@ class IblockController extends ApiController
         $iblock->delete();
 
         return $this->ok('Инфоблок удалён.');
+    }
+
+    /**
+     * Scaffolds resources/views/<code>/index.blade.php when the switch is on.
+     *
+     * The file is written once; afterwards it belongs to whoever edits it.
+     */
+    protected function syncPage(Iblock $iblock): void
+    {
+        if (! $iblock->has_page) {
+            return;
+        }
+
+        $path = PageGenerator::create($iblock);
+
+        if ($path !== $iblock->page_path) {
+            $iblock->forceFill(['page_path' => $path])->save();
+        }
     }
 }

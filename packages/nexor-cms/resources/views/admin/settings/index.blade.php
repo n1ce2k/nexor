@@ -1,6 +1,6 @@
 @extends('nexor::admin.layouts.app')
 
-@section('title', 'Настройки')
+@section('title', 'Настройки сайта')
 
 @section('content')
     <x-nexor::admin.page-header title="Настройки сайта"

@@ -28,6 +28,8 @@ class IblockResource extends JsonResource
             'section_url' => $this->section_url,
             'detail_url' => $this->detail_url,
             'has_sections' => $this->has_sections,
+            'has_page' => $this->has_page,
+            'page_path' => $this->page_path,
             'is_active' => $this->is_active,
             'sort' => $this->sort,
             'elements_count' => $this->whenCounted('elements'),

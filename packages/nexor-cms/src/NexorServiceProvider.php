@@ -2,18 +2,22 @@
 
 namespace Nexor\Cms;
 
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Nexor\Cms\Console\InstallCommand;
 use Nexor\Cms\Console\SetPasswordCommand;
 use Nexor\Cms\Console\SyncPermissionsCommand;
 use Nexor\Cms\Contracts\NexorUser;
 use Nexor\Cms\Http\Middleware\CheckIblockPermission;
+use Nexor\Cms\Http\Middleware\CheckMaintenanceMode;
 use Nexor\Cms\Http\Middleware\CheckPermission;
 use Nexor\Cms\Http\Middleware\EnsureUserCanAccessAdmin;
+use Nexor\Cms\Support\MailConfig;
 use Nexor\Cms\Support\Nexor;
 
 class NexorServiceProvider extends ServiceProvider
@@ -23,17 +27,24 @@ class NexorServiceProvider extends ServiceProvider
         'nexor.admin' => EnsureUserCanAccessAdmin::class,
         'nexor.permission' => CheckPermission::class,
         'nexor.iblock' => CheckIblockPermission::class,
+        'nexor.maintenance' => CheckMaintenanceMode::class,
     ];
 
     public function register(): void
     {
         $this->mergeConfigFrom($this->path('config/nexor.php'), 'nexor');
+
+        // The HTTP kernel replaces the router's middleware groups when it is
+        // resolved, so the guard is re-attached right after that happens too.
+        $this->app->afterResolving(HttpKernel::class, fn () => $this->registerMaintenanceMode());
     }
 
     public function boot(): void
     {
         $this->registerMiddleware();
+        $this->registerMaintenanceMode();
         $this->registerRoutes();
+        $this->registerMail();
         $this->registerBindings();
         $this->registerGates();
 
@@ -72,6 +83,34 @@ class NexorServiceProvider extends ServiceProvider
                 $router->aliasMiddleware($short, $class);
             }
         }
+    }
+
+    /**
+     * Guards the public site while maintenance mode is on.
+     *
+     * Pushed onto the `web` group rather than a route file, so pages the host
+     * application declares are covered too. The middleware lets the panel and
+     * signed-in users through.
+     *
+     * Called twice on purpose — once here and once after the kernel resolves —
+     * because whichever runs last is the one that survives. The push itself is
+     * idempotent.
+     */
+    protected function registerMaintenanceMode(): void
+    {
+        $this->app['router']->pushMiddlewareToGroup('web', CheckMaintenanceMode::class);
+    }
+
+    /**
+     * SMTP credentials entered in the panel win over the ones in .env.
+     */
+    protected function registerMail(): void
+    {
+        $this->app->booted(function (): void {
+            if (Schema::hasTable('settings')) {
+                MailConfig::apply();
+            }
+        });
     }
 
     protected function registerRoutes(): void

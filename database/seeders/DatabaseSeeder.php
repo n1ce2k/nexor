@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Nexor\Cms\Database\Seeders\IblockSeeder;
+use Nexor\Cms\Database\Seeders\MailTemplateSeeder;
 use Nexor\Cms\Database\Seeders\RoleSeeder;
 use Nexor\Cms\Database\Seeders\SettingSeeder;
 
@@ -16,6 +17,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             SettingSeeder::class,
             IblockSeeder::class,
+            MailTemplateSeeder::class,
         ]);
 
         // Application-specific demo content.

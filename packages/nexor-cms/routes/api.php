@@ -10,8 +10,10 @@ use Nexor\Cms\Http\Controllers\Api\IblockElementController;
 use Nexor\Cms\Http\Controllers\Api\IblockPropertyController;
 use Nexor\Cms\Http\Controllers\Api\IblockSectionController;
 use Nexor\Cms\Http\Controllers\Api\IblockTypeController;
+use Nexor\Cms\Http\Controllers\Api\MailTemplateController;
 use Nexor\Cms\Http\Controllers\Api\RoleController;
 use Nexor\Cms\Http\Controllers\Api\SettingController;
+use Nexor\Cms\Http\Controllers\Api\ToolsController;
 use Nexor\Cms\Http\Controllers\Api\UserController;
 
 /**
@@ -67,9 +69,36 @@ Route::get('settings', [SettingController::class, 'index'])
     ->name('settings.index')
     ->middleware('nexor.permission:settings.view');
 
-Route::put('settings', [SettingController::class, 'update'])
-    ->name('settings.update')
-    ->middleware('nexor.permission:settings.update');
+Route::middleware('nexor.permission:settings.update')->group(function (): void {
+    Route::put('settings', [SettingController::class, 'update'])->name('settings.update');
+
+    // Definitions themselves, so a site can grow its own fields.
+    Route::post('settings/definitions', [SettingController::class, 'store'])->name('settings.definitions.store');
+    Route::put('settings/definitions/{setting}', [SettingController::class, 'updateDefinition'])
+        ->name('settings.definitions.update');
+    Route::delete('settings/definitions/{setting}', [SettingController::class, 'destroy'])
+        ->name('settings.definitions.destroy');
+});
+
+Route::apiResource('mail-templates', MailTemplateController::class)
+    ->parameters(['mail-templates' => 'template'])
+    ->middlewareFor(['index', 'show'], 'nexor.permission:mail.view')
+    ->middlewareFor(['store', 'update', 'destroy'], 'nexor.permission:mail.update');
+
+Route::post('mail-templates/{template}/send', [MailTemplateController::class, 'send'])
+    ->name('mail-templates.send')
+    ->middleware('nexor.permission:mail.update');
+
+/*
+ * Developer console. Authorisation is enforced inside the controller — super
+ * administrator plus a config switch — because it must never become a
+ * permission that the roles screen can hand out.
+ */
+Route::prefix('tools')->name('tools.')->group(function (): void {
+    Route::get('/', [ToolsController::class, 'state'])->name('state');
+    Route::post('sql', [ToolsController::class, 'sql'])->name('sql');
+    Route::post('php', [ToolsController::class, 'php'])->name('php');
+});
 
 Route::get('logs', ActivityLogController::class)
     ->name('logs.index')

@@ -19,8 +19,11 @@ class SettingResource extends JsonResource
         return [
             'id' => $this->id,
             'key' => $this->key,
-            'value' => $this->castValue(),
+            'value' => $this->publicValue(),
             'type' => $this->type,
+            'is_system' => $this->is_system,
+            'is_encrypted' => $this->is_encrypted,
+            'input' => str_replace('.', '__', $this->key),
             'group' => $this->group,
             'name' => $this->name,
             'hint' => $this->hint,

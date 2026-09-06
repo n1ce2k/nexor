@@ -32,11 +32,14 @@ const form = useForm({
     section_url: '',
     detail_url: '',
     has_sections: true,
+    has_page: false,
     is_active: true,
     sort: 500,
 });
 
 const isEdit = computed(() => Boolean(props.iblock));
+
+const pagePath = ref(null);
 
 function onName(value) {
     form.fields.name = value;
@@ -81,10 +84,12 @@ onMounted(async () => {
                 section_url: data.data.section_url ?? '',
                 detail_url: data.data.detail_url ?? '',
                 has_sections: data.data.has_sections,
+                has_page: data.data.has_page,
                 is_active: data.data.is_active,
                 sort: data.data.sort,
             });
 
+            pagePath.value = data.data.page_path;
             codeTouched.value = true;
         }
     } catch (error) {
@@ -173,6 +178,24 @@ onMounted(async () => {
                         <NToggle v-model="form.fields.has_sections" label="Использовать разделы"
                                  hint="Древовидная структура внутри инфоблока." />
                         <NToggle v-model="form.fields.is_active" label="Активен" />
+
+                        <NToggle v-model="form.fields.has_page" label="Создать страницу"
+                                 hint="Заведёт папку в resources/views с шаблоном страницы — как папка-страница в Битриксе." />
+
+                        <p v-if="form.fields.has_page"
+                           class="rounded-lg bg-[var(--surface-muted)] p-3 text-xs text-[var(--text-muted)]">
+                            <template v-if="pagePath">
+                                Файл уже создан:
+                                <code class="font-mono text-[var(--text-base)]">resources/views/{{ pagePath }}</code>.
+                                Повторное сохранение его не перезапишет.
+                            </template>
+                            <template v-else>
+                                После сохранения появится
+                                <code class="font-mono text-[var(--text-base)]">resources/views/{{ form.fields.code || 'код' }}/index.blade.php</code>
+                                и страница откроется по адресу
+                                <code class="font-mono text-[var(--text-base)]">/{{ form.fields.code || 'код' }}</code>.
+                            </template>
+                        </p>
                     </div>
                 </NCard>
 

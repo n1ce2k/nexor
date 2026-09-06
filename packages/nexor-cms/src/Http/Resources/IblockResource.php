@@ -31,6 +31,8 @@ class IblockResource extends JsonResource
             'has_sections' => $this->has_sections,
             'has_page' => $this->has_page,
             'page_path' => $this->page_path,
+            'element_name' => $this->element_name,
+            'add_element_label' => $this->addElementLabel(),
             'pagination_template' => $this->pagination_template?->value ?? PaginationTemplate::Simple->value,
             'per_page' => $this->per_page,
             'has_load_more' => $this->has_load_more,

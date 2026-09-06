@@ -24,6 +24,7 @@ class IblockSectionResource extends JsonResource
             'name' => $this->name,
             'indented_name' => $this->indented_name,
             'picture' => $this->picture,
+            'picture_url' => $this->picture_url,
             'description' => $this->description,
             'depth' => $this->depth,
             'is_active' => $this->is_active,
@@ -32,6 +33,7 @@ class IblockSectionResource extends JsonResource
             'meta_description' => $this->meta_description,
             'meta_keywords' => $this->meta_keywords,
             'elements_count' => $this->whenCounted('elements'),
+            'children_count' => $this->whenCounted('children'),
         ];
     }
 }

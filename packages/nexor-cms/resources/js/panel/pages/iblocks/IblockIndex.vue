@@ -156,7 +156,12 @@ onMounted(() => {
                     </template>
 
                     <template #cell-sections_count="{ row }">
-                        <span class="text-[var(--text-muted)]">{{ row.has_sections ? row.sections_count : '—' }}</span>
+                        <router-link v-if="row.has_sections" :to="{ name: 'sections.index', params: { iblock: row.id } }"
+                                     class="font-medium text-brand-600 hover:underline dark:text-brand-400">
+                            {{ row.sections_count }}
+                        </router-link>
+
+                        <span v-else class="text-[var(--text-muted)]">—</span>
                     </template>
 
                     <template #cell-elements_count="{ row }">

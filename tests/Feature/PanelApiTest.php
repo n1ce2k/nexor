@@ -246,6 +246,36 @@ class PanelApiTest extends TestCase
         $this->assertDatabaseHas('iblock_elements', ['name' => 'Совсем без разделов', 'section_id' => null]);
     }
 
+    public function test_an_infoblock_says_how_its_add_button_should_read(): void
+    {
+        $named = Iblock::factory()->create(['element_name' => 'товар']);
+        $plain = Iblock::factory()->create(['element_name' => null]);
+
+        $admin = $this->grantIblock($this->grantIblock($this->adminWith(), $named), $plain);
+
+        $response = $this->actingAs($admin)->getJson('/admin/api/bootstrap')->assertOk();
+
+        $labels = collect($response->json('iblocks'))->pluck('add_element_label', 'id');
+
+        $this->assertSame('Добавить товар', $labels[$named->id]);
+        $this->assertSame('Добавить', $labels[$plain->id]);
+    }
+
+    public function test_the_entity_name_is_saved_with_the_infoblock(): void
+    {
+        $iblock = Iblock::factory()->create(['element_name' => null]);
+        $admin = $this->adminWith(['iblocks.update']);
+
+        $this->actingAs($admin)->putJson("/admin/api/iblocks/{$iblock->id}", [
+            'iblock_type_id' => $iblock->iblock_type_id,
+            'code' => $iblock->code,
+            'name' => $iblock->name,
+            'element_name' => 'статью',
+        ])->assertOk()->assertJsonPath('data.add_element_label', 'Добавить статью');
+
+        $this->assertSame('статью', $iblock->refresh()->element_name);
+    }
+
     public function test_the_dashboard_endpoint_returns_stats(): void
     {
         Iblock::factory()->count(2)->create();

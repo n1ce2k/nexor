@@ -41,6 +41,9 @@ const sections = computed(() => (schema.value?.sections ?? []).map((section) => 
 
 const abilities = computed(() => info.value?.abilities ?? {});
 
+/** «Добавить товар» when the infoblock named its elements, «Добавить» otherwise. */
+const addLabel = computed(() => info.value?.add_element_label ?? 'Добавить');
+
 const columns = computed(() => {
     const base = [
         { key: 'sort', label: 'Сорт.', width: '5rem', muted: true, sortable: true },
@@ -168,9 +171,19 @@ onMounted(async () => {
                     Свойства
                 </NButton>
 
+                <NButton v-if="info?.has_sections" variant="secondary" icon="folder"
+                         :to="{ name: 'sections.index', params: { iblock } }">
+                    Разделы
+                </NButton>
+
                 <NButton v-if="abilities.create" icon="plus"
                          :to="{ name: 'elements.create', params: { iblock } }">
-                    Добавить
+                    {{ addLabel }}
+                </NButton>
+
+                <NButton v-if="info?.has_sections && abilities.create" variant="secondary" icon="folder"
+                         :to="{ name: 'sections.create', params: { iblock } }">
+                    Добавить раздел
                 </NButton>
             </template>
         </NPageHeader>
@@ -197,7 +210,7 @@ onMounted(async () => {
             <NEmpty v-if="!loading && rows.length === 0" icon="document" title="Элементов нет"
                     description="Добавьте первую запись в этот инфоблок.">
                 <NButton v-if="abilities.create" icon="plus" :to="{ name: 'elements.create', params: { iblock } }">
-                    Добавить элемент
+                    {{ addLabel }}
                 </NButton>
             </NEmpty>
 

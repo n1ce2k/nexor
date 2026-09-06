@@ -1,4 +1,4 @@
-@extends('layouts.site')
+@extends('site.layout')
 
 @section('title', \Nexor\Cms\Models\Setting::get('site.name', config('app.name')).' — '.\Nexor\Cms\Models\Setting::get('site.tagline'))
 

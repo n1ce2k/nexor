@@ -92,7 +92,7 @@ class IblockController extends Controller
     }
 
     /**
-     * Scaffolds resources/views/<code>/index.blade.php when the switch is on.
+     * Scaffolds resources/views/<code>/ when the switch is on.
      *
      * The file is written once; afterwards it belongs to whoever edits it.
      */
@@ -103,6 +103,11 @@ class IblockController extends Controller
         }
 
         $path = PageGenerator::create($iblock);
+
+        // Смена шаблона переписывает только компонент пагинации.
+        if ($iblock->wasChanged('pagination_template')) {
+            PageGenerator::refreshPagination($iblock);
+        }
 
         if ($path !== $iblock->page_path) {
             $iblock->forceFill(['page_path' => $path])->save();

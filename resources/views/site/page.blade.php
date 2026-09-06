@@ -1,4 +1,4 @@
-@extends('layouts.site')
+@extends('site.layout')
 
 @section('title', $page->meta_title ?: $page->name)
 @section('description', $page->meta_description ?: Str::limit(strip_tags((string) $page->preview_text), 160))

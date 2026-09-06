@@ -13,6 +13,7 @@ export const useSession = defineStore('session', {
         brand: { name: 'NEXOR', initial: 'N', site_name: 'NEXOR' },
         iblocks: [],
         propertyTypes: [],
+        paginationTemplates: [],
         routes: {},
         ready: false,
         error: null,
@@ -50,6 +51,7 @@ export const useSession = defineStore('session', {
                 this.brand = data.brand;
                 this.iblocks = data.iblocks.data ?? data.iblocks;
                 this.propertyTypes = data.property_types;
+                this.paginationTemplates = data.pagination_templates ?? [];
                 this.routes = data.routes;
                 this.ready = true;
             } catch (error) {

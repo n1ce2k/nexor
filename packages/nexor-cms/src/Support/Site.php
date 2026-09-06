@@ -2,6 +2,8 @@
 
 namespace Nexor\Cms\Support;
 
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\IblockElement;
@@ -40,6 +42,30 @@ class Site
             ->ordered()
             ->limit($limit)
             ->get();
+    }
+
+    /**
+     * Active elements of an infoblock, one page at a time.
+     *
+     * The page size comes from the infoblock itself, so «Показать ещё» and the
+     * paging templates stay configurable from the panel.
+     *
+     * @return LengthAwarePaginator<int, IblockElement>
+     */
+    public static function paginate(string $iblockCode, ?int $perPage = null): LengthAwarePaginator
+    {
+        $iblock = self::iblock($iblockCode);
+
+        if (! $iblock) {
+            return new LengthAwarePaginator([], 0, $perPage ?: 20, Paginator::resolveCurrentPage());
+        }
+
+        return $iblock->elements()
+            ->active()
+            ->with(['values.property', 'values.enum'])
+            ->ordered()
+            ->paginate($perPage ?: $iblock->pageSize())
+            ->withQueryString();
     }
 
     public static function element(string $iblockCode, string $elementCode): ?IblockElement

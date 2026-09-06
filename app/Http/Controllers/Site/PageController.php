@@ -19,8 +19,8 @@ class PageController extends Controller
      */
     public function show(string $code): View
     {
-        if ($view = $this->iblockPage($code)) {
-            return view($view);
+        if ($iblock = $this->pagedIblock($code)) {
+            return view(PageGenerator::view($iblock));
         }
 
         $page = Site::element(Site::PAGES, $code);
@@ -33,9 +33,31 @@ class PageController extends Controller
     }
 
     /**
-     * Dotted view name of an active page-backed infoblock, when its file exists.
+     * Detail page of one element, at /<код инфоблока>/<код элемента>.
      */
-    protected function iblockPage(string $code): ?string
+    public function element(string $code, string $element): View
+    {
+        $iblock = $this->pagedIblock($code);
+
+        abort_if($iblock === null, 404);
+
+        $view = PageGenerator::view($iblock, 'detail');
+
+        abort_unless(view()->exists($view), 404);
+
+        $model = Site::element($code, $element);
+
+        abort_if($model === null, 404);
+
+        $model->increment('views');
+
+        return view($view, ['element' => $model, 'iblock' => $iblock]);
+    }
+
+    /**
+     * An active page-backed infoblock whose listing file exists on disk.
+     */
+    protected function pagedIblock(string $code): ?Iblock
     {
         $iblock = Iblock::query()
             ->active()
@@ -43,10 +65,6 @@ class PageController extends Controller
             ->where('code', $code)
             ->first();
 
-        if (! $iblock || ! PageGenerator::exists($iblock)) {
-            return null;
-        }
-
-        return str_replace('/', '.', PageGenerator::directory($iblock)).'.index';
+        return $iblock && PageGenerator::exists($iblock) ? $iblock : null;
     }
 }

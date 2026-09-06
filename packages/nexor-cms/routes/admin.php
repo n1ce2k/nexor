@@ -4,6 +4,7 @@ use Illuminate\Routing\PendingResourceRegistration;
 use Illuminate\Support\Facades\Route;
 use Nexor\Cms\Http\Controllers\ActivityLogController;
 use Nexor\Cms\Http\Controllers\Auth\LoginController;
+use Nexor\Cms\Http\Controllers\Auth\LoginLinkController;
 use Nexor\Cms\Http\Controllers\DashboardController;
 use Nexor\Cms\Http\Controllers\IblockController;
 use Nexor\Cms\Http\Controllers\IblockElementController;
@@ -34,6 +35,17 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::post('logout', [LoginController::class, 'destroy'])->name('logout')->middleware('auth');
+
+/*
+ * Signed one-time sign-in, for local development only. The controller refuses
+ * to run in production or with the config switch off; the signature makes the
+ * URL impossible to forge.
+ */
+if (LoginLinkController::enabled()) {
+    Route::get('login-link/{account}', LoginLinkController::class)
+        ->name('login-link')
+        ->middleware('signed');
+}
 
 /*
  * Two panels share one core. `nexor.panel.default` decides which of them owns

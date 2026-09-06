@@ -10,6 +10,7 @@ import { useUi } from './stores/ui';
 
 import FieldBoolean from './components/fields/FieldBoolean.vue';
 import FieldFile from './components/fields/FieldFile.vue';
+import FieldHtml from './components/fields/FieldHtml.vue';
 import FieldSelect from './components/fields/FieldSelect.vue';
 import FieldText from './components/fields/FieldText.vue';
 import FieldTextarea from './components/fields/FieldTextarea.vue';
@@ -23,7 +24,10 @@ function registerBuiltInFields() {
         registry.registerField(type, FieldText);
     });
 
-    ['text', 'html', 'json'].forEach((type) => registry.registerField(type, FieldTextarea));
+    ['text', 'json'].forEach((type) => registry.registerField(type, FieldTextarea));
+
+    // HTML-свойства правятся визуальным редактором, с переключением в исходник.
+    registry.registerField('html', FieldHtml);
 
     registry.registerField('boolean', FieldBoolean);
 

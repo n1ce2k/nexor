@@ -11,12 +11,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Nexor\Cms\Database\Factories\IblockFactory;
+use Nexor\Cms\Enums\PaginationTemplate;
 use Nexor\Cms\Support\Permissions;
 
 #[Fillable([
     'iblock_type_id', 'code', 'name', 'picture', 'description',
     'list_url', 'section_url', 'detail_url',
     'has_sections', 'has_page', 'is_active', 'sort', 'settings',
+    'pagination_template', 'per_page', 'has_load_more', 'load_more_size',
 ])]
 class Iblock extends Model
 {
@@ -32,11 +34,28 @@ class Iblock extends Model
         return IblockFactory::new();
     }
 
+    /**
+     * Mirrors the column defaults so a freshly created infoblock already
+     * describes its paging before it is read back from the database.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'pagination_template' => PaginationTemplate::Simple->value,
+        'per_page' => 20,
+        'has_load_more' => false,
+        'load_more_size' => 12,
+    ];
+
     protected function casts(): array
     {
         return [
             'has_sections' => 'boolean',
             'has_page' => 'boolean',
+            'pagination_template' => PaginationTemplate::class,
+            'per_page' => 'integer',
+            'has_load_more' => 'boolean',
+            'load_more_size' => 'integer',
             'is_active' => 'boolean',
             'sort' => 'integer',
             'settings' => 'array',
@@ -85,6 +104,22 @@ class Iblock extends Model
     public function elements(): HasMany
     {
         return $this->hasMany(IblockElement::class);
+    }
+
+    /**
+     * How many elements one page of the public listing holds.
+     *
+     * Whenever the listing loads on demand — either because the operator turned
+     * «Показать ещё» on or because the chosen template is the button itself —
+     * the chunk size is what that switch configures.
+     */
+    public function pageSize(): int
+    {
+        $loadsOnDemand = $this->has_load_more || (bool) $this->pagination_template?->loadsOnDemand();
+
+        $size = (int) ($loadsOnDemand ? $this->load_more_size : $this->per_page);
+
+        return $size > 0 ? $size : 20;
     }
 
     /**

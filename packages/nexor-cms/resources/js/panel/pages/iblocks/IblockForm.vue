@@ -35,11 +35,28 @@ const form = useForm({
     has_page: false,
     is_active: true,
     sort: 500,
+    pagination_template: 'pagination',
+    per_page: 20,
+    has_load_more: false,
+    load_more_size: 12,
 });
 
 const isEdit = computed(() => Boolean(props.iblock));
 
 const pagePath = ref(null);
+
+const paginationOptions = computed(() => session.paginationTemplates.map((template) => ({
+    value: template.value,
+    label: template.label,
+})));
+
+const paginationHint = computed(() => session.paginationTemplates
+    .find((template) => template.value === form.fields.pagination_template)?.hint);
+
+/** The button template pages by itself, so the separate switch is redundant. */
+const loadsOnDemand = computed(() => form.fields.pagination_template === 'pagination_btnload');
+
+const showsChunkSize = computed(() => loadsOnDemand.value || form.fields.has_load_more);
 
 function onName(value) {
     form.fields.name = value;
@@ -87,6 +104,10 @@ onMounted(async () => {
                 has_page: data.data.has_page,
                 is_active: data.data.is_active,
                 sort: data.data.sort,
+                pagination_template: data.data.pagination_template ?? 'pagination',
+                per_page: data.data.per_page ?? 20,
+                has_load_more: data.data.has_load_more,
+                load_more_size: data.data.load_more_size ?? 12,
             });
 
             pagePath.value = data.data.page_path;
@@ -170,6 +191,39 @@ onMounted(async () => {
                         </NField>
                     </div>
                 </NCard>
+
+                <NCard title="Постраничная навигация"
+                       description="Компонент pagination создаётся рядом со страницей инфоблока.">
+                    <div class="space-y-5">
+                        <NField label="Шаблон" :hint="paginationHint" :error="form.error('pagination_template')">
+                            <NSelect v-model="form.fields.pagination_template" :options="paginationOptions" />
+                        </NField>
+
+                        <NField v-if="!loadsOnDemand" label="Элементов на странице"
+                                hint="Сколько элементов показывает одна страница списка."
+                                :error="form.error('per_page')">
+                            <NInput v-model="form.fields.per_page" type="number" min="1" max="500" class="sm:max-w-40" />
+                        </NField>
+
+                        <NToggle v-if="!loadsOnDemand" v-model="form.fields.has_load_more"
+                                 label="Кнопка «Показать ещё»"
+                                 hint="Добавит кнопку под списком — следующая порция подгружается без перезагрузки." />
+
+                        <NField v-if="showsChunkSize" label="Сколько отображать"
+                                hint="Размер порции, которую добавляет кнопка."
+                                :error="form.error('load_more_size')">
+                            <NInput v-model="form.fields.load_more_size" type="number" min="1" max="500"
+                                    class="sm:max-w-40" />
+                        </NField>
+
+                        <p v-if="form.fields.has_page"
+                           class="rounded-lg bg-[var(--surface-muted)] p-3 text-xs text-[var(--text-muted)]">
+                            Разметка лежит в
+                            <code class="font-mono text-[var(--text-base)]">resources/views/{{ form.fields.code || 'код' }}/pagination.blade.php</code>.
+                            Смена шаблона перезапишет этот файл — правки в нём потеряются.
+                        </p>
+                    </div>
+                </NCard>
             </div>
 
             <div class="space-y-6">
@@ -190,10 +244,14 @@ onMounted(async () => {
                                 Повторное сохранение его не перезапишет.
                             </template>
                             <template v-else>
-                                После сохранения появится
-                                <code class="font-mono text-[var(--text-base)]">resources/views/{{ form.fields.code || 'код' }}/index.blade.php</code>
-                                и страница откроется по адресу
-                                <code class="font-mono text-[var(--text-base)]">/{{ form.fields.code || 'код' }}</code>.
+                                После сохранения появится папка
+                                <code class="font-mono text-[var(--text-base)]">resources/views/{{ form.fields.code || 'код' }}/</code>
+                                с файлами <code class="font-mono text-[var(--text-base)]">index</code>,
+                                <code class="font-mono text-[var(--text-base)]">detail</code> и
+                                <code class="font-mono text-[var(--text-base)]">pagination</code>. Список откроется по
+                                <code class="font-mono text-[var(--text-base)]">/{{ form.fields.code || 'код' }}</code>,
+                                элемент — по
+                                <code class="font-mono text-[var(--text-base)]">/{{ form.fields.code || 'код' }}/&lt;код&gt;</code>.
                             </template>
                         </p>
                     </div>

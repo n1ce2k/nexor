@@ -4,6 +4,7 @@ namespace Nexor\Cms\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Nexor\Cms\Enums\PaginationTemplate;
 use Nexor\Cms\Models\Iblock;
 
 /**
@@ -30,6 +31,10 @@ class IblockResource extends JsonResource
             'has_sections' => $this->has_sections,
             'has_page' => $this->has_page,
             'page_path' => $this->page_path,
+            'pagination_template' => $this->pagination_template?->value ?? PaginationTemplate::Simple->value,
+            'per_page' => $this->per_page,
+            'has_load_more' => $this->has_load_more,
+            'load_more_size' => $this->load_more_size,
             'is_active' => $this->is_active,
             'sort' => $this->sort,
             'elements_count' => $this->whenCounted('elements'),

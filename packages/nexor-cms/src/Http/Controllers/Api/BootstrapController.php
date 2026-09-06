@@ -4,6 +4,7 @@ namespace Nexor\Cms\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Nexor\Cms\Enums\PaginationTemplate;
 use Nexor\Cms\Enums\PropertyType;
 use Nexor\Cms\Http\Resources\IblockResource;
 use Nexor\Cms\Http\Resources\UserResource;
@@ -49,6 +50,7 @@ class BootstrapController extends ApiController
                 'is_filterable' => $type->isFilterable(),
                 'settings' => $type->settingKeys(),
             ])->values(),
+            'pagination_templates' => PaginationTemplate::options(),
             'routes' => [
                 'home' => url('/'),
                 'logout' => route('admin.logout'),

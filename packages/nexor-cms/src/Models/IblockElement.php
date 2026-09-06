@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Storage;
 use Nexor\Cms\Contracts\NexorUser;
 use Nexor\Cms\Database\Factories\IblockElementFactory;
 use Nexor\Cms\Support\Nexor;
+use Nexor\Cms\Support\Site;
 
 #[Fillable([
     'iblock_id', 'section_id', 'code', 'name',
@@ -149,6 +150,23 @@ class IblockElement extends Model
                 default => (string) $resolved,
             };
         })->join(', ');
+    }
+
+    /**
+     * Public address of the element.
+     *
+     * Elements of the "Страницы" infoblock are the site's own static pages and
+     * sit at the root; everything else lives under its infoblock's folder.
+     */
+    public function url(): string
+    {
+        $this->loadMissing('iblock');
+
+        $code = $this->code ?: (string) $this->id;
+
+        return $this->iblock?->code === Site::PAGES
+            ? url('/'.$code)
+            : url('/'.$this->iblock?->code.'/'.$code);
     }
 
     public function getPreviewPictureUrlAttribute(): ?string

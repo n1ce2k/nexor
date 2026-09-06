@@ -27,3 +27,10 @@ Homestead.yaml
 Thumbs.db
 .phpstorm.meta.php
 _ide_helper_models.php
+
+# Из шаблонов в репозиторий попадают только каркасные папки.
+# Страницы инфоблоков (resources/views/<код>) создаёт CMS — они принадлежат
+# конкретному сайту, а не пакету.
+/resources/views/*
+!/resources/views/errors/
+!/resources/views/site/

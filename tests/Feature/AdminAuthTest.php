@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Nexor\Cms\Models\ActivityLog;
+use Nexor\Cms\Support\Nexor;
 use Tests\Concerns\CreatesAdminUsers;
 use Tests\TestCase;
 
@@ -31,7 +32,7 @@ class AdminAuthTest extends TestCase
         $this->post(route('admin.login'), [
             'email' => $user->email,
             'password' => 'password',
-        ])->assertRedirect(route('admin.dashboard'));
+        ])->assertRedirect(Nexor::home());
 
         $this->assertAuthenticatedAs($user);
         $this->assertNotNull($user->fresh()->last_login_at);
@@ -87,7 +88,15 @@ class AdminAuthTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_the_dashboard_renders_for_an_admin(): void
+    public function test_the_default_panel_renders_for_an_admin(): void
+    {
+        $this->actingAs($this->adminWith())
+            ->get(Nexor::home())
+            ->assertOk()
+            ->assertSee('id="nexor-panel"', false);
+    }
+
+    public function test_the_classic_panel_still_renders(): void
     {
         $this->actingAs($this->adminWith())
             ->get(route('admin.dashboard'))

@@ -9,6 +9,7 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Nexor\Cms\Http\Controllers\Controller;
 use Nexor\Cms\Support\ActivityLogger;
+use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\Permissions;
 
 class LoginController extends Controller
@@ -57,7 +58,7 @@ class LoginController extends Controller
 
         ActivityLogger::log('login', $user);
 
-        return redirect()->intended(route('admin.dashboard'))
+        return redirect()->intended(Nexor::home())
             ->with('success', 'Добро пожаловать, '.$user->name.'!');
     }
 

@@ -94,6 +94,18 @@
 
                     <x-nexor::admin.toggle name="is_active" label="Активен"
                                     :checked="old('is_active', $iblock->is_active ?? true)" />
+
+                    <x-nexor::admin.toggle name="has_page" label="Создать страницу"
+                                    hint="Заведёт папку в resources/views с шаблоном страницы — как папка-страница в Битриксе."
+                                    :checked="old('has_page', $iblock->has_page ?? false)" />
+
+                    @if ($iblock->page_path)
+                        <p class="rounded-lg bg-[var(--surface-muted)] p-3 text-xs text-[var(--text-muted)]">
+                            Файл уже создан:
+                            <code class="font-mono text-[var(--text-base)]">resources/views/{{ $iblock->page_path }}</code>.
+                            Повторное сохранение его не перезапишет.
+                        </p>
+                    @endif
                 </div>
             </x-nexor::admin.card>
 

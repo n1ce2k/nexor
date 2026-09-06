@@ -83,7 +83,11 @@ return [
     */
 
     'panel' => [
+        // 'vue'   — панель на Vue открывается на /admin, Blade уезжает на /admin/classic
+        // 'blade' — наоборот: Blade на /admin, Vue на /admin/vue
+        'default' => env('NEXOR_PANEL', 'vue'),
         'path' => env('NEXOR_PANEL_PATH', 'vue'),
+        'classic_path' => env('NEXOR_PANEL_CLASSIC_PATH', 'classic'),
     ],
 
     'panel_assets' => [

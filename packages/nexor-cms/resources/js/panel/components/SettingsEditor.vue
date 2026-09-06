@@ -115,6 +115,19 @@ function clearFile(setting) {
 
 // ---------------------------------------------------------------- definitions
 
+const isNewGroup = ref(false);
+
+/** Existing groups plus an explicit "new group" entry. */
+const groupOptions = computed(() => [
+    ...groupList.value.map((group) => ({ value: group.key, label: `${group.label} — ${group.key}` })),
+    { value: '__new', label: '+ Новая группа' },
+]);
+
+function chooseGroup(value) {
+    isNewGroup.value = value === '__new';
+    definition.fields.group = isNewGroup.value ? '' : value;
+}
+
 function openEditor(setting = null, group = null) {
     editing.value = setting;
 
@@ -130,6 +143,7 @@ function openEditor(setting = null, group = null) {
         : { key: '', name: '', hint: '', type: 'string', group: group ?? props.defaultGroup, sort: 500 });
 
     options.value = (setting?.options ?? []).map((option) => ({ ...option }));
+    isNewGroup.value = false;
     editorOpen.value = true;
 }
 
@@ -192,7 +206,7 @@ defineExpose({ save, busy, load });
 
 <template>
     <div class="space-y-6">
-        <NCard v-for="group in visibleGroups" :key="group.key" :title="group.label">
+        <NCard v-for="group in visibleGroups" :key="group.key" :title="group.label" :code="group.key">
             <template v-if="manageable && canEdit" #actions>
                 <NButton type="button" size="sm" variant="secondary" icon="plus" @click="openEditor(null, group.key)">
                     Добавить свойство
@@ -277,10 +291,20 @@ defineExpose({ save, busy, load });
                         <NSelect v-model="definition.fields.type" :options="types" />
                     </NField>
 
-                    <NField label="Группа" required :error="definition.error('group')">
-                        <NInput v-model="definition.fields.group" class="font-mono" />
+                    <NField label="Группа" required
+                            hint="Вкладка, в которой окажется свойство."
+                            :error="definition.error('group')">
+                        <NSelect :model-value="isNewGroup ? '__new' : definition.fields.group"
+                                 :options="groupOptions"
+                                 @update:model-value="chooseGroup" />
                     </NField>
                 </div>
+
+                <NField v-if="isNewGroup" label="Код новой группы" required
+                        hint="Латиница в нижнем регистре, цифры и подчёркивание — например delivery."
+                        :error="definition.error('group')">
+                    <NInput v-model="definition.fields.group" class="font-mono" placeholder="delivery" />
+                </NField>
 
                 <NField label="Подсказка" :error="definition.error('hint')">
                     <NInput v-model="definition.fields.hint" />

@@ -52,7 +52,7 @@ class BootstrapController extends ApiController
             'routes' => [
                 'home' => url('/'),
                 'logout' => route('admin.logout'),
-                'classic' => route('admin.dashboard'),
+                'classic' => Nexor::otherPanel(),
             ],
         ]);
     }

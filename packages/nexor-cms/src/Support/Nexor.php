@@ -58,6 +58,47 @@ class Nexor
     }
 
     /**
+     * Whether the Vue panel owns the bare /admin URL.
+     */
+    public static function vueIsDefault(): bool
+    {
+        return config('nexor.panel.default', 'vue') === 'vue';
+    }
+
+    /**
+     * Base path the SPA router is mounted on.
+     */
+    public static function panelBase(): string
+    {
+        $prefix = self::vueIsDefault() ? '' : trim((string) config('nexor.panel.path', 'vue'), '/');
+
+        return rtrim('/'.self::routePrefix().'/'.$prefix, '/');
+    }
+
+    /**
+     * Route name of the screen a signed-in administrator lands on.
+     */
+    public static function homeRoute(): string
+    {
+        return self::vueIsDefault() ? 'admin.panel' : 'admin.dashboard';
+    }
+
+    public static function home(): string
+    {
+        return route(self::homeRoute());
+    }
+
+    /**
+     * URL of the panel that is *not* the default, for the switch-over link.
+     */
+    public static function otherPanel(): string
+    {
+        return self::vueIsDefault()
+            ? route('admin.dashboard')
+            : url(self::routePrefix().'/'.trim((string) config('nexor.panel.path', 'vue'), '/'));
+    }
+
+    /**
      * Property types offered when creating an infoblock property.
      *
      * @return array<int, PropertyType>

@@ -25,7 +25,7 @@ class PanelApiTest extends TestCase
     public function test_the_panel_shell_renders_for_an_admin(): void
     {
         $this->actingAs($this->adminWith())
-            ->get('/admin/vue')
+            ->get('/admin')
             ->assertOk()
             ->assertSee('id="nexor-panel"', false)
             ->assertSee('nexor-api', false);
@@ -33,13 +33,13 @@ class PanelApiTest extends TestCase
 
     public function test_the_panel_shell_is_closed_to_guests(): void
     {
-        $this->get('/admin/vue')->assertRedirect(route('admin.login'));
+        $this->get('/admin')->assertRedirect(route('admin.login'));
     }
 
     public function test_deep_panel_urls_render_the_same_shell(): void
     {
         $this->actingAs($this->adminWith())
-            ->get('/admin/vue/iblocks/7/elements')
+            ->get('/admin/iblocks/7/elements')
             ->assertOk()
             ->assertSee('id="nexor-panel"', false);
     }

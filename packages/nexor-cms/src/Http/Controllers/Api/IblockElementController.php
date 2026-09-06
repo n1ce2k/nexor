@@ -18,6 +18,7 @@ use Nexor\Cms\Models\IblockElement;
 use Nexor\Cms\Models\IblockProperty;
 use Nexor\Cms\Models\IblockSection;
 use Nexor\Cms\Support\ActivityLogger;
+use Nexor\Cms\Support\ElementFormLayout;
 use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\PropertyValues;
 use Nexor\Cms\Support\Uploads;
@@ -131,6 +132,33 @@ class IblockElementController extends ApiController
             ),
             'properties' => IblockPropertyResource::collection($properties),
             'options' => $this->linkOptions($properties),
+            'form_tabs' => ElementFormLayout::for($iblock),
+            'form_fields' => array_values(ElementFormLayout::fields($iblock)),
+        ]);
+    }
+
+    /**
+     * Rearranges the element form of this infoblock.
+     *
+     * An empty `tabs` array means "back to the defaults".
+     */
+    public function saveLayout(Request $request, Iblock $iblock): JsonResponse
+    {
+        $data = $request->validate([
+            'tabs' => ['present', 'array'],
+            'tabs.*.key' => ['nullable', 'string', 'max:50'],
+            'tabs.*.label' => ['required', 'string', 'max:100'],
+            'tabs.*.fields' => ['present', 'array'],
+            'tabs.*.fields.*' => ['string', 'max:120'],
+        ]);
+
+        $tabs = ElementFormLayout::store($iblock, $data['tabs']);
+
+        ActivityLogger::updated($iblock, 'Форма элементов перенастроена');
+
+        return response()->json([
+            'tabs' => $tabs,
+            'message' => 'Форма элементов сохранена.',
         ]);
     }
 

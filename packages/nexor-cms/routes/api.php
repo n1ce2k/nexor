@@ -63,6 +63,11 @@ Route::prefix('iblocks/{iblock}')->name('iblocks.')->group(function () use ($gua
     Route::get('schema', [IblockElementController::class, 'schema'])
         ->name('schema')
         ->middleware('nexor.iblock:view');
+
+    // Tabs of the element form, editable per infoblock.
+    Route::put('form-layout', [IblockElementController::class, 'saveLayout'])
+        ->name('form-layout.update')
+        ->middleware('nexor.permission:iblocks.update');
 });
 
 Route::get('settings', [SettingController::class, 'index'])

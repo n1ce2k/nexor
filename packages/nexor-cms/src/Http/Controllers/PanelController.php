@@ -14,7 +14,7 @@ class PanelController extends Controller
     public function __invoke(): View
     {
         return view('nexor::admin.panel', [
-            'base' => '/'.Nexor::routePrefix().'/'.trim(config('nexor.panel.path', 'vue'), '/'),
+            'base' => Nexor::panelBase(),
         ]);
     }
 }

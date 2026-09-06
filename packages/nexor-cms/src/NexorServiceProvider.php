@@ -121,18 +121,19 @@ class NexorServiceProvider extends ServiceProvider
 
         $middleware = config('nexor.route.middleware', ['web']);
 
-        Route::group([
-            'prefix' => Nexor::routePrefix(),
-            'as' => 'admin.',
-            'middleware' => $middleware,
-        ], fn () => $this->loadRoutesFrom($this->path('routes/admin.php')));
-
-        // JSON API behind the Vue panel, session-authenticated like the rest.
+        // The API is registered first: the panel's catch-all route would
+        // otherwise swallow every /admin/api/* request.
         Route::group([
             'prefix' => Nexor::routePrefix().'/api',
             'as' => 'admin.api.',
             'middleware' => [...$middleware, 'auth', 'nexor.admin'],
         ], fn () => $this->loadRoutesFrom($this->path('routes/api.php')));
+
+        Route::group([
+            'prefix' => Nexor::routePrefix(),
+            'as' => 'admin.',
+            'middleware' => $middleware,
+        ], fn () => $this->loadRoutesFrom($this->path('routes/admin.php')));
     }
 
     /**

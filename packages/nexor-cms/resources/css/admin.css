@@ -184,3 +184,7 @@
         background-color: var(--surface-muted);
     }
 }
+
+.button-primary{
+    cursor: pointer;
+}

@@ -113,9 +113,9 @@ export function toFormData(source, form = new FormData(), scope = null) {
         if (value instanceof File || value instanceof Blob) {
             form.append(field, value);
         } else if (Array.isArray(value)) {
-            if (value.length === 0) {
-                form.append(`${field}[]`, '');
-            }
+            // An empty array sends nothing at all. Appending a blank marker used
+            // to reach the server as one empty element and broke `integer` rules;
+            // an absent key already means "empty" on the Laravel side.
             value.forEach((item, index) => {
                 if (item instanceof File || item instanceof Blob) {
                     form.append(`${field}[]`, item);

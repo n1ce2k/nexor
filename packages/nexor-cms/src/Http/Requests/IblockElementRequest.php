@@ -60,6 +60,23 @@ class IblockElementRequest extends FormRequest
     }
 
     /**
+     * Drops blank entries a form may send for an untouched multi-select.
+     *
+     * An element without a section is normal, so an empty list must not turn
+     * into `sections.0` failing the `integer` rule.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (! $this->has('sections')) {
+            return;
+        }
+
+        $this->merge([
+            'sections' => array_values(array_filter((array) $this->input('sections'), 'filled')),
+        ]);
+    }
+
+    /**
      * Human-readable names so validation messages talk about the property, not the key.
      *
      * @return array<string, string>

@@ -2,6 +2,7 @@
 defineProps({
     title: { type: String, default: null },
     description: { type: String, default: null },
+    code: { type: String, default: null },
     padding: { type: Boolean, default: true },
 });
 </script>
@@ -11,7 +12,13 @@ defineProps({
         <header v-if="title || $slots.actions"
                 class="flex items-start justify-between gap-4 border-b border-[var(--surface-border)] px-5 py-4">
             <div class="min-w-0">
-                <h2 v-if="title" class="text-sm font-semibold text-[var(--text-strong)]">{{ title }}</h2>
+                <h2 v-if="title" class="flex items-center gap-2 text-sm font-semibold text-[var(--text-strong)]">
+                    {{ title }}
+                    <code v-if="code"
+                          class="rounded bg-[var(--surface-muted)] px-1.5 py-0.5 font-mono text-xs font-normal text-[var(--text-muted)]">
+                        {{ code }}
+                    </code>
+                </h2>
                 <p v-if="description" class="mt-1 text-xs text-[var(--text-muted)]">{{ description }}</p>
             </div>
             <div v-if="$slots.actions" class="flex shrink-0 items-center gap-2">

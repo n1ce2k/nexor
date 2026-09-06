@@ -49,6 +49,7 @@ function isOpen(label) {
             </div>
 
             <nav class="flex-1 space-y-6 overflow-y-auto px-3 pb-4">
+
                 <div v-for="(group, index) in groups" :key="index">
                     <p v-if="group.label && !ui.sidebarCollapsed"
                        class="sidebar-label px-3 pb-2 text-[0.65rem] font-semibold tracking-wider uppercase">
@@ -96,6 +97,7 @@ function isOpen(label) {
                     <span v-if="!ui.sidebarCollapsed">Свернуть меню</span>
                 </button>
             </div>
+
         </aside>
 
         <div class="flex min-w-0 flex-1 flex-col transition-all duration-200"
@@ -172,7 +174,9 @@ function isOpen(label) {
             </main>
 
             <footer class="px-4 py-5 text-center text-xs text-[var(--text-faint)] sm:px-6 lg:px-8">
-                {{ session.brand.site_name }} — панель управления
+<!--                {{ session.brand.site_name }}-->
+<!--                <br>-->
+<!--                <div>n1ce</div>-->
             </footer>
         </div>
     </div>

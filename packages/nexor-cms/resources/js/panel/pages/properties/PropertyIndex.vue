@@ -12,22 +12,28 @@ import { useSession } from '../../stores/session';
 import { useUi } from '../../stores/ui';
 
 const props = defineProps({ iblock: { type: [String, Number], required: true } });
-
 const session = useSession();
 const ui = useUi();
 
 const rows = ref([]);
+
 const loading = ref(true);
 
 const iblock = ref(session.iblock(props.iblock));
 
+// const info = ref(session.iblock(props.iblock));
+
 const columns = [
-    { key: 'sort', label: 'Сорт.', width: '4rem', muted: true },
+    { key: 'id', label: 'id', width: '4rem', muted: true },
     { key: 'name', label: 'Название' },
+
+
     { key: 'code', label: 'Код', muted: true },
+    { key: 'sort', label: 'Сорт.', width: '4rem', muted: true },
     { key: 'type_label', label: 'Тип' },
     { key: 'flags', label: 'Флаги' },
-    { key: 'values_count', label: 'Значений', align: 'center', width: '8rem', muted: true },
+    // { key: 'values_count', label: 'Значений', align: 'center', width: '8rem', muted: true },
+
     { key: 'actions', label: 'Действия', align: 'right', width: '7rem' },
 ];
 
@@ -40,7 +46,10 @@ async function load() {
             iblock.value ? Promise.resolve(null) : api.get(`iblocks/${props.iblock}`),
         ]);
 
+
+
         rows.value = list.data;
+
 
         if (meta) {
             iblock.value = meta.data;
@@ -104,6 +113,7 @@ onMounted(load);
             </NEmpty>
 
             <NTable v-else :columns="columns" :rows="rows" :loading="loading">
+
                 <template #cell-name="{ row }">
                     <div class="flex items-center gap-2">
                         <p class="font-medium text-[var(--text-strong)]">{{ row.name }}</p>
@@ -124,18 +134,27 @@ onMounted(load);
                 </template>
 
                 <template #cell-flags="{ row }">
-                    <div class="flex flex-wrap gap-1">
+                    <div
+                        v-if="row.is_multiple ||
+                        row.is_required ||
+                        row.is_filterable ||
+                        row.is_searchable ||
+                        row.is_shown_in_list"
+                        class="flex flex-wrap gap-1">
                         <NBadge v-if="row.is_multiple" color="violet">множественное</NBadge>
                         <NBadge v-if="row.is_required" color="red">обязательное</NBadge>
                         <NBadge v-if="row.is_filterable" color="amber">фильтр</NBadge>
                         <NBadge v-if="row.is_searchable" color="green">поиск</NBadge>
                         <NBadge v-if="row.is_shown_in_list">в списке</NBadge>
                     </div>
+                    <div v-else class="text-gray-400 text-xs">
+                        Нет флагов
+                    </div>
                 </template>
 
                 <template #cell-actions="{ row }">
                     <div class="flex items-center justify-end gap-0.5">
-                        <router-link :to="{ name: 'properties.edit', params: { iblock, property: row.id } }"
+                        <router-link :to="{ name: 'properties.edit', params: { iblock: iblock.id, property: row.id } }"
                                      title="Изменить"
                                      class="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--text-strong)]">
                             <NIcon name="pencil" size="size-4" />

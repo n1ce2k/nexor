@@ -55,7 +55,7 @@ export function useNavigation() {
 
         groups.push({ label: 'Структура', items: [...structure, ...extras('Структура')] });
 
-        // Настройки: mail and the developer console, each with its own subtree.
+        // Настройки
         const settings = [];
         const mail = [];
 
@@ -70,7 +70,6 @@ export function useNavigation() {
             settings.push({ label: 'Почта', icon: 'document', children: mail });
         }
 
-        // The console is super-admin only, mirroring the server-side check.
         if (session.isSuperAdmin) {
             settings.push({
                 label: 'Инструменты',

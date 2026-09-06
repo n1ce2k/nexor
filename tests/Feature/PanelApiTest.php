@@ -215,6 +215,37 @@ class PanelApiTest extends TestCase
         $this->assertCount(2, $property->enums);
     }
 
+    public function test_an_element_saves_without_any_section(): void
+    {
+        $iblock = Iblock::factory()->create();
+        IblockSection::factory()->create(['iblock_id' => $iblock->id]);
+
+        $admin = $this->grantIblock($this->adminWith(), $iblock, ['view', 'create']);
+
+        // An untouched multi-select used to arrive as one blank entry.
+        $this->actingAs($admin)->postJson("/admin/api/iblocks/{$iblock->id}/elements", [
+            'name' => 'Без раздела',
+            'sections' => [''],
+        ])->assertCreated();
+
+        $element = IblockElement::query()->where('name', 'Без раздела')->firstOrFail();
+
+        $this->assertNull($element->section_id);
+        $this->assertCount(0, $element->sections);
+    }
+
+    public function test_an_element_saves_when_sections_are_not_sent_at_all(): void
+    {
+        $iblock = Iblock::factory()->create();
+        $admin = $this->grantIblock($this->adminWith(), $iblock, ['view', 'create']);
+
+        $this->actingAs($admin)
+            ->postJson("/admin/api/iblocks/{$iblock->id}/elements", ['name' => 'Совсем без разделов'])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('iblock_elements', ['name' => 'Совсем без разделов', 'section_id' => null]);
+    }
+
     public function test_the_dashboard_endpoint_returns_stats(): void
     {
         Iblock::factory()->count(2)->create();

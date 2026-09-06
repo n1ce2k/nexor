@@ -31,7 +31,7 @@ const sizes = {
 const classes = computed(() => [
     'inline-flex items-center justify-center rounded-lg font-medium transition',
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
-    'disabled:cursor-not-allowed disabled:opacity-50',
+    'disabled:cursor-not-allowed disabled:opacity-50 button-primary',
     variants[props.variant] ?? variants.primary,
     sizes[props.size] ?? sizes.md,
 ]);

@@ -142,7 +142,7 @@ onMounted(() => {
                             <NBadge v-if="!row.is_active">выключен</NBadge>
                         </div>
                         <p class="mt-0.5 text-xs text-[var(--text-muted)]">
-                            код <code class="font-mono">{{ row.code }}</code>
+                            <code class="font-mono">{{ row.code }}</code>
                         </p>
                     </template>
 

@@ -166,7 +166,7 @@ function isOpen(label) {
             </header>
 
             <main class="flex-1 px-4 py-6 sm:px-6 lg:px-8">
-                <div class="mx-auto w-full max-w-7xl">
+                <div class="mx-auto w-full transition-[max-width]" :class="ui.wideContent ? 'max-w-[112rem]' : 'max-w-7xl'">
                     <router-view v-slot="{ Component }">
                         <component :is="Component" />
                     </router-view>

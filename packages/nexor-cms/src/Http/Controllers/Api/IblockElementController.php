@@ -41,7 +41,9 @@ class IblockElementController extends ApiController
 
                 $query->where(fn (Builder $q) => $q->where('name', 'like', $search)->orWhere('code', 'like', $search));
             })
-            ->when($request->filled('section'), fn (Builder $q) => $q->where('section_id', $request->integer('section')))
+            ->when($request->filled('section'), fn (Builder $q) => $request->get('section') === 'none'
+                ? $q->whereNull('section_id')
+                : $q->where('section_id', $request->integer('section')))
             ->when($request->filled('status'), fn (Builder $q) => $q->where('is_active', $request->get('status') === 'active'))
             ->tap(fn (Builder $q) => $this->applyPropertyFilters($q, $properties->where('is_filterable', true), $request))
             ->orderBy($column, $direction)

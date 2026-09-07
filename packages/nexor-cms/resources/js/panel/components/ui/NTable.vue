@@ -59,7 +59,7 @@ function toggleSort(column) {
             </thead>
 
             <tbody>
-                <tr v-for="row in rows" :key="row[rowKey]" class="table-row transition">
+                <tr v-for="row in rows" :key="row[rowKey]" class="table-row group transition">
                     <td v-for="column in columns" :key="column.key"
                         :class="['px-4 py-3 align-middle', `text-${column.align || 'left'}`,
                                  column.muted ? 'text-[var(--text-muted)]' : 'text-[var(--text-base)]']">

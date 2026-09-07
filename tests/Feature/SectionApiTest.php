@@ -151,6 +151,30 @@ class SectionApiTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_elements_can_be_listed_by_section_or_without_one(): void
+    {
+        $iblock = Iblock::factory()->create();
+        $section = IblockSection::factory()->create(['iblock_id' => $iblock->id]);
+
+        IblockElement::factory()->for($iblock)->create(['name' => 'В разделе', 'section_id' => $section->id]);
+        IblockElement::factory()->for($iblock)->create(['name' => 'Сам по себе', 'section_id' => null]);
+
+        $admin = $this->grantIblock($this->adminWith(), $iblock);
+
+        $inside = $this->actingAs($admin)
+            ->getJson("/admin/api/iblocks/{$iblock->id}/elements?section={$section->id}")
+            ->assertOk();
+
+        $this->assertSame(['В разделе'], array_column($inside->json('data'), 'name'));
+
+        // The tree's «Без раздела» group asks for exactly this.
+        $loose = $this->actingAs($admin)
+            ->getJson("/admin/api/iblocks/{$iblock->id}/elements?section=none")
+            ->assertOk();
+
+        $this->assertSame(['Сам по себе'], array_column($loose->json('data'), 'name'));
+    }
+
     public function test_an_infoblock_without_sections_has_no_tree(): void
     {
         $iblock = Iblock::factory()->withoutSections()->create();

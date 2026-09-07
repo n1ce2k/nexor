@@ -21,6 +21,9 @@ export const useUi = defineStore('ui', {
         theme: preferredTheme(),
         sidebarCollapsed: localStorage.getItem(SIDEBAR_KEY) === '1',
         mobileOpen: false,
+        // A screen that needs the room — the section tree beside a list — asks
+        // the layout to drop its reading-width cap while it is open.
+        wideContent: false,
         toasts: [],
         nextToastId: 1,
         confirmation: null,

@@ -10,7 +10,7 @@ export const useSession = defineStore('session', {
         user: null,
         permissions: [],
         isSuperAdmin: false,
-        brand: { name: 'NEXOR', initial: 'N', site_name: 'NEXOR' },
+        brand: { name: 'NEXOR', initial: 'N', site_name: 'NEXOR', version: '' },
         iblocks: [],
         propertyTypes: [],
         paginationTemplates: [],

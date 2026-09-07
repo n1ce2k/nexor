@@ -15,6 +15,14 @@ use Nexor\Cms\Enums\PropertyType;
 class Nexor
 {
     /**
+     * Version of the CMS itself.
+     *
+     * The release is the git tag; this constant is what the running code can
+     * print — in the panel, in a bug report, in an upgrade check.
+     */
+    public const VERSION = '0.1.10';
+
+    /**
      * @return class-string<Model&NexorUser>
      */
     public static function userModel(): string

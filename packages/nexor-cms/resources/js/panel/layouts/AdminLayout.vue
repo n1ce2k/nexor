@@ -96,6 +96,11 @@ function isOpen(label) {
                            :class="ui.sidebarCollapsed && 'rotate-180'" />
                     <span v-if="!ui.sidebarCollapsed">Свернуть меню</span>
                 </button>
+
+                <p v-if="!ui.sidebarCollapsed && session.brand.version"
+                   class="sidebar-label px-3 pt-2 text-[0.65rem]">
+                    NEXOR {{ session.brand.version }}
+                </p>
             </div>
 
         </aside>

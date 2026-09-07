@@ -18,6 +18,7 @@ use Nexor\Cms\Http\Middleware\CheckIblockPermission;
 use Nexor\Cms\Http\Middleware\CheckMaintenanceMode;
 use Nexor\Cms\Http\Middleware\CheckPermission;
 use Nexor\Cms\Http\Middleware\EnsureUserCanAccessAdmin;
+use Nexor\Cms\Services\InfoBlockService;
 use Nexor\Cms\Support\MailConfig;
 use Nexor\Cms\Support\Nexor;
 
@@ -34,6 +35,10 @@ class NexorServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom($this->path('config/nexor.php'), 'nexor');
+
+        // Ядро выборок для публичной части. Один экземпляр на запрос, чтобы
+        // компоненты на одной странице не искали инфоблок по коду заново.
+        $this->app->singleton(InfoBlockService::class);
 
         // The HTTP kernel replaces the router's middleware groups when it is
         // resolved, so the guard is re-attached right after that happens too.

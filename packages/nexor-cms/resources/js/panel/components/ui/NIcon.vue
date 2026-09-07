@@ -42,6 +42,8 @@ const paths = {
     save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/>',
     code: '<path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/><path d="m14 4-4 16"/>',
     tabs: '<rect x="3" y="7" width="18" height="14" rx="2"/><path d="M7 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>',
+    'panel-left': '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/>',
+    'list-tree': '<path d="M3 5h18"/><path d="M8 12h13"/><path d="M8 19h13"/><path d="M4 9v10"/><path d="M4 12h4M4 19h4"/>',
 };
 
 const markup = computed(() => paths[props.name] ?? paths.info);

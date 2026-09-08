@@ -110,8 +110,8 @@ BLADE
     Страница только расставляет компоненты; вёрстка живёт в их шаблонах.
     Забрать шаблон себе и править:
 
-        php artisan nexor:component catalog.section
-        php artisan nexor:component pagination
+        php artisan nexor:component catalog.section         все шаблоны
+        php artisan nexor:component catalog.section blog    свой шаблон blog
 
     Список доступных компонентов: php artisan nexor:component
 --}}

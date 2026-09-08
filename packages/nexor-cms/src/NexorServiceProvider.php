@@ -23,6 +23,7 @@ use Nexor\Cms\Http\Middleware\EnsureUserCanAccessAdmin;
 use Nexor\Cms\Services\InfoBlockService;
 use Nexor\Cms\Support\MailConfig;
 use Nexor\Cms\Support\Nexor;
+use Nexor\Cms\View\Components\News\Listing as NewsListing;
 
 class NexorServiceProvider extends ServiceProvider
 {
@@ -145,6 +146,12 @@ class NexorServiceProvider extends ServiceProvider
             'as' => 'admin.',
             'middleware' => $middleware,
         ], fn () => $this->loadRoutesFrom($this->path('routes/admin.php')));
+
+        // Публичная часть: приём форм компонента `form`.
+        Route::group(
+            ['middleware' => $middleware],
+            fn () => $this->loadRoutesFrom($this->path('routes/site.php')),
+        );
     }
 
     /**
@@ -193,6 +200,10 @@ class NexorServiceProvider extends ServiceProvider
     protected function registerComponents(): void
     {
         Blade::componentNamespace('Nexor\Cms\View\Components', 'nexor');
+
+        // `list` — зарезервированное слово PHP, класса `News\List` не бывает.
+        // А имя `news.list` привычное, поэтому тег связан с классом псевдонимом.
+        Blade::component(NewsListing::class, 'nexor::news.list');
     }
 
     protected function registerPublishing(): void

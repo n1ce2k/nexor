@@ -100,9 +100,9 @@ class IblockPageTest extends TestCase
             $this->pagedIblock(['code' => 'plain-page-test', 'has_sections' => false]),
         ));
 
-        $this->assertStringContainsString('<x-nexor::catalog.sections', $withSections);
+        $this->assertStringContainsString('<x-nexor::menu.sections', $withSections);
         $this->assertStringContainsString('<x-nexor::catalog.filter', $withSections);
-        $this->assertStringNotContainsString('<x-nexor::catalog.sections', $plain);
+        $this->assertStringNotContainsString('<x-nexor::menu.sections', $plain);
     }
 
     public function test_the_paging_template_is_a_setting_rather_than_a_file(): void

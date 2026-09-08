@@ -62,10 +62,17 @@ resources/views/vendor/nexor/components/        ваши шаблоны, поб�
 Забрать шаблон себе — тот же жест, что копирование папки шаблона в свой шаблон сайта:
 
 ```bash
-php artisan nexor:component                                  # что вообще есть
-php artisan nexor:component catalog.section                  # все шаблоны компонента
-php artisan nexor:component pagination --template=btnload    # только один
-php artisan nexor:component catalog.section --force          # перезаписать свои
+php artisan nexor:component                                    # что вообще есть
+php artisan nexor:component catalog.section                    # все шаблоны под своими именами
+php artisan nexor:component catalog.section blog               # свой шаблон blog на основе default
+php artisan nexor:component catalog.section blog --from=tiles  # на основе другого шаблона
+php artisan nexor:component catalog.section blog --force       # перезаписать свой
+```
+
+Второй аргумент — имя вашей копии, точно как `.default` → `my_template` в Битриксе. После этого шаблон выбирается пропом:
+
+```blade
+<x-nexor::catalog.section iblock="katalog" template="blog" />
 ```
 
 Скопированный файл CMS больше не трогает: обновление пакета его не затрёт.
@@ -81,6 +88,7 @@ php artisan nexor:component catalog.section --force          # перезапи�
 | `$arResult` | что класс передал во вьюху |
 | `result_modifier.php` | код в самом классе |
 | `templates/my_template/template.php` | `resources/views/vendor/nexor/components/<компонент>/my_template.blade.php` |
+| копия `.default` в `my_template` | `php artisan nexor:component catalog.section my_template` |
 | копирование шаблона в свою тему | `php artisan nexor:component` |
 | `bitrix:catalog.section` | `<x-nexor::catalog.section />` |
 

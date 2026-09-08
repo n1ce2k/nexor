@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\File;
+use Nexor\Cms\Models\Iblock;
 use Tests\TestCase;
 
 /**
@@ -11,6 +14,8 @@ use Tests\TestCase;
  */
 class PublishComponentCommandTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected string $published = '';
 
     protected function setUp(): void
@@ -51,13 +56,78 @@ class PublishComponentCommandTest extends TestCase
         $this->assertFileExists($this->published.'/catalog/section/tiles.blade.php');
     }
 
-    public function test_a_single_template_can_be_taken(): void
+    public function test_a_template_can_be_created_under_its_own_name(): void
     {
-        $this->artisan('nexor:component', ['component' => 'catalog.section', '--template' => 'tiles'])
+        $this->artisan('nexor:component', ['component' => 'catalog.section', 'template' => 'blog'])
+            ->expectsOutputToContain('template="blog"')
             ->assertSuccessful();
 
-        $this->assertFileExists($this->published.'/catalog/section/tiles.blade.php');
+        $file = $this->published.'/catalog/section/blog.blade.php';
+
+        $this->assertFileExists($file);
         $this->assertFileDoesNotExist($this->published.'/catalog/section/default.blade.php');
+        $this->assertSame($this->packaged('catalog/section/default.blade.php'), File::get($file));
+    }
+
+    public function test_a_named_template_can_be_based_on_another_one(): void
+    {
+        $this->artisan('nexor:component', [
+            'component' => 'catalog.section', 'template' => 'shop', '--from' => 'tiles',
+        ])->assertSuccessful();
+
+        $this->assertSame(
+            $this->packaged('catalog/section/tiles.blade.php'),
+            File::get($this->published.'/catalog/section/shop.blade.php'),
+        );
+    }
+
+    public function test_a_named_template_is_rendered_by_the_component(): void
+    {
+        Iblock::factory()->create(['code' => 'katalog', 'is_active' => true]);
+
+        $this->artisan('nexor:component', ['component' => 'catalog.section', 'template' => 'blog'])
+            ->assertSuccessful();
+
+        File::put($this->published.'/catalog/section/blog.blade.php', 'вёрстка блога');
+
+        $this->assertSame(
+            'вёрстка блога',
+            trim(Blade::render('<x-nexor::catalog.section iblock="katalog" template="blog" />')),
+        );
+    }
+
+    public function test_a_named_template_is_not_silently_overwritten(): void
+    {
+        $this->artisan('nexor:component', ['component' => 'catalog.section', 'template' => 'blog'])
+            ->assertSuccessful();
+
+        $file = $this->published.'/catalog/section/blog.blade.php';
+        File::put($file, 'моя вёрстка');
+
+        $this->artisan('nexor:component', ['component' => 'catalog.section', 'template' => 'blog'])
+            ->assertFailed();
+
+        $this->assertSame('моя вёрстка', File::get($file));
+
+        $this->artisan('nexor:component', ['component' => 'catalog.section', 'template' => 'blog', '--force' => true])
+            ->assertSuccessful();
+
+        $this->assertNotSame('моя вёрстка', File::get($file));
+    }
+
+    public function test_a_template_name_that_is_not_a_filename_is_refused(): void
+    {
+        $this->artisan('nexor:component', ['component' => 'catalog.section', 'template' => 'мой шаблон'])
+            ->assertFailed();
+
+        $this->assertDirectoryDoesNotExist($this->published.'/catalog/section');
+    }
+
+    public function test_an_unknown_source_template_lists_what_there_is(): void
+    {
+        $this->artisan('nexor:component', [
+            'component' => 'catalog.section', 'template' => 'blog', '--from' => 'net-takogo',
+        ])->expectsOutputToContain('tiles')->assertFailed();
     }
 
     public function test_nested_files_of_a_component_come_along(): void
@@ -96,11 +166,9 @@ class PublishComponentCommandTest extends TestCase
             ->assertFailed();
     }
 
-    public function test_an_unknown_template_fails(): void
+    /** Содержимое пакетного шаблона, с которым сверяется копия. */
+    protected function packaged(string $relative): string
     {
-        $this->artisan('nexor:component', ['component' => 'pagination', '--template' => 'net-takogo'])
-            ->assertFailed();
-
-        $this->assertDirectoryDoesNotExist($this->published.'/pagination');
+        return File::get(dirname(__DIR__, 2).'/packages/nexor-cms/resources/views/components/'.$relative);
     }
 }

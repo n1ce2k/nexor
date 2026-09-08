@@ -86,6 +86,7 @@ class InfoBlockService
      * @param  array<string, mixed>  $filter  Колонка или код свойства => значение
      * @param  array<string, string>  $order  Поле => asc|desc
      * @param  int|null  $perPage  null — вернуть всё одной коллекцией
+     * @param  int|null  $page  null — взять номер страницы из адреса (`?page=2`)
      * @return Collection<int, IblockElement>|LengthAwarePaginator<int, IblockElement>
      */
     public function getElements(
@@ -93,14 +94,14 @@ class InfoBlockService
         array $filter = [],
         array $order = ['sort' => 'asc'],
         ?int $perPage = null,
-        int $page = 1,
+        ?int $page = null,
     ): Collection|LengthAwarePaginator {
         $iblock = $this->requireInfoBlock($code);
 
         $query = $this->query($iblock, $filter, $order);
 
         return $perPage !== null
-            ? $query->paginate($perPage, ['*'], 'page', $page)
+            ? $query->paginate($perPage, ['*'], 'page', $page)->withQueryString()
             : $query->get();
     }
 
@@ -117,7 +118,7 @@ class InfoBlockService
         string $code,
         array $order = ['sort' => 'asc'],
         ?int $perPage = null,
-        int $page = 1,
+        ?int $page = null,
     ): Collection|LengthAwarePaginator {
         return $this->getElements($code, ['is_active' => true], $order, $perPage, $page);
     }
@@ -210,7 +211,7 @@ class InfoBlockService
         string $search,
         array $filter = [],
         ?int $perPage = null,
-        int $page = 1,
+        ?int $page = null,
         array $order = ['sort' => 'asc'],
     ): Collection|LengthAwarePaginator {
         $term = '%'.trim($search).'%';
@@ -219,7 +220,7 @@ class InfoBlockService
             ->where(fn (Builder $q) => $q->where('name', 'like', $term)->orWhere('code', 'like', $term));
 
         return $perPage !== null
-            ? $query->paginate($perPage, ['*'], 'page', $page)
+            ? $query->paginate($perPage, ['*'], 'page', $page)->withQueryString()
             : $query->get();
     }
 
@@ -235,7 +236,7 @@ class InfoBlockService
         mixed $value,
         array $order = ['sort' => 'asc'],
         ?int $perPage = null,
-        int $page = 1,
+        ?int $page = null,
     ): Collection|LengthAwarePaginator {
         return $this->getElements($code, [$propertyCode => $value], $order, $perPage, $page);
     }
@@ -439,7 +440,7 @@ class InfoBlockService
         array $filter = [],
         array $order = ['sort' => 'asc'],
         ?int $perPage = null,
-        int $page = 1,
+        ?int $page = null,
         bool $activeOnly = true,
     ): Collection|LengthAwarePaginator {
         $this->requireSectionedInfoBlock($code);
@@ -468,7 +469,7 @@ class InfoBlockService
         array $filter = [],
         array $order = ['sort' => 'asc'],
         ?int $perPage = null,
-        int $page = 1,
+        ?int $page = null,
         bool $activeOnly = true,
     ): Collection|LengthAwarePaginator {
         $section = $this->getSectionById($code, $sectionId);
@@ -498,7 +499,7 @@ class InfoBlockService
         array $filter = [],
         array $order = ['sort' => 'asc'],
         ?int $perPage = null,
-        int $page = 1,
+        ?int $page = null,
         bool $activeOnly = true,
     ): Collection|LengthAwarePaginator {
         $this->requireSectionedInfoBlock($code);

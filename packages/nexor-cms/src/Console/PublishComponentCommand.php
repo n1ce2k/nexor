@@ -30,6 +30,9 @@ class PublishComponentCommand extends Command
     /** Служебные папки, которые компонентами не являются. */
     protected const SKIP = ['admin', 'partials'];
 
+    /** Части шаблона, которые копируются вместе с ним. */
+    protected const PARTIALS = ['partials'];
+
     /** Имя шаблона становится именем файла, поэтому набор символов узкий. */
     protected const NAME = '/^[A-Za-z0-9_-]+$/';
 
@@ -220,15 +223,31 @@ class PublishComponentCommand extends Command
     /**
      * Файлы шаблонов компонента, относительно его папки.
      *
+     * Вложенная папка — это либо служебные части (`partials`), которые нужно
+     * забрать вместе с шаблоном, либо соседний компонент (`menu/sections`);
+     * второй трогать нельзя.
+     *
      * @return array<int, string>
      */
     protected function templatesIn(string $directory): array
     {
-        return collect(File::allFiles($directory))
+        $files = collect(File::files($directory))
             ->filter(fn (SplFileInfo $file) => str_ends_with($file->getFilename(), '.blade.php'))
-            ->map(fn (SplFileInfo $file) => str_replace('\\', '/', $file->getRelativePathname()))
-            ->values()
-            ->all();
+            ->map(fn (SplFileInfo $file) => $file->getFilename());
+
+        foreach (File::directories($directory) as $child) {
+            if (! in_array(basename($child), self::PARTIALS, true)) {
+                continue;
+            }
+
+            $files = $files->merge(
+                collect(File::allFiles($child))
+                    ->filter(fn (SplFileInfo $file) => str_ends_with($file->getFilename(), '.blade.php'))
+                    ->map(fn (SplFileInfo $file) => basename($child).'/'.$file->getFilename()),
+            );
+        }
+
+        return $files->values()->all();
     }
 
     /**

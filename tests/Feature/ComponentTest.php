@@ -275,21 +275,249 @@ class ComponentTest extends TestCase
 
     public function test_the_section_menu_renders_the_tree(): void
     {
+        $this->threeLevels();
+
+        $tree = Blade::render('<x-nexor::menu.sections iblock="katalog" :depth="3" />');
+
+        foreach (['Мебель', 'Стулья', 'Венские'] as $name) {
+            $this->assertStringContainsString($name, $tree);
+        }
+    }
+
+    public function test_the_menu_is_cut_off_at_the_given_depth(): void
+    {
+        $this->threeLevels();
+
+        $one = Blade::render('<x-nexor::menu.sections iblock="katalog" :depth="1" />');
+        $two = Blade::render('<x-nexor::menu.sections iblock="katalog" :depth="2" />');
+
+        $this->assertStringNotContainsString('Стулья', $one);
+        $this->assertStringContainsString('Стулья', $two);
+        $this->assertStringNotContainsString('Венские', $two);
+    }
+
+    public function test_the_menu_can_start_from_a_section(): void
+    {
+        $this->threeLevels();
+
+        $html = Blade::render('<x-nexor::menu.sections iblock="katalog" root="mebel" :depth="1" />');
+
+        // От корня глубина считается заново, поэтому видны его дети.
+        $this->assertStringContainsString('Стулья', $html);
+        $this->assertStringNotContainsString('Декор', $html);
+    }
+
+    public function test_the_chips_template_puts_the_sections_in_a_row(): void
+    {
+        $this->threeLevels();
+
+        $chips = Blade::render('<x-nexor::menu.sections iblock="katalog" template="chips" :depth="1" />');
+
+        $this->assertStringContainsString('Все', $chips);
+        $this->assertStringContainsString('Мебель', $chips);
+    }
+
+    public function test_a_menu_of_an_infoblock_without_sections_lists_its_elements(): void
+    {
+        $pages = Iblock::factory()->withoutSections()->create(['code' => 'pages', 'is_active' => true]);
+        $this->element($pages, 'О компании');
+
+        $this->assertStringContainsString('О компании', Blade::render('<x-nexor::menu iblock="pages" />'));
+    }
+
+    public function test_a_menu_hangs_elements_under_their_sections(): void
+    {
         $iblock = $this->catalogue();
-        $parent = IblockSection::factory()->create([
+        $section = IblockSection::factory()->create([
             'iblock_id' => $iblock->id, 'name' => 'Мебель', 'code' => 'mebel',
         ]);
-        IblockSection::factory()->create([
-            'iblock_id' => $iblock->id, 'parent_id' => $parent->id, 'name' => 'Стулья', 'code' => 'stulya',
+
+        $this->element($iblock, 'Стул', ['section_id' => $section->id]);
+
+        $html = Blade::render('<x-nexor::menu iblock="katalog" :elements="true" :depth="2" />');
+
+        $this->assertStringContainsString('Мебель', $html);
+        $this->assertStringContainsString('Стул', $html);
+    }
+
+    /** Каталог с тремя уровнями разделов и соседом на верхнем. */
+    protected function threeLevels(): Iblock
+    {
+        $iblock = $this->catalogue();
+
+        $mebel = IblockSection::factory()->create([
+            'iblock_id' => $iblock->id, 'name' => 'Мебель', 'code' => 'mebel', 'sort' => 100,
         ]);
 
-        $flat = Blade::render('<x-nexor::catalog.sections iblock="katalog" />');
-        $tree = Blade::render('<x-nexor::catalog.sections iblock="katalog" template="tree" />');
+        $stulya = IblockSection::factory()->create([
+            'iblock_id' => $iblock->id, 'parent_id' => $mebel->id, 'name' => 'Стулья', 'code' => 'stulya',
+        ]);
 
-        // Чипсы показывают только верхний уровень, дерево — всё.
-        $this->assertStringContainsString('Мебель', $flat);
-        $this->assertStringNotContainsString('Стулья', $flat);
-        $this->assertStringContainsString('Стулья', $tree);
+        IblockSection::factory()->create([
+            'iblock_id' => $iblock->id, 'parent_id' => $stulya->id, 'name' => 'Венские', 'code' => 'venskie',
+        ]);
+
+        IblockSection::factory()->create([
+            'iblock_id' => $iblock->id, 'name' => 'Декор', 'code' => 'dekor', 'sort' => 200,
+        ]);
+
+        return $iblock;
+    }
+
+    // ------------------------------------------------------ catalog.section-list
+
+    public function test_the_section_list_shows_the_top_level_with_counts(): void
+    {
+        $iblock = $this->threeLevels();
+        $mebel = IblockSection::query()->where('code', 'mebel')->firstOrFail();
+        $stulya = IblockSection::query()->where('code', 'stulya')->firstOrFail();
+
+        $this->element($iblock, 'Стул', ['section_id' => $stulya->id]);
+
+        $html = Blade::render('<x-nexor::catalog.section-list iblock="katalog" />');
+
+        $this->assertStringContainsString('Мебель', $html);
+        $this->assertStringContainsString('Декор', $html);
+        // Только прямые потомки корня, вложенные сюда не попадают.
+        $this->assertStringNotContainsString('Стулья', $html);
+        // Счётчик рекурсивный: товар лежит во внуке «Мебели».
+        $this->assertStringContainsString('1 шт.', $html);
+    }
+
+    public function test_the_section_list_can_start_from_a_section(): void
+    {
+        $this->threeLevels();
+
+        $html = Blade::render('<x-nexor::catalog.section-list iblock="katalog" root="mebel" />');
+
+        $this->assertStringContainsString('Стулья', $html);
+        $this->assertStringNotContainsString('Декор', $html);
+    }
+
+    // ------------------------------------------------------------------- news
+
+    public function test_the_news_list_is_reachable_by_its_bitrix_name(): void
+    {
+        $iblock = $this->catalogue(['code' => 'news', 'has_sections' => false]);
+        $this->element($iblock, 'Открытие магазина');
+
+        // `news.list` — псевдоним класса News\Listing: класса News\List не бывает.
+        $html = Blade::render('<x-nexor::news.list iblock="news" />');
+
+        $this->assertStringContainsString('Открытие магазина', $html);
+    }
+
+    public function test_the_news_list_puts_the_newest_first(): void
+    {
+        $iblock = $this->catalogue(['code' => 'news', 'has_sections' => false]);
+        $this->element($iblock, 'Старая', ['created_at' => now()->subWeek()]);
+        $this->element($iblock, 'Свежая', ['created_at' => now()]);
+
+        $html = Blade::render('<x-nexor::news.list iblock="news" />');
+
+        $this->assertLessThan(mb_strpos($html, 'Старая'), mb_strpos($html, 'Свежая'));
+    }
+
+    public function test_the_news_detail_renders_without_a_property_table(): void
+    {
+        $iblock = $this->catalogue(['code' => 'news', 'has_sections' => false]);
+        $property = IblockProperty::factory()->for($iblock)->create(['code' => 'HIDDEN', 'name' => 'Служебное']);
+
+        $element = $this->element($iblock, 'Новость', ['detail_text' => 'Текст', 'detail_text_type' => 'text']);
+        $element->values()->create(['property_id' => $property->id, 'value_string' => 'X']);
+
+        $html = Blade::render('<x-nexor::news.detail :element="$element" />', compact('element'));
+
+        $this->assertStringContainsString('Текст', $html);
+        $this->assertStringNotContainsString('Служебное', $html);
+    }
+
+    // ------------------------------------------------------------------- form
+
+    public function test_the_form_renders_the_requested_fields(): void
+    {
+        $html = Blade::render(
+            '<x-nexor::form :fields="$fields" title="Заказать звонок" />',
+            ['fields' => ['name', 'phone']],
+        );
+
+        $this->assertStringContainsString('Заказать звонок', $html);
+        $this->assertStringContainsString('name="name"', $html);
+        $this->assertStringContainsString('name="phone"', $html);
+        $this->assertStringNotContainsString('name="message"', $html);
+    }
+
+    public function test_the_form_hides_its_settings_from_the_browser(): void
+    {
+        $html = Blade::render('<x-nexor::form to="sales@example.com" />');
+
+        // Адрес получателя не должен быть виден и подменяем в разметке.
+        $this->assertStringNotContainsString('sales@example.com', $html);
+        $this->assertStringContainsString('name="_form"', $html);
+    }
+
+    public function test_an_unknown_field_is_refused(): void
+    {
+        $this->expectException(ViewException::class);
+        $this->expectExceptionMessage('не знает поля');
+
+        Blade::render('<x-nexor::form :fields="$fields" />', ['fields' => ['kartoshka']]);
+    }
+
+    // ----------------------------------------------------------------- search
+
+    public function test_the_search_form_keeps_the_current_query(): void
+    {
+        $this->get('/?q=стул');
+
+        $html = Blade::render('<x-nexor::search.form />');
+
+        $this->assertStringContainsString('value="стул"', $html);
+        $this->assertStringContainsString('method="get"', $html);
+    }
+
+    public function test_the_search_page_groups_results_by_infoblock(): void
+    {
+        $catalogue = $this->catalogue();
+        $news = $this->catalogue(['code' => 'news', 'name' => 'Новости', 'has_sections' => false]);
+
+        $this->element($catalogue, 'Стул венский');
+        $this->element($news, 'Стулья приехали');
+        $this->element($news, 'Ничего общего');
+
+        $this->get('/?q=Стул');
+
+        $html = Blade::render('<x-nexor::search.page />');
+
+        $this->assertStringContainsString('Каталог', $html);
+        $this->assertStringContainsString('Новости', $html);
+        $this->assertStringContainsString('Стул венский', $html);
+        $this->assertStringNotContainsString('Ничего общего', $html);
+    }
+
+    public function test_the_search_page_looks_inside_searchable_properties(): void
+    {
+        $iblock = $this->catalogue();
+        $property = IblockProperty::factory()->for($iblock)->create([
+            'code' => 'ARTICLE', 'is_searchable' => true,
+        ]);
+
+        $this->element($iblock, 'Безымянный')->values()->create([
+            'property_id' => $property->id, 'value_string' => 'ART-777',
+        ]);
+
+        $this->get('/?q=ART-777');
+
+        $this->assertStringContainsString('Безымянный', Blade::render('<x-nexor::search.page />'));
+    }
+
+    public function test_the_search_page_says_nothing_was_found(): void
+    {
+        $this->catalogue();
+
+        $this->get('/?q=несуществующее');
+
+        $this->assertStringContainsString('ничего не нашлось', Blade::render('<x-nexor::search.page />'));
     }
 
     // ------------------------------------------------------------ breadcrumbs

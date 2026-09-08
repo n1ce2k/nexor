@@ -9,6 +9,8 @@ Route::get('/', [HomeController::class, 'index'])->name('home');
 
 Route::get('robots.txt', RobotsController::class)->name('robots');
 
+Route::view('search', 'site.search')->name('search');
+
 /*
  * Catch-alls for infoblock pages, kept last so they never shadow a real route.
  * The `admin` prefix is excluded because the panel registers its own routes.

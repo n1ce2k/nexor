@@ -89,7 +89,7 @@ class PageGenerator
         $aside = $iblock->has_sections
             ? <<<BLADE
             <aside class="space-y-6">
-                <x-nexor::catalog.sections iblock="{$code}" template="tree" />
+                <x-nexor::menu.sections iblock="{$code}" />
                 <x-nexor::catalog.filter iblock="{$code}" />
             </aside>
 

@@ -201,7 +201,9 @@ class InfoBlockService
     }
 
     /**
-     * Поиск по названию и символьному коду.
+     * Поиск по названию, символьному коду и текстовым свойствам.
+     *
+     * Свойства берутся те, у которых в админке стоит галочка «участвует в поиске».
      *
      * Регистр зависит от сопоставления базы: в MySQL с `utf8mb4_*_ci` поиск
      * регистронезависимый, в SQLite — только для латиницы.
@@ -217,15 +219,47 @@ class InfoBlockService
         ?int $perPage = null,
         ?int $page = null,
         array $order = ['sort' => 'asc'],
+        ?int $limit = null,
     ): Collection|LengthAwarePaginator {
         $term = '%'.trim($search).'%';
 
-        $query = $this->query($this->requireInfoBlock($code), $filter, $order)
-            ->where(fn (Builder $q) => $q->where('name', 'like', $term)->orWhere('code', 'like', $term));
+        $iblock = $this->requireInfoBlock($code);
+        $searchable = $this->searchableProperties($iblock);
 
-        return $perPage !== null
-            ? $query->paginate($perPage, ['*'], 'page', $page)->withQueryString()
-            : $query->get();
+        $query = $this->query($iblock, $filter, $order)
+            ->where(function (Builder $q) use ($term, $searchable): void {
+                $q->where('name', 'like', $term)->orWhere('code', 'like', $term);
+
+                foreach ($searchable as $property) {
+                    $column = $property->type->column();
+
+                    $q->orWhereHas('values', fn (Builder $values) => $values
+                        ->where('property_id', $property->id)
+                        ->where($column, 'like', $term));
+                }
+            });
+
+        if ($perPage !== null) {
+            return $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
+        }
+
+        return $query->when($limit !== null, fn (Builder $q) => $q->limit($limit))->get();
+    }
+
+    /**
+     * Свойства, по которым имеет смысл искать текстом.
+     *
+     * @return Collection<int, IblockProperty>
+     */
+    protected function searchableProperties(Iblock $iblock): Collection
+    {
+        return $iblock->properties
+            ->where('is_active', true)
+            ->where('is_searchable', true)
+            ->filter(fn (IblockProperty $property) => in_array(
+                $property->type->column(), ['value_string', 'value_text'], true,
+            ))
+            ->values();
     }
 
     /**

@@ -30,30 +30,39 @@ CMS на Laravel: админ-панель с инфоблоками в стил�
 <x-nexor::catalog.section iblock="katalog" template="tiles" card="katalog.card" />
 ```
 
+| Компонент | Аналог в Битриксе | Зачем |
+|---|---|---|
+| `catalog.section` | `catalog.section` | список элементов |
+| `catalog.section-list` | `catalog.section.list` | карточки подразделов |
+| `catalog.element` | `catalog.element` | детальная карточка |
+| `catalog.filter` | `catalog.filter` | фильтр по свойствам |
+| `news.list` | `news.list` | лента новостей |
+| `news.detail` | `news.detail` | детальная новость |
+| `menu` | `menu` | навигация, параметр `depth` |
+| `menu.sections` | левое меню разделов | дерево разделов с глубиной и корнем |
+| `form` | `main.feedback` | форма обратной связи |
+| `search.form` | `search.form` | строка поиска |
+| `search.page` | `search.page` | результаты поиска |
+| `breadcrumbs` | `breadcrumb` | хлебные крошки |
+| `pagination` | `system.pagenavigation` | постраничная навигация |
+
+Два имени расходятся с Битриксом из-за PHP: `list` — зарезервированное слово, класса `Catalog\Section\List` не бывает. У `catalog.section-list` поэтому дефис, а `news.list` сохранил точку через псевдоним класса `News\Listing`.
+
+Форма шлёт письмо на адрес из пропа `to` или из настройки `contacts.email`, по коду почтового шаблона. Настройки едут в браузер зашифрованными — иначе получателя можно было бы подменить и превратить сайт в открытый релей.
+
 Логика лежит в классах пакета, вёрстка — в его вьюхах; сайт кладёт свой шаблон рядом, и тот побеждает пакетный:
 
 ```
 packages/nexor-cms/
     src/View/Components/                        логика (component.php)
-        Breadcrumbs.php
-        Pagination.php
-        Catalog/
-            Section.php                         список элементов
-            Sections.php                        меню разделов
-            Filter.php                          фильтр по свойствам
-            Element.php                         детальная карточка
+        Breadcrumbs.php  Pagination.php  Form.php  Menu.php
+        Menu/Sections.php
+        Catalog/Section.php  Catalog/SectionList.php
+        Catalog/Filter.php   Catalog/Element.php
+        News/Listing.php     News/Detail.php
+        Search/Form.php      Search/Page.php
     resources/views/components/                 вёрстка (templates/.default)
-        breadcrumbs/default.blade.php
-        pagination/default.blade.php
-        pagination/full.blade.php
-        pagination/btnload.blade.php
-        catalog/card/default.blade.php
-        catalog/section/default.blade.php
-        catalog/section/tiles.blade.php
-        catalog/sections/default.blade.php
-        catalog/sections/tree.blade.php
-        catalog/filter/default.blade.php
-        catalog/element/default.blade.php
+        <компонент>/<шаблон>.blade.php
 
 resources/views/vendor/nexor/components/        ваши шаблоны, побеждают пакетные
     catalog/section/my_template.blade.php

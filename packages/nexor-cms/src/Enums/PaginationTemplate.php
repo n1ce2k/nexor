@@ -33,6 +33,21 @@ enum PaginationTemplate: string
     }
 
     /**
+     * Name of the `pagination` component template this case selects.
+     *
+     * The stored value keeps its Bitrix-ish shape, the component only needs the
+     * short half — `pagination_full` picks `full.blade.php`.
+     */
+    public function template(): string
+    {
+        return match ($this) {
+            self::Simple => 'default',
+            self::Full => 'full',
+            self::ButtonLoad => 'btnload',
+        };
+    }
+
+    /**
      * Whether the template already loads more items by itself, which makes the
      * separate "показать ещё" switch redundant.
      */

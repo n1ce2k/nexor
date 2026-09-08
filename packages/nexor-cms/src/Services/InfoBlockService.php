@@ -87,6 +87,7 @@ class InfoBlockService
      * @param  array<string, string>  $order  Поле => asc|desc
      * @param  int|null  $perPage  null — вернуть всё одной коллекцией
      * @param  int|null  $page  null — взять номер страницы из адреса (`?page=2`)
+     * @param  int|null  $limit  Ограничение для выборки без страниц
      * @return Collection<int, IblockElement>|LengthAwarePaginator<int, IblockElement>
      */
     public function getElements(
@@ -95,14 +96,17 @@ class InfoBlockService
         array $order = ['sort' => 'asc'],
         ?int $perPage = null,
         ?int $page = null,
+        ?int $limit = null,
     ): Collection|LengthAwarePaginator {
         $iblock = $this->requireInfoBlock($code);
 
         $query = $this->query($iblock, $filter, $order);
 
-        return $perPage !== null
-            ? $query->paginate($perPage, ['*'], 'page', $page)->withQueryString()
-            : $query->get();
+        if ($perPage !== null) {
+            return $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
+        }
+
+        return $query->when($limit !== null, fn (Builder $q) => $q->limit($limit))->get();
     }
 
     /**

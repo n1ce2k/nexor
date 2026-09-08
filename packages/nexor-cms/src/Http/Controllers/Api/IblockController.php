@@ -95,11 +95,6 @@ class IblockController extends ApiController
 
         $path = PageGenerator::create($iblock);
 
-        // Смена шаблона переписывает только компонент пагинации.
-        if ($iblock->wasChanged('pagination_template')) {
-            PageGenerator::refreshPagination($iblock);
-        }
-
         if ($path !== $iblock->page_path) {
             $iblock->forceFill(['page_path' => $path])->save();
         }

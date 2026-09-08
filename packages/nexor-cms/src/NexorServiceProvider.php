@@ -5,12 +5,14 @@ namespace Nexor\Cms;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Nexor\Cms\Console\InstallCommand;
 use Nexor\Cms\Console\LoginLinkCommand;
+use Nexor\Cms\Console\PublishComponentCommand;
 use Nexor\Cms\Console\SetPasswordCommand;
 use Nexor\Cms\Console\SyncPermissionsCommand;
 use Nexor\Cms\Contracts\NexorUser;
@@ -56,11 +58,13 @@ class NexorServiceProvider extends ServiceProvider
 
         $this->loadMigrationsFrom($this->path('database/migrations'));
         $this->loadViewsFrom($this->path('resources/views'), 'nexor');
+        $this->registerComponents();
 
         if ($this->app->runningInConsole()) {
             $this->commands([
                 InstallCommand::class,
                 LoginLinkCommand::class,
+                PublishComponentCommand::class,
                 SetPasswordCommand::class,
                 SyncPermissionsCommand::class,
             ]);
@@ -178,6 +182,19 @@ class NexorServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * Компоненты публичной части: `<x-nexor::catalog.section />`.
+     *
+     * Имя тега разворачивается в класс: `catalog.section` →
+     * `Nexor\Cms\View\Components\Catalog\Section`. Если класса нет, Blade
+     * ищет анонимный компонент в `resources/views/components` пакета —
+     * именно так живут `<x-nexor::admin.*>` из Blade-админки.
+     */
+    protected function registerComponents(): void
+    {
+        Blade::componentNamespace('Nexor\Cms\View\Components', 'nexor');
+    }
+
     protected function registerPublishing(): void
     {
         $this->publishes([
@@ -191,6 +208,12 @@ class NexorServiceProvider extends ServiceProvider
         $this->publishes([
             $this->path('database/seeders') => database_path('seeders/nexor'),
         ], 'nexor-seeders');
+
+        // Шаблоны компонентов целиком. Отдельный компонент удобнее
+        // забирать командой `php artisan nexor:component`.
+        $this->publishes([
+            $this->path('resources/views/components') => resource_path('views/vendor/nexor/components'),
+        ], 'nexor-components');
     }
 
     protected function path(string $relative): string

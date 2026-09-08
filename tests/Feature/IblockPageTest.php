@@ -72,7 +72,7 @@ class IblockPageTest extends TestCase
 
     // ------------------------------------------------------------ scaffolding
 
-    public function test_the_page_switch_scaffolds_a_listing_a_detail_page_and_a_paging_component(): void
+    public function test_the_page_switch_scaffolds_a_listing_and_a_detail_page(): void
     {
         $iblock = $this->pagedIblock();
 
@@ -81,34 +81,33 @@ class IblockPageTest extends TestCase
         }
     }
 
-    public function test_the_listing_includes_the_paging_component(): void
+    public function test_the_generated_page_only_calls_components(): void
     {
         $iblock = $this->pagedIblock();
+        $listing = File::get(PageGenerator::path($iblock));
 
-        $this->assertStringContainsString(
-            "@include('".PageGenerator::view($iblock, 'pagination')."'",
-            File::get(PageGenerator::path($iblock)),
-        );
+        $this->assertStringContainsString('<x-nexor::catalog.section iblock="katalog-test"', $listing);
+        $this->assertStringContainsString('<x-nexor::breadcrumbs iblock="katalog-test"', $listing);
+
+        // Вёрстка живёт в шаблонах компонентов, а не копируется в страницу.
+        $this->assertStringNotContainsString('@forelse', $listing);
     }
 
-    public function test_the_paging_component_follows_the_chosen_template(): void
+    public function test_a_sectioned_infoblock_gets_the_tree_and_the_filter(): void
     {
-        $numbered = File::get(PageGenerator::path($this->pagedIblock(), 'pagination'));
-
-        $this->assertStringContainsString('aria-label="Страницы"', $numbered);
-
-        $button = File::get(PageGenerator::path(
-            $this->pagedIblock(['code' => 'btnload-test', 'pagination_template' => PaginationTemplate::ButtonLoad]),
-            'pagination',
+        $withSections = File::get(PageGenerator::path($this->pagedIblock()));
+        $plain = File::get(PageGenerator::path(
+            $this->pagedIblock(['code' => 'plain-page-test', 'has_sections' => false]),
         ));
 
-        $this->assertStringContainsString('Показать ещё', $button);
-        $this->assertStringNotContainsString('aria-label="Страницы"', $button);
+        $this->assertStringContainsString('<x-nexor::catalog.sections', $withSections);
+        $this->assertStringContainsString('<x-nexor::catalog.filter', $withSections);
+        $this->assertStringNotContainsString('<x-nexor::catalog.sections', $plain);
     }
 
-    public function test_changing_the_template_rewrites_only_the_paging_component(): void
+    public function test_the_paging_template_is_a_setting_rather_than_a_file(): void
     {
-        $iblock = $this->pagedIblock();
+        $iblock = $this->pagedIblock(['pagination_template' => PaginationTemplate::ButtonLoad]);
         $admin = $this->adminWith(['iblocks.update']);
 
         File::put(PageGenerator::path($iblock), 'моя разметка');
@@ -119,16 +118,12 @@ class IblockPageTest extends TestCase
             'name' => $iblock->name,
             'has_page' => '1',
             'is_active' => '1',
-            'pagination_template' => PaginationTemplate::ButtonLoad->value,
+            'pagination_template' => PaginationTemplate::Simple->value,
         ])->assertOk();
 
-        $this->assertStringContainsString(
-            'Показать ещё',
-            File::get(PageGenerator::path($iblock, 'pagination')),
-        );
-
-        // The listing is the operator's file — resaving must not touch it.
+        // Смена шаблона меняет настройку, а не переписывает чьи-то файлы.
         $this->assertSame('моя разметка', File::get(PageGenerator::path($iblock)));
+        $this->assertSame(PaginationTemplate::Simple, $iblock->refresh()->pagination_template);
     }
 
     // ---------------------------------------------------------------- listing

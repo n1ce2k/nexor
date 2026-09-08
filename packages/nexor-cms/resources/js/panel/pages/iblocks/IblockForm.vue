@@ -234,11 +234,10 @@ onMounted(async () => {
                                     class="sm:max-w-40" />
                         </NField>
 
-                        <p v-if="form.fields.has_page"
-                           class="rounded-lg bg-[var(--surface-muted)] p-3 text-xs text-[var(--text-muted)]">
-                            Разметка лежит в
-                            <code class="font-mono text-[var(--text-base)]">resources/views/{{ form.fields.code || 'код' }}/pagination.blade.php</code>.
-                            Смена шаблона перезапишет этот файл — правки в нём потеряются.
+                        <p class="rounded-lg bg-[var(--surface-muted)] p-3 text-xs text-[var(--text-muted)]">
+                            Это шаблон компонента <code class="font-mono text-[var(--text-base)]">pagination</code>;
+                            файлы при смене не перезаписываются. Своя вёрстка —
+                            <code class="font-mono text-[var(--text-base)]">php artisan nexor:component pagination</code>.
                         </p>
                     </div>
                 </NCard>
@@ -264,9 +263,8 @@ onMounted(async () => {
                             <template v-else>
                                 После сохранения появится папка
                                 <code class="font-mono text-[var(--text-base)]">resources/views/{{ form.fields.code || 'код' }}/</code>
-                                с файлами <code class="font-mono text-[var(--text-base)]">index</code>,
-                                <code class="font-mono text-[var(--text-base)]">detail</code> и
-                                <code class="font-mono text-[var(--text-base)]">pagination</code>. Список откроется по
+                                с файлами <code class="font-mono text-[var(--text-base)]">index</code> и
+                                <code class="font-mono text-[var(--text-base)]">detail</code>. Список откроется по
                                 <code class="font-mono text-[var(--text-base)]">/{{ form.fields.code || 'код' }}</code>,
                                 элемент — по
                                 <code class="font-mono text-[var(--text-base)]">/{{ form.fields.code || 'код' }}/&lt;код&gt;</code>.

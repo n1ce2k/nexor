@@ -101,7 +101,7 @@ class PanelFeaturesTest extends TestCase
 
         $this->assertTrue(PageGenerator::exists($iblock));
         $this->assertSame($this->pagesDirectory.'/services/index.blade.php', $iblock->page_path);
-        $this->assertStringContainsString("Site::elements('services'", File::get(PageGenerator::path($iblock)));
+        $this->assertStringContainsString('<x-nexor::catalog.section iblock="services"', File::get(PageGenerator::path($iblock)));
     }
 
     public function test_no_file_is_written_when_the_page_switch_is_off(): void

@@ -139,6 +139,23 @@ class InfoBlockServiceTest extends TestCase
         $this->assertSame(['Товар 3', 'Товар 4'], $page->pluck('name')->all());
     }
 
+    public function test_the_page_number_is_taken_from_the_address_when_it_is_not_given(): void
+    {
+        $iblock = $this->catalogue();
+
+        foreach (range(1, 5) as $index) {
+            $this->element($iblock, 'Товар '.$index, [], ['sort' => $index * 10]);
+        }
+
+        // Шаблон номер страницы не передаёт — его должен найти сам пагинатор.
+        $this->get('/katalog?page=2');
+
+        $page = $this->service->getElements('katalog', perPage: 2);
+
+        $this->assertSame(2, $page->currentPage());
+        $this->assertSame(['Товар 3', 'Товар 4'], $page->pluck('name')->all());
+    }
+
     public function test_an_element_is_found_by_id_and_by_code(): void
     {
         $iblock = $this->catalogue();

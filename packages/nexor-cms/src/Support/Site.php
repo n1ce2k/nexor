@@ -78,17 +78,4 @@ class Site
             ->with(['values.property', 'values.enum'])
             ->first();
     }
-
-    /**
-     * Pages flagged to appear in the site menu, ordered by their menu position.
-     *
-     * @return Collection<int, IblockElement>
-     */
-    public static function menu(): Collection
-    {
-        return self::elements(self::PAGES, 100)
-            ->filter(fn (IblockElement $page) => (bool) $page->property('show_in_menu'))
-            ->sortBy(fn (IblockElement $page) => (int) ($page->property('menu_sort') ?? 500))
-            ->values();
-    }
 }

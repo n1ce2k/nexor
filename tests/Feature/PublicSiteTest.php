@@ -8,9 +8,9 @@ use Nexor\Cms\Database\Seeders\IblockSeeder;
 use Nexor\Cms\Database\Seeders\RoleSeeder;
 use Nexor\Cms\Database\Seeders\SettingSeeder;
 use Nexor\Cms\Models\IblockElement;
-use Nexor\Cms\Models\IblockElementValue;
+use Nexor\Cms\Models\Menu;
+use Nexor\Cms\Models\MenuItem;
 use Nexor\Cms\Models\Setting;
-use Nexor\Cms\Support\Site;
 use Tests\TestCase;
 
 class PublicSiteTest extends TestCase
@@ -24,12 +24,17 @@ class PublicSiteTest extends TestCase
         $this->seed([RoleSeeder::class, SettingSeeder::class, IblockSeeder::class, PageSeeder::class]);
     }
 
-    public function test_the_home_page_lists_the_seeded_pages(): void
+    public function test_the_header_shows_the_main_menu(): void
     {
+        $menu = Menu::factory()->create(['code' => 'main']);
+
+        MenuItem::factory()->for($menu)->create(['title' => 'О компании', 'url' => '/about']);
+        MenuItem::factory()->for($menu)->hidden()->create(['title' => 'Черновик', 'url' => '/draft']);
+
         $this->get(route('home'))
             ->assertOk()
             ->assertSee('О компании')
-            ->assertSee('Контакты');
+            ->assertDontSee('Черновик');
     }
 
     public function test_a_page_is_served_by_its_symbolic_code(): void
@@ -52,26 +57,6 @@ class PublicSiteTest extends TestCase
         IblockElement::query()->where('code', 'about')->update(['is_active' => false]);
 
         $this->get(route('page', 'about'))->assertNotFound();
-    }
-
-    public function test_the_menu_only_contains_pages_flagged_for_it(): void
-    {
-        $this->assertContains('services', Site::menu()->pluck('code')->all());
-
-        $page = IblockElement::query()->where('code', 'services')->firstOrFail();
-        $property = $page->iblock->properties()->where('code', 'show_in_menu')->firstOrFail();
-
-        IblockElementValue::query()
-            ->where('element_id', $page->id)
-            ->where('property_id', $property->id)
-            ->update(['value_bool' => false]);
-
-        $this->assertNotContains('services', Site::menu()->pluck('code')->all());
-    }
-
-    public function test_the_menu_is_ordered_by_the_menu_sort_property(): void
-    {
-        $this->assertSame(['about', 'services', 'delivery', 'contacts'], Site::menu()->pluck('code')->all());
     }
 
     public function test_robots_txt_comes_from_the_settings(): void

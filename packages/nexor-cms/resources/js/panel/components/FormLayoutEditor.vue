@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
+import Draggable from 'vuedraggable';
 import NButton from './ui/NButton.vue';
 import NIcon from './ui/NIcon.vue';
 import NInput from './ui/NInput.vue';
@@ -11,9 +12,10 @@ import { useUi } from '../stores/ui';
 /**
  * Настройка вкладок формы элемента — как «Настройка формы» в Битриксе.
  *
- * Вкладки переименовываются, добавляются, удаляются и меняются местами; каждое
- * поле выбирает свою вкладку из выпадающего списка. Раскладка хранится в
- * настройках инфоблока, поэтому у каждого инфоблока она своя.
+ * Вкладки и поля перетаскиваются мышью; поле можно перетащить прямо в другую
+ * вкладку. Кнопки со стрелками оставлены рядом: с клавиатуры и на тач-экране
+ * они надёжнее, а выпадающий список переносит поле точнее, когда вкладок много
+ * и до нужной надо тащить далеко.
  */
 const props = defineProps({
     modelValue: { type: Boolean, default: false },
@@ -31,10 +33,16 @@ const ui = useUi();
 const draft = ref([]);
 const busy = ref(false);
 
-/** Поля, разложенные по вкладкам, в виде «ключ поля → ключ вкладки». */
-const placement = ref({});
+/**
+ * Раскладка полей: ключ вкладки → упорядоченный список ключей полей.
+ *
+ * Единственный источник правды для нижней половины окна. Перетаскивание требует
+ * настоящего массива, который можно менять на месте, — вычисляемый список для
+ * этого не годится.
+ */
+const groups = ref({});
 
-const fieldLabel = computed(() => Object.fromEntries(props.fields.map((field) => [field.key, field.label])));
+const fieldByKey = computed(() => Object.fromEntries(props.fields.map((field) => [field.key, field])));
 
 const tabOptions = computed(() => draft.value.map((tab) => ({ value: tab.key, label: tab.label || tab.key })));
 
@@ -42,24 +50,40 @@ function reset() {
     draft.value = props.tabs.map((tab) => ({ ...tab, fields: [...tab.fields] }));
 
     const next = {};
-    draft.value.forEach((tab) => tab.fields.forEach((field) => {
-        next[field] = tab.key;
-    }));
+    const placed = [];
 
-    // Поле, которого нет ни на одной вкладке, отправляется на первую.
-    props.fields.forEach((field) => {
-        next[field.key] ??= draft.value[0]?.key;
+    draft.value.forEach((tab) => {
+        next[tab.key] = tab.fields.filter((field) => {
+            const known = Boolean(fieldByKey.value[field]) && ! placed.includes(field);
+
+            known && placed.push(field);
+
+            return known;
+        });
     });
 
-    placement.value = next;
+    // Поле, которого нет ни на одной вкладке, отправляется на первую.
+    const first = draft.value[0]?.key;
+
+    props.fields.forEach((field) => {
+        if (! placed.includes(field.key) && first) {
+            next[first].push(field.key);
+        }
+    });
+
+    groups.value = next;
 }
 
 watch(() => props.modelValue, (open) => open && reset(), { immediate: true });
 
+// -------------------------------------------------------------------- вкладки
+
 function addTab() {
     const index = draft.value.length + 1;
+    const key = `tab_${index}`;
 
-    draft.value.push({ key: `tab_${index}`, label: `Вкладка ${index}`, fields: [] });
+    draft.value.push({ key, label: `Вкладка ${index}`, fields: [] });
+    groups.value[key] = [];
 }
 
 function removeTab(index) {
@@ -75,11 +99,8 @@ function removeTab(index) {
     draft.value.splice(index, 1);
 
     // Поля удалённой вкладки не должны исчезнуть вместе с ней.
-    Object.keys(placement.value).forEach((field) => {
-        if (placement.value[field] === removed.key) {
-            placement.value[field] = fallback;
-        }
-    });
+    groups.value[fallback] = [...groups.value[fallback], ...(groups.value[removed.key] ?? [])];
+    delete groups.value[removed.key];
 }
 
 function moveTab(index, delta) {
@@ -94,53 +115,64 @@ function moveTab(index, delta) {
     draft.value.splice(target, 0, tab);
 }
 
-/**
- * Поля вкладки в том порядке, в котором их показывает форма.
- *
- * Порядок задаёт сама вкладка; поле, только что переехавшее сюда из другой,
- * в её списке ещё не значится и встаёт в конец.
- */
-function fieldsOf(key) {
-    const order = draft.value.find((tab) => tab.key === key)?.fields ?? [];
-    const position = (field) => {
-        const index = order.indexOf(field.key);
+/** Переименование кода вкладки не должно ронять её поля. */
+function renameTab(tab, key) {
+    const previous = tab.key;
 
-        return index === -1 ? Number.MAX_SAFE_INTEGER : index;
-    };
-
-    return props.fields
-        .filter((field) => placement.value[field.key] === key)
-        .sort((a, b) => position(a) - position(b));
-}
-
-function moveField(fieldKey, delta) {
-    const tabKey = placement.value[fieldKey];
-    const tab = draft.value.find((item) => item.key === tabKey);
-    const order = fieldsOf(tabKey).map((field) => field.key);
-    const index = order.indexOf(fieldKey);
-    const target = index + delta;
-
-    if (!tab || target < 0 || target >= order.length) {
+    if (key === previous) {
         return;
     }
 
-    order.splice(target, 0, ...order.splice(index, 1));
-
-    tab.fields = order;
+    groups.value[key] = groups.value[previous] ?? [];
+    delete groups.value[previous];
+    tab.key = key;
 }
+
+// ---------------------------------------------------------------------- поля
+
+function fieldsOf(key) {
+    return (groups.value[key] ?? []).map((field) => fieldByKey.value[field]).filter(Boolean);
+}
+
+function tabOf(fieldKey) {
+    return Object.keys(groups.value).find((key) => groups.value[key].includes(fieldKey)) ?? null;
+}
+
+function moveField(fieldKey, delta) {
+    const key = tabOf(fieldKey);
+    const list = groups.value[key];
+    const index = list.indexOf(fieldKey);
+    const target = index + delta;
+
+    if (target < 0 || target >= list.length) {
+        return;
+    }
+
+    list.splice(target, 0, ...list.splice(index, 1));
+}
+
+function placeField(fieldKey, tabKey) {
+    const from = tabOf(fieldKey);
+
+    if (! tabKey || from === tabKey) {
+        return;
+    }
+
+    groups.value[from] = groups.value[from].filter((one) => one !== fieldKey);
+    groups.value[tabKey] = [...(groups.value[tabKey] ?? []), fieldKey];
+}
+
+// -------------------------------------------------------------------- запись
 
 async function save() {
     busy.value = true;
 
     try {
-        const tabs = draft.value.map((tab) => {
-            const explicit = tab.fields.filter((field) => placement.value[field] === tab.key);
-            const rest = props.fields
-                .map((field) => field.key)
-                .filter((field) => placement.value[field] === tab.key && !explicit.includes(field));
-
-            return { key: tab.key, label: tab.label, fields: [...explicit, ...rest] };
-        });
+        const tabs = draft.value.map((tab) => ({
+            key: tab.key,
+            label: tab.label,
+            fields: groups.value[tab.key] ?? [],
+        }));
 
         const data = await api.put(`iblocks/${props.iblock}/form-layout`, { tabs });
 
@@ -160,7 +192,7 @@ async function restoreDefaults() {
         message: 'Своя раскладка формы будет удалена.',
     });
 
-    if (!confirmed) {
+    if (! confirmed) {
         return;
     }
 
@@ -187,31 +219,42 @@ async function restoreDefaults() {
             <section class="space-y-2">
                 <p class="text-sm font-medium text-[var(--text-strong)]">Вкладки</p>
 
-                <div v-for="(tab, index) in draft" :key="index" class="flex items-center gap-2">
-                    <NInput v-model="tab.label" class="flex-1" placeholder="Название вкладки" />
+                <Draggable :list="draft" item-key="key" handle=".tab-handle" :animation="150"
+                           ghost-class="opacity-40" class="space-y-2">
+                    <template #item="{ element: tab, index }">
+                        <div class="flex items-center gap-2">
+                            <span class="tab-handle cursor-grab text-[var(--text-faint)] active:cursor-grabbing"
+                                  title="Перетащите, чтобы переставить">
+                                <NIcon name="grip" size="size-4" />
+                            </span>
 
-                    <NInput v-model="tab.key" class="w-40 font-mono text-xs" placeholder="код" />
+                            <NInput v-model="tab.label" class="flex-1" placeholder="Название вкладки" />
 
-                    <div class="flex shrink-0 items-center gap-0.5">
-                        <button type="button" title="Выше" :disabled="index === 0"
-                                class="rounded p-1.5 text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] disabled:opacity-30"
-                                @click="moveTab(index, -1)">
-                            <NIcon name="chevron-up" size="size-4" />
-                        </button>
+                            <NInput :model-value="tab.key" class="w-40 font-mono text-xs" placeholder="код"
+                                    @update:model-value="renameTab(tab, $event)" />
 
-                        <button type="button" title="Ниже" :disabled="index === draft.length - 1"
-                                class="rounded p-1.5 text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] disabled:opacity-30"
-                                @click="moveTab(index, 1)">
-                            <NIcon name="chevron-down" size="size-4" />
-                        </button>
+                            <div class="flex shrink-0 items-center gap-0.5">
+                                <button type="button" title="Выше" :disabled="index === 0"
+                                        class="rounded p-1.5 text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] disabled:opacity-30"
+                                        @click="moveTab(index, -1)">
+                                    <NIcon name="chevron-up" size="size-4" />
+                                </button>
 
-                        <button type="button" title="Удалить вкладку"
-                                class="rounded p-1.5 text-[var(--text-muted)] transition hover:text-red-600"
-                                @click="removeTab(index)">
-                            <NIcon name="trash" size="size-4" />
-                        </button>
-                    </div>
-                </div>
+                                <button type="button" title="Ниже" :disabled="index === draft.length - 1"
+                                        class="rounded p-1.5 text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] disabled:opacity-30"
+                                        @click="moveTab(index, 1)">
+                                    <NIcon name="chevron-down" size="size-4" />
+                                </button>
+
+                                <button type="button" title="Удалить вкладку"
+                                        class="rounded p-1.5 text-[var(--text-muted)] transition hover:text-red-600"
+                                        @click="removeTab(index)">
+                                    <NIcon name="trash" size="size-4" />
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </Draggable>
 
                 <button type="button"
                         class="inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 transition hover:underline dark:text-brand-400"
@@ -222,7 +265,10 @@ async function restoreDefaults() {
             </section>
 
             <section class="space-y-3">
-                <p class="text-sm font-medium text-[var(--text-strong)]">Поля</p>
+                <div class="flex items-baseline justify-between gap-3">
+                    <p class="text-sm font-medium text-[var(--text-strong)]">Поля</p>
+                    <p class="text-xs text-[var(--text-muted)]">Поле можно перетащить в другую вкладку</p>
+                </div>
 
                 <div v-for="tab in draft" :key="`fields-${tab.key}`"
                      class="rounded-xl border border-[var(--surface-border)] p-3">
@@ -230,36 +276,45 @@ async function restoreDefaults() {
                         {{ tab.label || tab.key }}
                     </p>
 
-                    <div class="space-y-1.5">
-                        <div v-for="field in fieldsOf(tab.key)" :key="field.key"
-                             class="flex items-center gap-2">
-                            <span class="min-w-0 flex-1 truncate text-sm text-[var(--text-strong)]">
-                                {{ fieldLabel[field.key] }}
-                                <code v-if="field.group === 'property'"
-                                      class="ml-1 rounded bg-[var(--surface-muted)] px-1 py-0.5 font-mono text-[10px] text-[var(--text-muted)]">
-                                    свойство
-                                </code>
-                            </span>
+                    <Draggable :list="groups[tab.key]" :group="{ name: 'layout-fields' }" item-key="."
+                               handle=".field-handle" :animation="150" ghost-class="opacity-40"
+                               class="min-h-8 space-y-1.5">
+                        <template #item="{ element: key }">
+                            <div v-if="fieldByKey[key]" class="flex items-center gap-2">
+                                <span class="field-handle cursor-grab text-[var(--text-faint)] active:cursor-grabbing"
+                                      title="Перетащите в нужную вкладку">
+                                    <NIcon name="grip" size="size-3.5" />
+                                </span>
 
-                            <button type="button" title="Выше"
-                                    class="rounded p-1 text-[var(--text-faint)] transition hover:text-[var(--text-strong)]"
-                                    @click="moveField(field.key, -1)">
-                                <NIcon name="chevron-up" size="size-3.5" />
-                            </button>
+                                <span class="min-w-0 flex-1 truncate text-sm text-[var(--text-strong)]">
+                                    {{ fieldByKey[key].label }}
+                                    <code v-if="fieldByKey[key].group === 'property'"
+                                          class="ml-1 rounded bg-[var(--surface-muted)] px-1 py-0.5 font-mono text-[10px] text-[var(--text-muted)]">
+                                        свойство
+                                    </code>
+                                </span>
 
-                            <button type="button" title="Ниже"
-                                    class="rounded p-1 text-[var(--text-faint)] transition hover:text-[var(--text-strong)]"
-                                    @click="moveField(field.key, 1)">
-                                <NIcon name="chevron-down" size="size-3.5" />
-                            </button>
+                                <button type="button" title="Выше"
+                                        class="rounded p-1 text-[var(--text-faint)] transition hover:text-[var(--text-strong)]"
+                                        @click="moveField(key, -1)">
+                                    <NIcon name="chevron-up" size="size-3.5" />
+                                </button>
 
-                            <NSelect v-model="placement[field.key]" :options="tabOptions" class="w-44 shrink-0" />
-                        </div>
+                                <button type="button" title="Ниже"
+                                        class="rounded p-1 text-[var(--text-faint)] transition hover:text-[var(--text-strong)]"
+                                        @click="moveField(key, 1)">
+                                    <NIcon name="chevron-down" size="size-3.5" />
+                                </button>
 
-                        <p v-if="!fieldsOf(tab.key).length" class="text-xs text-[var(--text-faint)]">
-                            Пусто — перенесите сюда поле из другой вкладки.
-                        </p>
-                    </div>
+                                <NSelect :model-value="tab.key" :options="tabOptions" class="w-44 shrink-0"
+                                         @update:model-value="placeField(key, $event)" />
+                            </div>
+                        </template>
+                    </Draggable>
+
+                    <p v-if="!fieldsOf(tab.key).length" class="text-xs text-[var(--text-faint)]">
+                        Пусто — перетащите сюда поле из другой вкладки.
+                    </p>
                 </div>
             </section>
         </div>

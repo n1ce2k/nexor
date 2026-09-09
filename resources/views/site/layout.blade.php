@@ -3,8 +3,8 @@
     use Nexor\Cms\Support\Site;
 
     $siteName = Setting::get('site.name', config('app.name'));
-    $menu = Site::menu();
     $logo = Setting::get('site.logo');
+
 @endphp
 
 <!DOCTYPE html>
@@ -38,14 +38,10 @@
                 <span class="text-base font-semibold text-slate-900">{{ $siteName }}</span>
             </a>
 
-            <nav class="hidden flex-1 items-center gap-6 md:flex">
-                @foreach ($menu as $item)
-                    <a href="{{ route('page', $item->code) }}"
-                       class="text-sm font-medium text-slate-600 transition hover:text-brand-600 {{ request()->is($item->code) ? 'text-brand-600' : '' }}">
-                        {{ $item->name }}
-                    </a>
-                @endforeach
-            </nav>
+            {{-- Пункты меню «main» настраиваются в админке: Структура → Меню. --}}
+            <div class="hidden flex-1 md:block">
+                <x-nexor::menu code="main" />
+            </div>
 
             <div class="ml-auto hidden items-center gap-4 md:flex">
                 @if ($phone = Setting::get('contacts.phone'))
@@ -65,14 +61,7 @@
 
             <div x-show="open" x-cloak @click.outside="open = false"
                  class="absolute inset-x-0 top-16 border-b border-slate-200 bg-white p-4 shadow-lg md:hidden">
-                <nav class="flex flex-col gap-1">
-                    @foreach ($menu as $item)
-                        <a href="{{ route('page', $item->code) }}"
-                           class="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                            {{ $item->name }}
-                        </a>
-                    @endforeach
-                </nav>
+                <x-nexor::menu code="main" template="stacked" />
             </div>
         </div>
     </header>
@@ -92,14 +81,8 @@
 
             <div>
                 <p class="mb-3 text-sm font-semibold text-slate-900">Разделы</p>
-                <ul class="space-y-2">
-                    @foreach ($menu as $item)
-                        <li>
-                            <a href="{{ route('page', $item->code) }}"
-                               class="text-sm text-slate-600 transition hover:text-brand-600">{{ $item->name }}</a>
-                        </li>
-                    @endforeach
-                </ul>
+
+                <x-nexor::menu code="footer" template="stacked" />
             </div>
 
             <div>
@@ -131,7 +114,7 @@
 
 {{--    {!! Setting::get('seo.counters') !!}--}}
 
-{{-- Скрипты страниц: сюда попадает, например, «Показать ещё» из компонента пагинации. --}}
+
 @stack('scripts')
 </body>
 </html>

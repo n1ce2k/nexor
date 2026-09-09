@@ -5,6 +5,7 @@ namespace Nexor\Cms\View\Components;
 use Illuminate\View\Component as BaseComponent;
 use Illuminate\View\View;
 use Nexor\Cms\Models\Iblock;
+use Nexor\Cms\Models\IblockSection;
 use Nexor\Cms\Services\InfoBlockService;
 use RuntimeException;
 
@@ -37,6 +38,54 @@ abstract class Component extends BaseComponent
     {
         return $this->iblocks()->getInfoBlockByCode($code)
             ?? throw new RuntimeException("Инфоблок «{$code}» не найден или отключён.");
+    }
+
+    /**
+     * Раздел, открытый сейчас.
+     *
+     * Порядок источников: что передали пропом, потом адрес страницы
+     * (`/katalog/mebel/stulya`), потом `?section=` — последнее осталось для страниц,
+     * которые живут не по адресу инфоблока.
+     */
+    protected function currentSection(Iblock $block, ?string $code = null): ?IblockSection
+    {
+        if (! $block->has_sections) {
+            return null;
+        }
+
+        if (is_string($code) && $code !== '' && $code !== 'none') {
+            return $this->iblocks()->getSectionByCode($block->code, $code);
+        }
+
+        $path = $this->pathInside($block);
+
+        if ($path !== '') {
+            $section = $this->iblocks()->getSectionByPath($block->code, $path);
+
+            if ($section) {
+                return $section;
+            }
+        }
+
+        $query = request()->query('section');
+
+        return is_string($query) && $query !== '' && $query !== 'none'
+            ? $this->iblocks()->getSectionByCode($block->code, $query)
+            : null;
+    }
+
+    /**
+     * Часть адреса после кода инфоблока.
+     *
+     * Последний сегмент может оказаться элементом, а не разделом, но тогда
+     * поиск по пути просто ничего не найдёт, и это верный ответ.
+     */
+    protected function pathInside(Iblock $block): string
+    {
+        $path = trim(request()->path(), '/');
+        $prefix = $block->code.'/';
+
+        return str_starts_with($path, $prefix) ? substr($path, strlen($prefix)) : '';
     }
 
     /**

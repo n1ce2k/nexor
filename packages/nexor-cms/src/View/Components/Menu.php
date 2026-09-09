@@ -60,6 +60,7 @@ class Menu extends Component
                 'block' => null,
                 'items' => app(MenuResolver::class)->tree($this->code),
                 'maxDepth' => max(1, $this->depth),
+                'currentSection' => '',
             ]);
         }
 
@@ -73,6 +74,7 @@ class Menu extends Component
             'block' => $block,
             'items' => $this->items($block),
             'maxDepth' => max(1, $this->depth),
+            'currentSection' => $this->currentSection($block)?->code ?? '',
         ]);
     }
 
@@ -119,6 +121,7 @@ class Menu extends Component
     protected function sectionItems(Iblock $block, ?IblockSection $root): array
     {
         $base = $root?->depth ?? -1;
+        $current = $this->currentSection($block)?->id;
         $nodes = [];
         $tree = [];
 
@@ -139,13 +142,13 @@ class Menu extends Component
                 'parent_id' => $section->parent_id,
                 'name' => $section->name,
                 'code' => $section->code,
-                'url' => url('/'.$block->code.'?section='.$section->code),
+                'url' => $section->url(),
                 'level' => $level,
                 'kind' => 'section',
                 // Форма пункта одна на оба источника, чтобы шаблон был один.
                 'target' => null,
                 'class' => null,
-                'active' => request()->query('section') === $section->code,
+                'active' => $current === $section->id,
                 'open' => false,
                 'children' => [],
             ];

@@ -12,7 +12,8 @@ use Nexor\Cms\Models\Iblock;
  * folder under `resources/views` with two files:
  *
  *   index.blade.php   listing, served at /<code>
- *   detail.blade.php  one element, served at /<code>/<element code>
+ *   section.blade.php one section, served at /<code>/<section path>
+ *   detail.blade.php  one element, served at /<code>/<section path>/<element>
  *
  * Both are written once and never overwritten — afterwards they belong to
  * whoever edits them. The markup inside them is not copied: they only call the
@@ -22,7 +23,7 @@ use Nexor\Cms\Models\Iblock;
 class PageGenerator
 {
     /** @var array<int, string> */
-    public const FILES = ['index', 'detail'];
+    public const FILES = ['index', 'section', 'detail'];
 
     /**
      * Directory the page of an infoblock lives in, relative to resources/views.
@@ -75,7 +76,74 @@ class PageGenerator
 
     protected static function stub(Iblock $iblock, string $file): string
     {
-        return $file === 'detail' ? self::detailStub($iblock) : self::indexStub($iblock);
+        return match ($file) {
+            'detail' => self::detailStub($iblock),
+            'section' => self::sectionStub($iblock),
+            default => self::indexStub($iblock),
+        };
+    }
+
+    /**
+     * Section page: the same components, plus the subsections of this one.
+     *
+     * Only scaffolded for infoblocks that use sections; without them the file
+     * would never be reached.
+     */
+    protected static function sectionStub(Iblock $iblock): string
+    {
+        if (! $iblock->has_sections) {
+            return self::indexStub($iblock);
+        }
+
+        $code = $iblock->code;
+
+        return <<<BLADE
+{{--
+    Страница раздела инфоблока «{$iblock->name}», адрес `/{$code}/<путь раздела>`.
+
+    В шаблон приходит \$section — открытый раздел. Компонентам его передавать
+    не нужно: они узнают текущий раздел из адреса сами.
+
+    Свой шаблон списка: php artisan nexor:component catalog.section my_template
+--}}
+
+@extends('site.layout')
+
+@section('title', \$section->meta_title ?: \$section->name)
+{{-- Не `null`: Blade понял бы это как «открыть секцию» и оставил бы буфер. --}}
+@section('description', \$section->meta_description ?? '')
+
+@section('content')
+    <section class="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+        <x-nexor::breadcrumbs iblock="{$code}" />
+
+        <header class="mb-10">
+            <h1 class="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+                {{ \$section->name }}
+            </h1>
+
+            @if (\$section->description)
+                <div class="mt-3 max-w-2xl text-lg text-slate-600">{!! \$section->description !!}</div>
+            @endif
+        </header>
+
+        {{-- Подразделы этого раздела, если они есть. --}}
+        <x-nexor::catalog.section-list iblock="{$code}" class="mb-10" />
+
+        <div class="grid gap-8 lg:grid-cols-[16rem_1fr]">
+            <aside class="space-y-6">
+                <x-nexor::menu.sections iblock="{$code}" />
+                <x-nexor::catalog.filter iblock="{$code}" />
+            </aside>
+
+            <div>
+                <x-nexor::catalog.section iblock="{$code}" />
+            </div>
+        </div>
+    </section>
+@endsection
+
+BLADE;
     }
 
     /**
@@ -123,7 +191,7 @@ BLADE
 @endphp
 
 @section('title', \$iblock?->name ?? '{$name}')
-@section('description', \$iblock?->description)
+@section('description', \$iblock?->description ?? '')
 
 @section('content')
     <section class="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">

@@ -6,7 +6,6 @@ use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\IblockProperty;
-use Nexor\Cms\Models\IblockSection;
 use Nexor\Cms\View\Components\Component;
 
 /**
@@ -26,7 +25,7 @@ class Section extends Component
     /**
      * @param  string  $iblock  Символьный код инфоблока
      * @param  string  $template  Имя шаблона вёрстки
-     * @param  string|null  $section  Код раздела; по умолчанию берётся из `?section=`
+     * @param  string|null  $section  Код раздела; по умолчанию берётся из адреса страницы
      * @param  array<string, mixed>  $filter  Дополнительный фильтр поверх адресной строки
      * @param  array<string, string>  $order  Сортировка
      * @param  int|null  $perPage  Размер страницы; по умолчанию — настройка инфоблока
@@ -53,7 +52,7 @@ class Section extends Component
         $iblocks = $this->iblocks();
         $block = $this->requireIblock($this->iblock);
 
-        $section = $this->section($block);
+        $section = $this->currentSection($block, $this->section);
 
         $filter = array_merge(['is_active' => true], $this->fromRequest(), $this->filter);
         $perPage = $this->paginate ? ($this->perPage ?? $block->pageSize()) : null;
@@ -88,20 +87,6 @@ class Section extends Component
     protected function component(): string
     {
         return 'catalog.section';
-    }
-
-    /**
-     * Раздел: из пропа, иначе из `?section=<код>`.
-     */
-    protected function section(Iblock $block): ?IblockSection
-    {
-        $code = $this->section ?? request()->query('section');
-
-        if (! $block->has_sections || ! is_string($code) || $code === '' || $code === 'none') {
-            return null;
-        }
-
-        return $this->iblocks()->getSectionByCode($this->iblock, $code);
     }
 
     /**

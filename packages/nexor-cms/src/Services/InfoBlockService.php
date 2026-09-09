@@ -457,6 +457,25 @@ class InfoBlockService
         return $this->requireSectionedInfoBlock($code)->sections()->whereKey($sectionId)->first();
     }
 
+    /**
+     * Раздел по пути из кодов: `mebel/stulya`.
+     *
+     * Именно так раздел выглядит в адресе страницы.
+     */
+    public function getSectionByPath(string $infoBlockCode, string $path): ?IblockSection
+    {
+        $path = trim($path, '/');
+
+        if ($path === '') {
+            return null;
+        }
+
+        return $this->requireSectionedInfoBlock($infoBlockCode)
+            ->sections()
+            ->where('url_path', $path)
+            ->first();
+    }
+
     public function getSectionByCode(string $infoBlockCode, string $sectionCode): ?IblockSection
     {
         return $this->requireSectionedInfoBlock($infoBlockCode)
@@ -596,7 +615,7 @@ class InfoBlockService
                     'id' => $step->id,
                     'code' => $step->code,
                     'name' => $step->name,
-                    'url' => url('/'.$iblock->code.'/'.($step->code ?: $step->id)),
+                    'url' => $step->url(),
                 ];
             }
         }

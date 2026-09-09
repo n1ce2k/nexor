@@ -47,14 +47,7 @@ class Breadcrumbs extends Component
 
     protected function fromRequest(): ?IblockSection
     {
-        $code = request()->query('section');
-
-        if ($this->element || ! is_string($code) || $code === '' || $code === 'none') {
-            return null;
-        }
-
-        return $this->requireIblock($this->iblock)->has_sections
-            ? $this->iblocks()->getSectionByCode($this->iblock, $code)
-            : null;
+        // У элемента раздел свой — подставлять ещё один из адреса не надо.
+        return $this->element ? null : $this->currentSection($this->requireIblock($this->iblock));
     }
 }

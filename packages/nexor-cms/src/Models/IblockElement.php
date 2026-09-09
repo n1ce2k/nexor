@@ -160,13 +160,18 @@ class IblockElement extends Model
      */
     public function url(): string
     {
-        $this->loadMissing('iblock');
+        $this->loadMissing(['iblock', 'section']);
 
         $code = $this->code ?: (string) $this->id;
 
-        return $this->iblock?->code === Site::PAGES
-            ? url('/'.$code)
-            : url('/'.$this->iblock?->code.'/'.$code);
+        if ($this->iblock?->code === Site::PAGES) {
+            return url('/'.$code);
+        }
+
+        // Элемент раздела лежит внутри его пути, как файл в папке.
+        $section = $this->section?->url_path;
+
+        return url('/'.$this->iblock?->code.'/'.($section ? $section.'/' : '').$code);
     }
 
     public function getPreviewPictureUrlAttribute(): ?string

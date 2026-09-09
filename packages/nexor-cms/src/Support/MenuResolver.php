@@ -197,7 +197,7 @@ class MenuResolver
             MenuItemType::Link => $item->url,
             MenuItemType::Page => $item->element?->url(),
             MenuItemType::Section => $item->section && $item->iblock
-                ? url('/'.$item->iblock->code.'?section='.$item->section->code)
+                ? $item->section->url()
                 : null,
             default => null,
         };
@@ -244,7 +244,7 @@ class MenuResolver
                 'parent' => $section->parent_id,
                 'kind' => 'section',
                 'name' => $section->name,
-                'url' => url('/'.$iblock->code.'?section='.$section->code),
+                'url' => $section->url(),
                 'level' => $level + $own - 1,
                 'target' => null,
                 'class' => null,

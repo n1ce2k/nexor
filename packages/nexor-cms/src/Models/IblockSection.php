@@ -49,7 +49,7 @@ class IblockSection extends Model
         });
 
         static::saved(function (self $section): void {
-            if ($section->wasChanged(['parent_id', 'path', 'depth'])) {
+            if ($section->wasChanged(['parent_id', 'path', 'depth', 'code', 'url_path'])) {
                 $section->refreshDescendantsTree();
             }
 
@@ -101,7 +101,8 @@ class IblockSection extends Model
     }
 
     /**
-     * Materialised path of ancestor ids, e.g. `/1/7/`, kept in sync on save.
+     * Materialised paths, kept in sync on save: ids for tree queries, symbolic
+     * codes for URLs.
      */
     protected function refreshTreeAttributes(): void
     {
@@ -109,6 +110,22 @@ class IblockSection extends Model
 
         $this->depth = $parent ? $parent->depth + 1 : 0;
         $this->path = $parent ? $parent->path.$parent->id.'/' : '/';
+
+        $own = $this->code ?: (string) $this->id;
+        $this->url_path = $parent && $parent->url_path ? $parent->url_path.'/'.$own : $own;
+    }
+
+    /**
+     * Адрес раздела: `/katalog/mebel/stulya`.
+     *
+     * Путь из кодов лежит в колонке, поэтому ссылка не стоит ни одного
+     * запроса — а разделов на странице бывают десятки.
+     */
+    public function url(): string
+    {
+        $this->loadMissing('iblock');
+
+        return url('/'.$this->iblock->code.'/'.($this->url_path ?: $this->code ?: $this->id));
     }
 
     protected function refreshDescendantsTree(): void

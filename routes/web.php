@@ -19,7 +19,13 @@ Route::get('/{code}', [PageController::class, 'show'])
     ->where('code', '^(?!admin)[a-z0-9-]+$')
     ->name('page');
 
-Route::get('/{code}/{element}', [PageController::class, 'element'])
+/*
+ * Everything below an infoblock is read like a folder path: each segment is a
+ * section until one of them is not, and that last one is an element. So
+ * /katalog/mebel is a section, /katalog/mebel/stulya a nested section, and
+ * /katalog/mebel/stul the element inside it.
+ */
+Route::get('/{code}/{path}', [PageController::class, 'inside'])
     ->where('code', '^(?!admin)[a-z0-9-]+$')
-    ->where('element', '^[a-zA-Z0-9_-]+$')
-    ->name('page.element');
+    ->where('path', '^[a-zA-Z0-9_/-]+$')
+    ->name('page.inside');

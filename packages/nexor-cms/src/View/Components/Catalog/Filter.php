@@ -26,7 +26,7 @@ class Filter extends Component
      * @param  string  $iblock  Символьный код инфоблока
      * @param  string  $template  Имя шаблона вёрстки
      * @param  array<int, string>  $only  Ограничить набор свойств этими кодами
-     * @param  string|null  $action  Адрес формы; по умолчанию — страница инфоблока
+     * @param  string|null  $action  Адрес формы; по умолчанию — текущая страница
      */
     public function __construct(
         public string $iblock,
@@ -44,7 +44,9 @@ class Filter extends Component
             'properties' => $this->properties(),
             'options' => $this->iblocks()->getEnumOptions($this->iblock),
             'values' => request()->query(),
-            'formAction' => $this->action ?? url('/'.$block->code),
+            // Отправляем туда же, где стоим: со страницы раздела фильтр не должен
+            // выкидывать в корень каталога.
+            'formAction' => $this->action ?? url()->current(),
             // Раздел выбирают не в фильтре, но терять его при отправке нельзя.
             'currentSection' => (string) request()->query('section', ''),
         ]);

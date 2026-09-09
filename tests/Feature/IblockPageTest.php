@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\File;
 use Nexor\Cms\Enums\PaginationTemplate;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\IblockElement;
+use Nexor\Cms\Models\IblockSection;
 use Nexor\Cms\Support\PageGenerator;
 use Tests\Concerns\CreatesAdminUsers;
 use Tests\TestCase;
@@ -181,6 +182,130 @@ class IblockPageTest extends TestCase
         IblockElement::query()->where('code', 'item-1')->update(['is_active' => false]);
 
         $this->get('/katalog-test')->assertOk()->assertDontSee('Товар 1')->assertSee('Товар 2');
+    }
+
+    public function test_a_page_without_a_description_does_not_leak_its_content(): void
+    {
+        $iblock = $this->pagedIblock(['description' => null]);
+        $this->sections($iblock);
+        $this->elements($iblock, 1);
+
+        $before = ob_get_level();
+
+        $this->get('/katalog-test')->assertOk();
+        $this->get('/katalog-test/mebel')->assertOk();
+
+        // `@section('description', null)` Blade понимает как «открыть секцию» и
+        // ждёт `@endsection`: буфер остаётся открытым, а содержимое страницы
+        // утекает в мета-описание вместо того, чтобы отрисоваться.
+        $this->assertSame($before, ob_get_level());
+    }
+
+    // ---------------------------------------------------------------- разделы
+
+    /** Раздел «Мебель» с вложенным «Стулья». */
+    protected function sections(Iblock $iblock): array
+    {
+        $mebel = IblockSection::factory()->create([
+            'iblock_id' => $iblock->id, 'name' => 'Мебель', 'code' => 'mebel',
+        ]);
+
+        $stulya = IblockSection::factory()->create([
+            'iblock_id' => $iblock->id, 'parent_id' => $mebel->id, 'name' => 'Стулья', 'code' => 'stulya',
+        ]);
+
+        return [$mebel, $stulya];
+    }
+
+    public function test_a_section_opens_at_its_own_address(): void
+    {
+        $iblock = $this->pagedIblock();
+        [$mebel] = $this->sections($iblock);
+
+        $this->elements($iblock, 1)[0]->update(['section_id' => $mebel->id]);
+
+        $this->get('/katalog-test/mebel')->assertOk()->assertSee('Мебель');
+    }
+
+    public function test_a_nested_section_keeps_its_parents_in_the_address(): void
+    {
+        $iblock = $this->pagedIblock();
+        [, $stulya] = $this->sections($iblock);
+
+        $this->assertSame(url('/katalog-test/mebel/stulya'), $stulya->url());
+
+        $this->get('/katalog-test/mebel/stulya')->assertOk()->assertSee('Стулья');
+    }
+
+    public function test_a_section_reached_by_the_wrong_path_is_not_found(): void
+    {
+        $iblock = $this->pagedIblock();
+        $this->sections($iblock);
+
+        // «Стулья» лежит внутри «Мебели», а не в корне.
+        $this->get('/katalog-test/stulya')->assertNotFound();
+    }
+
+    public function test_a_section_shows_only_its_own_elements(): void
+    {
+        $iblock = $this->pagedIblock();
+        [$mebel] = $this->sections($iblock);
+
+        $elements = $this->elements($iblock, 2);
+        $elements[0]->update(['section_id' => $mebel->id]);
+
+        $this->get('/katalog-test/mebel')
+            ->assertOk()
+            ->assertSee('Товар 1')
+            ->assertDontSee('Товар 2');
+    }
+
+    public function test_an_element_lives_inside_its_section_path(): void
+    {
+        $iblock = $this->pagedIblock();
+        [, $stulya] = $this->sections($iblock);
+
+        $element = $this->elements($iblock, 1)[0];
+        $element->update(['section_id' => $stulya->id]);
+
+        $this->assertSame(url('/katalog-test/mebel/stulya/item-1'), $element->refresh()->url());
+
+        $this->get('/katalog-test/mebel/stulya/item-1')->assertOk()->assertSee('Товар 1');
+    }
+
+    public function test_an_element_is_not_served_from_a_foreign_section(): void
+    {
+        $iblock = $this->pagedIblock();
+        [$mebel, $stulya] = $this->sections($iblock);
+
+        $element = $this->elements($iblock, 1)[0];
+        $element->update(['section_id' => $stulya->id]);
+
+        // Одна страница — один адрес; из чужого раздела элемент не открывается.
+        $this->get('/katalog-test/mebel/item-1')->assertNotFound();
+    }
+
+    public function test_renaming_a_section_moves_the_whole_branch(): void
+    {
+        $iblock = $this->pagedIblock();
+        [$mebel, $stulya] = $this->sections($iblock);
+
+        $mebel->update(['code' => 'furniture']);
+
+        $this->assertSame(url('/katalog-test/furniture/stulya'), $stulya->refresh()->url());
+
+        $this->get('/katalog-test/furniture/stulya')->assertOk();
+        $this->get('/katalog-test/mebel/stulya')->assertNotFound();
+    }
+
+    public function test_a_hidden_section_has_no_page(): void
+    {
+        $iblock = $this->pagedIblock();
+        [$mebel] = $this->sections($iblock);
+
+        $mebel->update(['is_active' => false]);
+
+        $this->get('/katalog-test/mebel')->assertNotFound();
     }
 
     // ----------------------------------------------------------------- detail

@@ -115,6 +115,8 @@ php artisan nexor:component catalog.section blog --force       # перезап�
 |---|---|
 | `/local/templates/main/header.php` + `footer.php` | `resources/views/site/layout.blade.php` |
 | `/katalog/index.php` | `resources/views/katalog/index.blade.php` |
+| `/katalog/mebel/` раздел | `resources/views/katalog/section.blade.php` |
+| `/katalog/mebel/stul` элемент | `resources/views/katalog/detail.blade.php` |
 | `component.php` | класс в `src/View/Components` |
 | `$arParams` | пропы тега |
 | `$arResult` | что класс передал во вьюху |

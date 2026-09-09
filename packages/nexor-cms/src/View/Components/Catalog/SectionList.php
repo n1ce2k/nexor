@@ -25,7 +25,7 @@ class SectionList extends Component
     /**
      * @param  string  $iblock  Символьный код инфоблока
      * @param  string  $template  Имя шаблона вёрстки
-     * @param  string|null  $root  Код родительского раздела; по умолчанию из `?section=`
+     * @param  string|null  $root  Код родительского раздела; по умолчанию из адреса страницы
      * @param  bool  $count  Показывать число элементов
      * @param  bool  $recursive  Считать элементы вложенных разделов тоже
      */
@@ -40,7 +40,7 @@ class SectionList extends Component
     public function render(): View
     {
         $block = $this->requireIblock($this->iblock);
-        $root = $this->root();
+        $root = $this->currentSection($block, $this->root);
 
         return $this->template($this->template, [
             'block' => $block,
@@ -53,17 +53,6 @@ class SectionList extends Component
     protected function component(): string
     {
         return 'catalog.section-list';
-    }
-
-    protected function root(): ?IblockSection
-    {
-        $code = $this->root ?? request()->query('section');
-
-        if (! is_string($code) || $code === '' || $code === 'none') {
-            return null;
-        }
-
-        return $this->iblocks()->getSectionByCode($this->iblock, $code);
     }
 
     /**
@@ -85,7 +74,7 @@ class SectionList extends Component
                 'code' => $section->code,
                 'picture' => $section->picture_url,
                 'description' => $section->description,
-                'url' => url('/'.$this->iblock.'?section='.$section->code),
+                'url' => $section->url(),
                 'count' => $this->count ? $this->countIn($section) : null,
             ])
             ->values()

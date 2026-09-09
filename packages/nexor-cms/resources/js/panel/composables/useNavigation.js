@@ -22,7 +22,7 @@ export function useNavigation() {
             items: [{ label: 'Рабочий стол', icon: 'dashboard', to: { name: 'dashboard' } }],
         });
 
-        // Контент: one entry per infoblock, nested under its type.
+        // Контент
         const byType = {};
 
         session.iblocks.forEach((iblock) => {
@@ -53,6 +53,10 @@ export function useNavigation() {
             structure.push({ label: 'Типы инфоблоков', icon: 'database', to: { name: 'iblock-types.index' } });
         }
 
+        if (session.can('menus.view')) {
+            structure.push({ label: 'Меню', icon: 'menu', to: { name: 'menus.index' } });
+        }
+
         groups.push({ label: 'Структура', items: [...structure, ...extras('Структура')] });
 
         // Настройки
@@ -81,27 +85,28 @@ export function useNavigation() {
             });
         }
 
-        groups.push({ label: 'Настройки', items: [...settings, ...extras('Настройки')] });
 
         // Администрирование
         const admin = [];
 
         if (session.can('users.view')) {
-            admin.push({ label: 'Пользователи', icon: 'users', to: { name: 'users.index' } });
+            settings.push({ label: 'Пользователи', icon: 'users', to: { name: 'users.index' } });
         }
 
         if (session.can('roles.view')) {
-            admin.push({ label: 'Роли и права', icon: 'shield', to: { name: 'roles.index' } });
+            settings.push({ label: 'Роли и права', icon: 'shield', to: { name: 'roles.index' } });
         }
 
         if (session.can('settings.view')) {
-            admin.push({ label: 'Настройки сайта', icon: 'settings', to: { name: 'settings' } });
+            settings.push({ label: 'Настройки сайта', icon: 'settings', to: { name: 'settings' } });
         }
 
-        if (session.can('logs.view')) {
-            admin.push({ label: 'Журнал действий', icon: 'clock', to: { name: 'logs' } });
-        }
+        // if (session.can('logs.view')) {
+        //     settings.push({ label: 'Журнал действий', icon: 'clock', to: { name: 'logs' } });
+        // }
 
+
+        groups.push({ label: 'Настройки', items: [...settings, ...extras('Настройки')] });
         groups.push({ label: 'Администрирование', items: [...admin, ...extras('Администрирование')] });
 
         const ungrouped = custom.filter((item) => !item.group);

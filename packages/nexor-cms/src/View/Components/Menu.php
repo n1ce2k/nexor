@@ -6,15 +6,21 @@ use Illuminate\View\View;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\IblockElement;
 use Nexor\Cms\Models\IblockSection;
+use Nexor\Cms\Support\MenuResolver;
+use RuntimeException;
 
 /**
  * Навигация по инфоблоку — аналог `bitrix:menu`.
  *
  * ```blade
- * <x-nexor::menu iblock="pages" />                        пункты из элементов
+ * <x-nexor::menu code="main" />                           меню из админки
  * <x-nexor::menu iblock="katalog" :depth="3" />           разделы на три уровня
  * <x-nexor::menu iblock="katalog" root="mebel" />         только ветка раздела
  * ```
+ *
+ * Два источника. `code` — меню, собранное в админке: там рядом живут рукописные
+ * ссылки и динамические ветки разделов. `iblock` — быстрый вариант без всякой
+ * админки, когда надо просто показать разделы каталога.
  *
  * Дерево строится из разделов, а элементы становятся листьями. По умолчанию
  * инфоблок с разделами даёт меню разделов, а без разделов — меню элементов:
@@ -26,7 +32,8 @@ use Nexor\Cms\Models\IblockSection;
 class Menu extends Component
 {
     /**
-     * @param  string  $iblock  Символьный код инфоблока
+     * @param  string|null  $code  Код меню из админки
+     * @param  string|null  $iblock  Символьный код инфоблока, если меню строится из него
      * @param  string  $template  Имя шаблона вёрстки
      * @param  int  $depth  Максимальная глубина вложенности, начиная с единицы
      * @param  string|null  $root  Код раздела, от которого строится меню
@@ -35,7 +42,8 @@ class Menu extends Component
      * @param  bool  $activeOnly  Прятать неопубликованное
      */
     public function __construct(
-        public string $iblock,
+        public ?string $code = null,
+        public ?string $iblock = null,
         public string $template = 'default',
         public int $depth = 2,
         public ?string $root = null,
@@ -46,6 +54,19 @@ class Menu extends Component
 
     public function render(): View
     {
+        // Меню из админки уже собрано резолвером — здесь его только рисуют.
+        if ($this->code !== null) {
+            return $this->template($this->template, [
+                'block' => null,
+                'items' => app(MenuResolver::class)->tree($this->code),
+                'maxDepth' => max(1, $this->depth),
+            ]);
+        }
+
+        if ($this->iblock === null) {
+            throw new RuntimeException('Компоненту menu нужен либо code меню, либо iblock.');
+        }
+
         $block = $this->requireIblock($this->iblock);
 
         return $this->template($this->template, [
@@ -121,7 +142,11 @@ class Menu extends Component
                 'url' => url('/'.$block->code.'?section='.$section->code),
                 'level' => $level,
                 'kind' => 'section',
+                // Форма пункта одна на оба источника, чтобы шаблон был один.
+                'target' => null,
+                'class' => null,
                 'active' => request()->query('section') === $section->code,
+                'open' => false,
                 'children' => [],
             ];
         }
@@ -169,7 +194,10 @@ class Menu extends Component
                 'code' => $element->code,
                 'url' => $element->url(),
                 'kind' => 'element',
+                'target' => null,
+                'class' => null,
                 'active' => url()->current() === $element->url(),
+                'open' => false,
                 'children' => [],
             ];
 

@@ -11,6 +11,7 @@ import TypeIndex from './pages/iblock-types/TypeIndex.vue';
 import IblockForm from './pages/iblocks/IblockForm.vue';
 import IblockIndex from './pages/iblocks/IblockIndex.vue';
 import MailSmtp from './pages/mail/MailSmtp.vue';
+import MenuIndex from './pages/menus/MenuIndex.vue';
 import TemplateForm from './pages/mail/TemplateForm.vue';
 import TemplateIndex from './pages/mail/TemplateIndex.vue';
 import PropertyForm from './pages/properties/PropertyForm.vue';
@@ -44,6 +45,7 @@ const routes = [
     { path: '/iblocks/:iblock/properties/create', name: 'properties.create', component: PropertyForm, props: true, meta: { permission: 'iblocks.update' } },
     { path: '/iblocks/:iblock/properties/:property/edit', name: 'properties.edit', component: PropertyForm, props: true, meta: { permission: 'iblocks.update' } },
     { path: '/iblock-types', name: 'iblock-types.index', component: TypeIndex, meta: { permission: 'iblock_types.view' } },
+    { path: '/menus', name: 'menus.index', component: MenuIndex, meta: { permission: 'menus.view' } },
 
     // Администрирование
     { path: '/users', name: 'users.index', component: UserIndex, meta: { permission: 'users.view' } },

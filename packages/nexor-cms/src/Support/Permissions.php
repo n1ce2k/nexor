@@ -70,6 +70,16 @@ class Permissions
                     'iblocks.delete' => 'Удаление инфоблоков',
                 ],
             ],
+            'menus' => [
+                'label' => 'Меню',
+                'sort' => 550,
+                'items' => [
+                    'menus.view' => 'Просмотр меню',
+                    'menus.create' => 'Создание меню',
+                    'menus.update' => 'Изменение меню и пунктов',
+                    'menus.delete' => 'Удаление меню',
+                ],
+            ],
             'settings' => [
                 'label' => 'Настройки',
                 'sort' => 600,

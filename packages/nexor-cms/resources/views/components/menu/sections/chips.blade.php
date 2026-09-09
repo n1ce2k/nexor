@@ -6,7 +6,7 @@
 
 @if ($items)
     <div class="mb-8 flex flex-wrap gap-2">
-        <a href="{{ url('/'.$block->code) }}"
+        <a href="{{ $block ? url('/'.$block->code) : url('/') }}"
            class="rounded-full border px-4 py-1.5 text-sm transition {{ request()->query('section') ? 'border-slate-200 text-slate-600 hover:border-brand-300' : 'border-brand-600 bg-brand-50 text-brand-700' }}">
             Все
         </a>

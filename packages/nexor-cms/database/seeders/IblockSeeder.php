@@ -78,23 +78,6 @@ class IblockSeeder extends Seeder
                 'is_shown_in_list' => true,
             ],
             [
-                'code' => 'show_in_menu',
-                'name' => 'Показывать в меню',
-                'type' => PropertyType::Boolean,
-                'sort' => 200,
-                'is_filterable' => true,
-                'is_shown_in_list' => true,
-                'default_value' => '0',
-            ],
-            [
-                'code' => 'menu_sort',
-                'name' => 'Позиция в меню',
-                'type' => PropertyType::Integer,
-                'type_settings' => ['min' => 0, 'step' => 10],
-                'sort' => 300,
-                'default_value' => '500',
-            ],
-            [
                 'code' => 'template',
                 'name' => 'Шаблон страницы',
                 'type' => PropertyType::Select,

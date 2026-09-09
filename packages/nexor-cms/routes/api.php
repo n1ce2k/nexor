@@ -11,6 +11,8 @@ use Nexor\Cms\Http\Controllers\Api\IblockPropertyController;
 use Nexor\Cms\Http\Controllers\Api\IblockSectionController;
 use Nexor\Cms\Http\Controllers\Api\IblockTypeController;
 use Nexor\Cms\Http\Controllers\Api\MailTemplateController;
+use Nexor\Cms\Http\Controllers\Api\MenuController;
+use Nexor\Cms\Http\Controllers\Api\MenuItemController;
 use Nexor\Cms\Http\Controllers\Api\RoleController;
 use Nexor\Cms\Http\Controllers\Api\SettingController;
 use Nexor\Cms\Http\Controllers\Api\ToolsController;
@@ -68,6 +70,19 @@ Route::prefix('iblocks/{iblock}')->name('iblocks.')->group(function () use ($gua
     Route::put('form-layout', [IblockElementController::class, 'saveLayout'])
         ->name('form-layout.update')
         ->middleware('nexor.permission:iblocks.update');
+});
+
+$guard(Route::apiResource('menus', MenuController::class), 'nexor.permission', 'menus.');
+
+Route::get('menu-meta', [MenuController::class, 'meta'])
+    ->name('menus.meta')
+    ->middleware('nexor.permission:menus.view');
+
+Route::middleware('nexor.permission:menus.update')->group(function (): void {
+    Route::post('menus/{menu}/items', [MenuItemController::class, 'store'])->name('menus.items.store');
+    Route::put('menus/{menu}/items/{item}', [MenuItemController::class, 'update'])->name('menus.items.update');
+    Route::delete('menus/{menu}/items/{item}', [MenuItemController::class, 'destroy'])->name('menus.items.destroy');
+    Route::put('menus/{menu}/reorder', [MenuItemController::class, 'reorder'])->name('menus.items.reorder');
 });
 
 Route::get('settings', [SettingController::class, 'index'])

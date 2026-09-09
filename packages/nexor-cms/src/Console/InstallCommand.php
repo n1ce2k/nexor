@@ -5,6 +5,7 @@ namespace Nexor\Cms\Console;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Nexor\Cms\Database\Seeders\IblockSeeder;
+use Nexor\Cms\Database\Seeders\MenuSeeder;
 use Nexor\Cms\Database\Seeders\RoleSeeder;
 use Nexor\Cms\Database\Seeders\SettingSeeder;
 use Nexor\Cms\Models\Role;
@@ -33,6 +34,7 @@ class InstallCommand extends Command
             $this->components->task('Роли и права', fn () => $this->seed(RoleSeeder::class));
             $this->components->task('Настройки', fn () => $this->seed(SettingSeeder::class));
             $this->components->task('Типы инфоблоков', fn () => $this->seed(IblockSeeder::class));
+            $this->components->task('Меню', fn () => $this->seed(MenuSeeder::class));
         }
 
         $this->components->task('Синхронизация прав', function (): bool {

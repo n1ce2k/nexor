@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 use Nexor\Cms\Database\Factories\IblockSectionFactory;
+use Nexor\Cms\Support\MenuResolver;
 
 #[Fillable([
     'iblock_id', 'parent_id', 'code', 'name', 'picture', 'description',
@@ -51,7 +52,12 @@ class IblockSection extends Model
             if ($section->wasChanged(['parent_id', 'path', 'depth'])) {
                 $section->refreshDescendantsTree();
             }
+
+            // Разделы попадают в меню через динамические пункты — его дерево устарело.
+            MenuResolver::forget();
         });
+
+        static::deleted(fn () => MenuResolver::forget());
     }
 
     /**

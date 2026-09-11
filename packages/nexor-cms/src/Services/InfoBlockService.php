@@ -647,7 +647,7 @@ class InfoBlockService
         // сортировку, которым нужен полноценный конструктор.
         $query = IblockElement::query()
             ->where('iblock_id', $iblock->id)
-            ->with(['section', 'values.property', 'values.enum']);
+            ->with(['section', 'values.property', 'values.enum', 'catalog']);
 
         $this->applyFilters($query, $filter, $iblock);
         $this->applyOrdering($query, $order, $iblock);

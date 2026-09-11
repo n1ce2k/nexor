@@ -21,4 +21,19 @@
     @if ($element->preview_text)
         <p class="mt-2 text-sm text-slate-600">{{ Str::limit(strip_tags($element->preview_text), 140) }}</p>
     @endif
+
+    {{-- Цена — только у элементов торгового каталога. --}}
+    @if ($element->catalog?->hasPrice())
+        <div class="mt-auto flex items-baseline gap-2 pt-4">
+            <span class="text-lg font-semibold text-slate-900">
+                {{ \Nexor\Cms\Models\CatalogProduct::formatPrice($element->catalog->finalPrice()) }} ₽
+            </span>
+
+            @if ($element->catalog->hasDiscount())
+                <span class="text-sm text-slate-400 line-through">
+                    {{ \Nexor\Cms\Models\CatalogProduct::formatPrice((float) $element->catalog->price) }} ₽
+                </span>
+            @endif
+        </div>
+    @endif
 </a>

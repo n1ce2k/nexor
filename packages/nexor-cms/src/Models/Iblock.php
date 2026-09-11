@@ -17,7 +17,7 @@ use Nexor\Cms\Support\Permissions;
 #[Fillable([
     'iblock_type_id', 'code', 'name', 'element_name', 'picture', 'description',
     'list_url', 'section_url', 'detail_url',
-    'has_sections', 'has_page', 'is_active', 'sort', 'settings',
+    'has_sections', 'has_page', 'is_catalog', 'is_active', 'sort', 'settings',
     'pagination_template', 'per_page', 'has_load_more', 'load_more_size',
 ])]
 class Iblock extends Model
@@ -52,6 +52,7 @@ class Iblock extends Model
         return [
             'has_sections' => 'boolean',
             'has_page' => 'boolean',
+            'is_catalog' => 'boolean',
             'pagination_template' => PaginationTemplate::class,
             'per_page' => 'integer',
             'has_load_more' => 'boolean',
@@ -80,6 +81,42 @@ class Iblock extends Model
     public function type(): BelongsTo
     {
         return $this->belongsTo(IblockType::class, 'iblock_type_id');
+    }
+
+    /**
+     * Инфоблок торговых предложений этого каталога.
+     *
+     * @return BelongsTo<self, $this>
+     */
+    public function offersIblock(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'offers_iblock_id');
+    }
+
+    /**
+     * Каталог, чьи это предложения.
+     *
+     * @return BelongsTo<self, $this>
+     */
+    public function productIblock(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'product_iblock_id');
+    }
+
+    /**
+     * Есть ли у элементов цена и остатки: у каталога и у его предложений.
+     */
+    public function hasCommerce(): bool
+    {
+        return $this->is_catalog || $this->product_iblock_id !== null;
+    }
+
+    /**
+     * Есть ли у элементов торговые предложения.
+     */
+    public function hasOffers(): bool
+    {
+        return $this->is_catalog && $this->offers_iblock_id !== null;
     }
 
     /**

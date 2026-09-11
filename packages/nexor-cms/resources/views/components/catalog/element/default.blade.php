@@ -21,6 +21,69 @@
         <p class="mb-8 border-l-4 border-brand-200 pl-4 text-lg text-slate-600">{{ $element->preview_text }}</p>
     @endif
 
+    {{-- Цена и наличие — у элементов торгового каталога. --}}
+    @if ($catalog = $element->catalog)
+        <div class="mb-8 rounded-2xl border border-slate-200 p-5">
+            @if ($catalog->hasPrice())
+                <div class="flex flex-wrap items-baseline gap-3">
+                    <span class="text-3xl font-semibold text-slate-900">
+                        {{ \Nexor\Cms\Models\CatalogProduct::formatPrice($catalog->finalPrice()) }} ₽
+                    </span>
+
+                    @if ($catalog->hasDiscount())
+                        <span class="text-lg text-slate-400 line-through">
+                            {{ \Nexor\Cms\Models\CatalogProduct::formatPrice((float) $catalog->price) }} ₽
+                        </span>
+                        <span class="rounded-full bg-red-50 px-2 py-0.5 text-sm font-medium text-red-600">
+                            −{{ \Nexor\Cms\Models\CatalogProduct::formatPrice((float) $catalog->discount_percent) }}%
+                        </span>
+                    @endif
+                </div>
+            @endif
+
+            <p class="mt-2 text-sm {{ $catalog->isAvailable() ? 'text-green-700' : 'text-slate-500' }}">
+                @if (! $catalog->isAvailable())
+                    Нет в наличии
+                @elseif ($catalog->quantity_trace && (float) $catalog->quantity > 0)
+                    В наличии: {{ \Nexor\Cms\Models\CatalogProduct::formatPrice((float) $catalog->quantity) }} {{ $catalog->measure }}
+                @elseif ($catalog->quantity_trace)
+                    Под заказ
+                @else
+                    В наличии
+                @endif
+            </p>
+        </div>
+    @endif
+
+    {{-- Торговые предложения товара. --}}
+    @php($offers = $element->offerElements())
+
+    @if ($offers->isNotEmpty())
+        <div class="mb-8">
+            <h2 class="mb-3 text-lg font-semibold text-slate-900">Варианты</h2>
+
+            <ul class="divide-y divide-slate-100 rounded-2xl border border-slate-200">
+                @foreach ($offers as $offer)
+                    <li class="flex items-center justify-between gap-4 px-5 py-3">
+                        <span class="text-slate-800">{{ $offer->name }}</span>
+
+                        <span class="flex items-baseline gap-2">
+                            @if ($offer->catalog?->hasPrice())
+                                <span class="font-semibold text-slate-900">
+                                    {{ \Nexor\Cms\Models\CatalogProduct::formatPrice($offer->catalog->finalPrice()) }} ₽
+                                </span>
+                            @endif
+
+                            @if ($offer->catalog && ! $offer->catalog->isAvailable())
+                                <span class="text-xs text-slate-400">нет в наличии</span>
+                            @endif
+                        </span>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <div class="space-y-4 leading-relaxed text-slate-700">
         @if ($element->detail_text_type === 'html')
             {!! $element->detail_text !!}

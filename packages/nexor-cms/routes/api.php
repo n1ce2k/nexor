@@ -66,6 +66,11 @@ Route::prefix('iblocks/{iblock}')->name('iblocks.')->group(function () use ($gua
         ->name('schema')
         ->middleware('nexor.iblock:view');
 
+    // Торговые предложения товара, для вкладки «Предложения».
+    Route::get('elements/{element}/offers', [IblockElementController::class, 'offers'])
+        ->name('elements.offers')
+        ->middleware('nexor.iblock:view');
+
     // Tabs of the element form, editable per infoblock.
     Route::put('form-layout', [IblockElementController::class, 'saveLayout'])
         ->name('form-layout.update')

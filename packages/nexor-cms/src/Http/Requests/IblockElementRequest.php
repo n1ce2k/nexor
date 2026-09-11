@@ -56,6 +56,29 @@ class IblockElementRequest extends FormRequest
             'meta_keywords' => ['nullable', 'string', 'max:500'],
         ];
 
+        if ($iblock->hasCommerce()) {
+            $base += [
+                'catalog' => ['nullable', 'array'],
+                'catalog.price' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
+                'catalog.discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+                'catalog.quantity' => ['nullable', 'numeric', 'min:0', 'max:99999999999'],
+                'catalog.measure' => ['nullable', 'string', 'max:20'],
+                'catalog.ratio' => ['nullable', 'numeric', 'gt:0', 'max:9999999'],
+                'catalog.quantity_trace' => ['boolean'],
+                'catalog.can_buy_zero' => ['boolean'],
+            ];
+        }
+
+        // Предложение привязывается только к товару своего каталога.
+        if ($iblock->product_iblock_id) {
+            $base['parent_element_id'] = [
+                'nullable', 'integer',
+                Rule::exists('iblock_elements', 'id')
+                    ->where('iblock_id', $iblock->product_iblock_id)
+                    ->whereNull('deleted_at'),
+            ];
+        }
+
         return array_merge($base, PropertyValues::rules($this->properties()));
     }
 
@@ -90,6 +113,12 @@ class IblockElementRequest extends FormRequest
             'sort' => 'сортировка',
             'active_from' => 'начало активности',
             'active_to' => 'окончание активности',
+            'catalog.price' => 'цена',
+            'catalog.discount_percent' => 'скидка',
+            'catalog.quantity' => 'доступное количество',
+            'catalog.measure' => 'единица измерения',
+            'catalog.ratio' => 'коэффициент',
+            'parent_element_id' => 'товар',
         ];
 
         foreach ($this->properties() as $property) {

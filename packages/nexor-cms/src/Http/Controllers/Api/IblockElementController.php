@@ -13,6 +13,7 @@ use Nexor\Cms\Http\Resources\IblockElementResource;
 use Nexor\Cms\Http\Resources\IblockPropertyResource;
 use Nexor\Cms\Http\Resources\IblockResource;
 use Nexor\Cms\Http\Resources\IblockSectionResource;
+use Nexor\Cms\Models\CatalogProduct;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\IblockElement;
 use Nexor\Cms\Models\IblockProperty;
@@ -64,7 +65,7 @@ class IblockElementController extends ApiController
         abort_unless($element->iblock_id === $iblock->id, 404);
 
         return IblockElementResource::make(
-            $element->load(['section', 'sections', 'creator', 'editor', 'values.property', 'values.enum']),
+            $element->load(['section', 'sections', 'creator', 'editor', 'values.property', 'values.enum', 'catalog']),
         );
     }
 
@@ -79,10 +80,11 @@ class IblockElementController extends ApiController
 
         $element->sections()->sync($request->input('sections', []));
         PropertyValues::save($element, $request->properties(), $request);
+        $this->saveCatalog($request, $iblock, $element);
 
         ActivityLogger::created($element, "Элемент «{$element->name}» инфоблока «{$iblock->name}»");
 
-        return IblockElementResource::make($element->load(['section', 'sections', 'values.property', 'values.enum']))
+        return IblockElementResource::make($element->load(['section', 'sections', 'values.property', 'values.enum', 'catalog']))
             ->additional(['message' => 'Элемент «'.$element->name.'» создан.'])
             ->response()
             ->setStatusCode(201);
@@ -99,11 +101,12 @@ class IblockElementController extends ApiController
 
         $element->sections()->sync($request->input('sections', []));
         PropertyValues::save($element, $request->properties(), $request);
+        $this->saveCatalog($request, $iblock, $element);
 
         ActivityLogger::updated($element, "Элемент «{$element->name}» инфоблока «{$iblock->name}»");
 
         return IblockElementResource::make(
-            $element->fresh(['section', 'sections', 'values.property', 'values.enum']),
+            $element->fresh(['section', 'sections', 'values.property', 'values.enum', 'catalog']),
         )->additional(['message' => 'Элемент «'.$element->name.'» сохранён.'])->response();
     }
 
@@ -136,6 +139,7 @@ class IblockElementController extends ApiController
             'options' => $this->linkOptions($properties),
             'form_tabs' => ElementFormLayout::for($iblock),
             'form_fields' => array_values(ElementFormLayout::fields($iblock)),
+            'measures' => CatalogProduct::MEASURES,
         ]);
     }
 
@@ -205,6 +209,65 @@ class IblockElementController extends ApiController
             'value' => $model->getKey(),
             'label' => $model->name,
         ])->all();
+    }
+
+    /**
+     * Торговые предложения товара — для вкладки «Предложения».
+     */
+    public function offers(Request $request, Iblock $iblock, IblockElement $element): JsonResponse
+    {
+        abort_unless($element->iblock_id === $iblock->id, 404);
+
+        $offersIblock = $iblock->offersIblock;
+
+        abort_unless($iblock->is_catalog && $offersIblock, 404);
+
+        // Права на предложения — свои, даже если их копируют с каталога.
+        abort_unless($request->user()->hasPermission($offersIblock->permissionCode('view')), 403);
+
+        $offers = IblockElement::query()
+            ->where('iblock_id', $offersIblock->id)
+            ->whereHas('catalog', fn (Builder $query) => $query->where('parent_element_id', $element->id))
+            ->with('catalog')
+            ->ordered()
+            ->get();
+
+        return response()->json([
+            'offers_iblock' => IblockResource::make($offersIblock),
+            'data' => IblockElementResource::collection($offers),
+        ]);
+    }
+
+    /**
+     * Цена, скидка и остатки элемента торгового каталога.
+     *
+     * Трогаем только если форма их прислала: клиент API, который правит одно
+     * название, не должен случайно обнулить цену.
+     */
+    protected function saveCatalog(IblockElementRequest $request, Iblock $iblock, IblockElement $element): void
+    {
+        if (! $iblock->hasCommerce() || (! $request->has('catalog') && ! $request->has('parent_element_id'))) {
+            return;
+        }
+
+        $data = (array) ($request->validated('catalog') ?? []);
+        $current = $element->catalog;
+
+        $values = [
+            'price' => array_key_exists('price', $data) ? $data['price'] : $current?->price,
+            'discount_percent' => $data['discount_percent'] ?? $current?->discount_percent ?? 0,
+            'quantity' => $data['quantity'] ?? $current?->quantity ?? 0,
+            'measure' => filled($data['measure'] ?? null) ? $data['measure'] : ($current?->measure ?? 'шт'),
+            'ratio' => $data['ratio'] ?? $current?->ratio ?? 1,
+            'quantity_trace' => (bool) ($data['quantity_trace'] ?? $current?->quantity_trace ?? false),
+            'can_buy_zero' => (bool) ($data['can_buy_zero'] ?? $current?->can_buy_zero ?? false),
+        ];
+
+        if ($iblock->product_iblock_id && $request->has('parent_element_id')) {
+            $values['parent_element_id'] = $request->validated('parent_element_id');
+        }
+
+        $element->catalog()->updateOrCreate([], $values);
     }
 
     /**

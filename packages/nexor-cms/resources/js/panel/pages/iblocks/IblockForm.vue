@@ -35,6 +35,7 @@ const form = useForm({
     detail_url: '',
     has_sections: true,
     has_page: false,
+    is_catalog: false,
     is_active: true,
     sort: 500,
     pagination_template: 'pagination',
@@ -46,6 +47,12 @@ const form = useForm({
 const isEdit = computed(() => Boolean(props.iblock));
 
 const pagePath = ref(null);
+
+/** Связка каталога: где лежат предложения и не предложения ли это сами. */
+const offersIblockId = ref(null);
+const productIblockId = ref(null);
+
+const offersIblockName = computed(() => session.iblock(offersIblockId.value)?.name ?? 'Предложения');
 
 const paginationOptions = computed(() => session.paginationTemplates.map((template) => ({
     value: template.value,
@@ -112,6 +119,7 @@ onMounted(async () => {
                 detail_url: data.data.detail_url ?? '',
                 has_sections: data.data.has_sections,
                 has_page: data.data.has_page,
+                is_catalog: data.data.is_catalog,
                 is_active: data.data.is_active,
                 sort: data.data.sort,
                 pagination_template: data.data.pagination_template ?? 'pagination',
@@ -121,6 +129,8 @@ onMounted(async () => {
             });
 
             pagePath.value = data.data.page_path;
+            offersIblockId.value = data.data.offers_iblock_id;
+            productIblockId.value = data.data.product_iblock_id;
             codeTouched.value = true;
         }
     } catch (error) {
@@ -268,6 +278,30 @@ onMounted(async () => {
                                 <code class="font-mono text-[var(--text-base)]">/{{ form.fields.code || 'код' }}</code>,
                                 элемент — по
                                 <code class="font-mono text-[var(--text-base)]">/{{ form.fields.code || 'код' }}/&lt;код&gt;</code>.
+                            </template>
+                        </p>
+
+                        <NToggle v-model="form.fields.is_catalog" label="Торговый каталог"
+                                 :disabled="Boolean(productIblockId)"
+                                 hint="Цена, остатки и скидки у элементов, плюс торговые предложения — как в Битриксе." />
+
+                        <p v-if="productIblockId"
+                           class="rounded-lg bg-[var(--surface-muted)] p-3 text-xs text-[var(--text-muted)]">
+                            Это инфоблок предложений другого каталога — своих предложений у него быть не может.
+                        </p>
+
+                        <p v-else-if="form.fields.is_catalog"
+                           class="rounded-lg bg-[var(--surface-muted)] p-3 text-xs text-[var(--text-muted)]">
+                            <template v-if="offersIblockId">
+                                Предложения ведутся в инфоблоке
+                                <router-link :to="{ name: 'elements.index', params: { iblock: offersIblockId } }"
+                                             class="font-medium text-brand-600 hover:underline dark:text-brand-400">«{{ offersIblockName }}»</router-link>.
+                                Если снять галочку, он останется — данные не удаляются.
+                            </template>
+                            <template v-else>
+                                После сохранения появится инфоблок
+                                «Предложения — {{ form.fields.name || 'название' }}», а у элементов — вкладки
+                                «Цена», «Остатки», «Скидки» и «Предложения».
                             </template>
                         </p>
                     </div>

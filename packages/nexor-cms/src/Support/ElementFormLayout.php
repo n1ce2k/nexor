@@ -50,6 +50,60 @@ class ElementFormLayout
     }
 
     /**
+     * Поля торгового каталога: у товаров и у их предложений.
+     *
+     * @return array<string, array{label: string, tab: string}>
+     */
+    public static function commerceFields(): array
+    {
+        return [
+            'catalog.price' => ['label' => 'Цена', 'tab' => 'price'],
+            'catalog.quantity' => ['label' => 'Доступное количество', 'tab' => 'stock'],
+            'catalog.measure' => ['label' => 'Единица измерения', 'tab' => 'stock'],
+            'catalog.ratio' => ['label' => 'Коэффициент', 'tab' => 'stock'],
+            'catalog.quantity_trace' => ['label' => 'Количественный учёт', 'tab' => 'stock'],
+            'catalog.can_buy_zero' => ['label' => 'Покупать при отсутствии', 'tab' => 'stock'],
+            'catalog.discount_percent' => ['label' => 'Скидка', 'tab' => 'discount'],
+        ];
+    }
+
+    /**
+     * Вкладки торгового каталога и их порядок.
+     *
+     * @return array<string, string>
+     */
+    public static function commerceTabs(): array
+    {
+        return [
+            'price' => 'Цена',
+            'stock' => 'Остатки',
+            'discount' => 'Скидки',
+            'offers' => 'Предложения',
+        ];
+    }
+
+    /**
+     * Поля, которые есть у элементов этого инфоблока, с их вкладкой по умолчанию.
+     *
+     * @return array<string, array{label: string, tab: string}>
+     */
+    protected static function knownFields(Iblock $iblock): array
+    {
+        $fields = self::baseFields();
+
+        if ($iblock->hasCommerce()) {
+            $fields += self::commerceFields();
+        }
+
+        // Предложения бывают только у товара, у самих предложений их нет.
+        if ($iblock->hasOffers()) {
+            $fields['offers'] = ['label' => 'Торговые предложения', 'tab' => 'offers'];
+        }
+
+        return $fields;
+    }
+
+    /**
      * Default tabs, with their default labels and order.
      *
      * @return array<string, string>
@@ -74,8 +128,10 @@ class ElementFormLayout
     {
         $fields = [];
 
-        foreach (self::baseFields() as $key => $field) {
-            $fields[$key] = ['key' => $key, 'label' => $field['label'], 'group' => 'base'];
+        foreach (self::knownFields($iblock) as $key => $field) {
+            $group = str_starts_with($key, 'catalog.') || $key === 'offers' ? 'catalog' : 'base';
+
+            $fields[$key] = ['key' => $key, 'label' => $field['label'], 'group' => $group];
         }
 
         foreach (self::properties($iblock) as $property) {
@@ -111,10 +167,21 @@ class ElementFormLayout
         }
 
         // A property added after the layout was saved still has to be editable.
+        // Торговые поля при этом едут на свои вкладки, а не сваливаются на первую:
+        // инфоблок могли сделать каталогом уже после настройки формы.
         $orphans = array_values(array_diff($known, $placed));
+        $defaults = self::knownFields($iblock);
 
-        if ($orphans !== []) {
-            $tabs[0]['fields'] = array_merge($tabs[0]['fields'], $orphans);
+        foreach ($orphans as $field) {
+            $tabKey = $defaults[$field]['tab'] ?? null;
+            $index = $tabKey === null ? false : array_search($tabKey, array_column($tabs, 'key'), true);
+
+            if ($index === false && $tabKey !== null && isset(self::commerceTabs()[$tabKey])) {
+                $tabs[] = ['key' => $tabKey, 'label' => self::commerceTabs()[$tabKey], 'fields' => []];
+                $index = array_key_last($tabs);
+            }
+
+            $tabs[$index === false ? 0 : $index]['fields'][] = $field;
         }
 
         return array_values($tabs);
@@ -129,11 +196,23 @@ class ElementFormLayout
     {
         $tabs = [];
 
-        foreach (self::defaultTabs() as $key => $label) {
+        $known = self::knownFields($iblock);
+        $tabList = self::defaultTabs();
+
+        if ($iblock->hasCommerce()) {
+            $tabList += self::commerceTabs();
+        }
+
+        foreach ($tabList as $key => $label) {
             $fields = array_keys(array_filter(
-                self::baseFields(),
+                $known,
                 fn (array $field) => $field['tab'] === $key,
             ));
+
+            // Вкладка без полей — например, «Предложения» у самих предложений.
+            if ($fields === [] && isset(self::commerceTabs()[$key])) {
+                continue;
+            }
 
             if ($key === 'main') {
                 foreach (self::properties($iblock) as $property) {

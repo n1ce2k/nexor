@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -38,6 +39,24 @@ class IblockElement extends Model
     protected static function newFactory(): Factory
     {
         return IblockElementFactory::new();
+    }
+
+    protected static function booted(): void
+    {
+        // Предложения без товара не имеют смысла: уходят вместе с ним.
+        static::deleting(function (self $element): void {
+            $offerIds = CatalogProduct::query()
+                ->where('parent_element_id', $element->id)
+                ->pluck('element_id');
+
+            if ($offerIds->isEmpty()) {
+                return;
+            }
+
+            self::query()->whereKey($offerIds)->get()->each(
+                fn (self $offer) => $element->isForceDeleting() ? $offer->forceDelete() : $offer->delete(),
+            );
+        });
     }
 
     protected function casts(): array
@@ -81,6 +100,34 @@ class IblockElement extends Model
     public function values(): HasMany
     {
         return $this->hasMany(IblockElementValue::class, 'element_id')->orderBy('sort')->orderBy('id');
+    }
+
+    /**
+     * Цена, скидка и остатки — у элементов торгового каталога.
+     *
+     * @return HasOne<CatalogProduct, $this>
+     */
+    public function catalog(): HasOne
+    {
+        return $this->hasOne(CatalogProduct::class, 'element_id');
+    }
+
+    /**
+     * Активные торговые предложения этого товара, по порядку.
+     *
+     * @return Collection<int, self>
+     */
+    public function offerElements(): Collection
+    {
+        $offerIds = CatalogProduct::query()
+            ->where('parent_element_id', $this->id)
+            ->pluck('element_id');
+
+        if ($offerIds->isEmpty()) {
+            return collect();
+        }
+
+        return self::query()->whereKey($offerIds)->active()->with('catalog')->ordered()->get();
     }
 
     /**

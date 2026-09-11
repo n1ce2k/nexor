@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import FormLayoutEditor from '../../components/FormLayoutEditor.vue';
 import NButton from '../../components/ui/NButton.vue';
 import NCard from '../../components/ui/NCard.vue';
@@ -28,6 +28,7 @@ const props = defineProps({
     element: { type: [String, Number], default: null },
 });
 
+const route = useRoute();
 const router = useRouter();
 const session = useSession();
 const ui = useUi();
@@ -57,7 +58,24 @@ const form = useForm({
     meta_title: '',
     meta_description: '',
     meta_keywords: '',
+    // Торговые данные; уходят на сервер, только если инфоблок — каталог.
+    catalog: {
+        price: '',
+        discount_percent: 0,
+        quantity: 0,
+        measure: 'шт',
+        ratio: 1,
+        quantity_trace: false,
+        can_buy_zero: false,
+    },
 });
+
+/** Товар, к которому относится это предложение. */
+const parentId = ref(null);
+
+const offers = ref([]);
+const offersIblock = ref(null);
+const offersLoading = ref(false);
 
 const isEdit = computed(() => Boolean(props.element));
 
@@ -75,6 +93,79 @@ const sectionOptions = computed(() => (schema.value?.sections ?? []).map((sectio
     value: section.id,
     label: section.indented_name,
 })));
+
+const measures = computed(() => schema.value?.measures ?? []);
+
+const money = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
+
+function formatMoney(value) {
+    return money.format(Number(value));
+}
+
+/** Цена со скидкой считается на лету, пока редактор печатает. */
+const finalPrice = computed(() => {
+    const price = parseFloat(form.fields.catalog.price);
+
+    if (Number.isNaN(price)) {
+        return null;
+    }
+
+    const discount = Math.min(Math.max(parseFloat(form.fields.catalog.discount_percent) || 0, 0), 100);
+
+    return Math.round(price * (100 - discount)) / 100;
+});
+
+const discountAmount = computed(() => (finalPrice.value === null
+    ? 0
+    : Math.round((parseFloat(form.fields.catalog.price) - finalPrice.value) * 100) / 100));
+
+/** Предложение после сохранения возвращается к своему товару. */
+const backTo = computed(() => (parentId.value && info.value?.product_iblock_id
+    ? {
+        name: 'elements.edit',
+        params: { iblock: info.value.product_iblock_id, element: parentId.value },
+        query: { tab: 'offers' },
+    }
+    : { name: 'elements.index', params: { iblock: props.iblock } }));
+
+async function loadOffers() {
+    if (!isEdit.value || !info.value?.has_offers) {
+        return;
+    }
+
+    offersLoading.value = true;
+
+    try {
+        const data = await api.get(`iblocks/${props.iblock}/elements/${props.element}/offers`);
+
+        offers.value = data.data;
+        offersIblock.value = data.offers_iblock;
+    } catch (error) {
+        ui.notifyError(error);
+    } finally {
+        offersLoading.value = false;
+    }
+}
+
+async function removeOffer(offer) {
+    const confirmed = await ui.confirm({
+        title: 'Удалить предложение?',
+        message: `Предложение «${offer.name}» будет удалено.`,
+    });
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const data = await api.delete(`iblocks/${offersIblock.value.id}/elements/${offer.id}`);
+
+        ui.notify(data.message);
+        loadOffers();
+    } catch (error) {
+        ui.notifyError(error);
+    }
+}
 
 const textTypeOptions = [
     { value: 'text', label: 'Обычный текст' },
@@ -94,6 +185,14 @@ function isVisible(key) {
 
     if (key === 'sections') {
         return sectionOptions.value.length > 0;
+    }
+
+    if (key === 'offers') {
+        return Boolean(info.value?.has_offers);
+    }
+
+    if (key.startsWith('catalog.')) {
+        return Boolean(info.value?.has_commerce);
     }
 
     return key.startsWith('prop:') ? Boolean(propertyOf(key)) : true;
@@ -118,7 +217,7 @@ function wide(key) {
         return property.is_multiple || ['text', 'html', 'json', 'file', 'image'].includes(property.type);
     }
 
-    return ['preview_text', 'detail_text', 'meta_description', 'sections'].includes(key);
+    return ['preview_text', 'detail_text', 'meta_description', 'sections', 'offers'].includes(key);
 }
 
 const tabList = computed(() => tabs.value.map((tab) => ({
@@ -171,7 +270,18 @@ function onName(value) {
  * objects alongside the scalars.
  */
 function buildPayload() {
-    const body = toFormData({ ...form.fields });
+    const fields = { ...form.fields };
+
+    // Не каталогу торговые поля не нужны — и сервер их не примет.
+    if (!info.value?.has_commerce) {
+        delete fields.catalog;
+    }
+
+    const body = toFormData(fields);
+
+    if (parentId.value && info.value?.product_iblock_id) {
+        body.append('parent_element_id', parentId.value);
+    }
 
     properties.value.forEach((property) => {
         const value = values.value[property.code];
@@ -216,7 +326,7 @@ async function save() {
 
     if (data) {
         emitHook('element.saved', { iblock: props.iblock, element: data.data });
-        router.push({ name: 'elements.index', params: { iblock: props.iblock } });
+        router.push(backTo.value);
     }
 }
 
@@ -233,7 +343,15 @@ onMounted(async () => {
         schema.value = await api.get(`iblocks/${props.iblock}/schema`);
 
         tabs.value = schema.value.form_tabs ?? [];
-        activeTab.value = tabs.value[0]?.key ?? null;
+
+        // `?tab=offers` — вернуться на ту вкладку, с которой уходили.
+        activeTab.value = tabs.value.some((tab) => tab.key === route.query.tab)
+            ? route.query.tab
+            : (tabs.value[0]?.key ?? null);
+
+        if (route.query.parent) {
+            parentId.value = Number(route.query.parent);
+        }
 
         const blanks = {};
         properties.value.forEach((property) => {
@@ -262,6 +380,20 @@ onMounted(async () => {
                 meta_keywords: element.meta_keywords ?? '',
             });
 
+            if (element.catalog) {
+                form.fields.catalog = {
+                    price: element.catalog.price ?? '',
+                    discount_percent: Number(element.catalog.discount_percent ?? 0),
+                    quantity: Number(element.catalog.quantity ?? 0),
+                    measure: element.catalog.measure ?? 'шт',
+                    ratio: Number(element.catalog.ratio ?? 1),
+                    quantity_trace: Boolean(element.catalog.quantity_trace),
+                    can_buy_zero: Boolean(element.catalog.can_buy_zero),
+                };
+
+                parentId.value = element.catalog.parent_element_id ?? parentId.value;
+            }
+
             properties.value.forEach((property) => {
                 const stored = element.properties?.[property.code];
 
@@ -274,6 +406,8 @@ onMounted(async () => {
         }
 
         values.value = blanks;
+
+        await loadOffers();
     } catch (error) {
         ui.notifyError(error);
     } finally {
@@ -286,7 +420,7 @@ onMounted(async () => {
     <div>
         <NPageHeader :title="isEdit ? form.fields.name || 'Элемент' : 'Новый элемент'"
                      :back="{ name: 'elements.index', params: { iblock } }"
-                     :description="info ? `Инфоблок «${info.name}»` : null"
+
                      :breadcrumbs="[
                          { label: info?.name ?? '', to: { name: 'elements.index', params: { iblock } } },
                          { label: isEdit ? form.fields.name : 'Новый элемент' },
@@ -392,6 +526,147 @@ onMounted(async () => {
                                 <NInput v-model="form.fields.meta_keywords" />
                             </NField>
 
+                            <NField v-else-if="key === 'catalog.price'" label="Цена"
+                                    hint="Базовая цена за единицу, без скидки." :error="form.error('catalog.price')">
+                                <div class="flex items-center gap-2">
+                                    <NInput v-model="form.fields.catalog.price" type="number" min="0" step="0.01"
+                                            class="sm:max-w-48" :invalid="Boolean(form.error('catalog.price'))" />
+                                    <span class="text-sm text-[var(--text-muted)]">₽</span>
+                                </div>
+                            </NField>
+
+                            <NField v-else-if="key === 'catalog.quantity'" label="Доступное количество"
+                                    :error="form.error('catalog.quantity')">
+                                <NInput v-model="form.fields.catalog.quantity" type="number" min="0" step="any"
+                                        :invalid="Boolean(form.error('catalog.quantity'))" />
+                            </NField>
+
+                            <NField v-else-if="key === 'catalog.measure'" label="Единица измерения"
+                                    hint="Выберите из списка или впишите свою." :error="form.error('catalog.measure')">
+                                <input v-model="form.fields.catalog.measure" list="nexor-measures" class="field-input">
+                                <datalist id="nexor-measures">
+                                    <option v-for="measure in measures" :key="measure" :value="measure" />
+                                </datalist>
+                            </NField>
+
+                            <NField v-else-if="key === 'catalog.ratio'" label="Коэффициент"
+                                    hint="Сколько единиц продаётся за раз: 1 — поштучно, 0.5 — по половине единицы."
+                                    :error="form.error('catalog.ratio')">
+                                <NInput v-model="form.fields.catalog.ratio" type="number" min="0.001" step="any"
+                                        :invalid="Boolean(form.error('catalog.ratio'))" />
+                            </NField>
+
+                            <NField v-else-if="key === 'catalog.quantity_trace'" label="Количественный учёт">
+                                <NToggle v-model="form.fields.catalog.quantity_trace"
+                                         label="Проверять остаток и не продавать больше, чем есть" />
+                            </NField>
+
+                            <NField v-else-if="key === 'catalog.can_buy_zero'" label="Покупка при отсутствии">
+                                <NToggle v-model="form.fields.catalog.can_buy_zero"
+                                         label="Разрешить покупать, когда остаток закончился"
+                                         :disabled="!form.fields.catalog.quantity_trace" />
+                                <p v-if="!form.fields.catalog.quantity_trace"
+                                   class="mt-1.5 text-xs text-[var(--text-muted)]">
+                                    Имеет смысл только при включённом количественном учёте: без него остаток не проверяется вовсе.
+                                </p>
+                            </NField>
+
+                            <NField v-else-if="key === 'catalog.discount_percent'" label="Скидка"
+                                    :error="form.error('catalog.discount_percent')">
+                                <div class="flex items-center gap-2">
+                                    <NInput v-model="form.fields.catalog.discount_percent" type="number"
+                                            min="0" max="100" step="0.01" class="sm:max-w-32"
+                                            :invalid="Boolean(form.error('catalog.discount_percent'))" />
+                                    <span class="text-sm text-[var(--text-muted)]">%</span>
+                                </div>
+
+                                <div class="mt-3 rounded-lg bg-[var(--surface-muted)] p-3 text-sm">
+                                    <template v-if="finalPrice !== null">
+                                        <span class="text-[var(--text-muted)]">Цена со скидкой:</span>
+                                        <span class="font-semibold text-[var(--text-strong)]">{{ formatMoney(finalPrice) }} ₽</span>
+                                        <span v-if="discountAmount > 0" class="text-[var(--text-muted)]">
+                                            — дешевле на {{ formatMoney(discountAmount) }} ₽
+                                        </span>
+                                    </template>
+                                    <span v-else class="text-[var(--text-muted)]">
+                                        Заполните цену на вкладке «Цена» — цена со скидкой посчитается здесь.
+                                    </span>
+                                </div>
+                            </NField>
+
+                            <NField v-else-if="key === 'offers'" label="Торговые предложения"
+                                    hint="Варианты товара — размер, цвет, фасовка. У каждого своя цена и остаток.">
+                                <p v-if="!isEdit"
+                                   class="rounded-lg bg-[var(--surface-muted)] p-3 text-sm text-[var(--text-muted)]">
+                                    Сохраните товар — после этого к нему можно будет добавлять предложения.
+                                </p>
+
+                                <div v-else class="space-y-3">
+                                    <div class="overflow-x-auto rounded-lg border border-[var(--surface-border)]">
+                                        <table class="w-full text-sm">
+                                            <thead class="bg-[var(--surface-muted)] text-left text-xs text-[var(--text-muted)]">
+                                                <tr>
+                                                    <th class="px-3 py-2 font-medium">Название</th>
+                                                    <th class="px-3 py-2 font-medium">Цена</th>
+                                                    <th class="px-3 py-2 font-medium">Остаток</th>
+                                                    <th class="px-3 py-2 font-medium">Статус</th>
+                                                    <th class="px-3 py-2"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr v-if="offersLoading">
+                                                    <td colspan="5" class="px-3 py-4 text-center text-[var(--text-muted)]">Загружаем…</td>
+                                                </tr>
+                                                <tr v-else-if="!offers.length">
+                                                    <td colspan="5" class="px-3 py-4 text-center text-[var(--text-muted)]">Предложений пока нет.</td>
+                                                </tr>
+                                                <template v-else>
+                                                    <tr v-for="offer in offers" :key="offer.id"
+                                                        class="border-t border-[var(--surface-border)]">
+                                                        <td class="px-3 py-2">
+                                                            <router-link :to="{ name: 'elements.edit', params: { iblock: offersIblock.id, element: offer.id }, query: { parent: element } }"
+                                                                         class="font-medium text-[var(--text-strong)] hover:text-brand-600 hover:underline">
+                                                                {{ offer.name }}
+                                                            </router-link>
+                                                        </td>
+                                                        <td class="px-3 py-2 whitespace-nowrap">
+                                                            <template v-if="offer.catalog?.final_price != null">
+                                                                {{ formatMoney(offer.catalog.final_price) }} ₽
+                                                                <span v-if="Number(offer.catalog.discount_percent) > 0"
+                                                                      class="ml-1 text-xs text-[var(--text-faint)] line-through">
+                                                                    {{ formatMoney(offer.catalog.price) }} ₽
+                                                                </span>
+                                                            </template>
+                                                            <span v-else class="text-[var(--text-faint)]">—</span>
+                                                        </td>
+                                                        <td class="px-3 py-2 whitespace-nowrap">
+                                                            {{ offer.catalog ? `${Number(offer.catalog.quantity)} ${offer.catalog.measure}` : '—' }}
+                                                        </td>
+                                                        <td class="px-3 py-2">
+                                                            <span :class="['rounded-full px-2 py-0.5 text-xs', offer.is_active ? 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400' : 'bg-[var(--surface-muted)] text-[var(--text-muted)]']">
+                                                                {{ offer.is_active ? 'активно' : 'скрыто' }}
+                                                            </span>
+                                                        </td>
+                                                        <td class="px-3 py-2 text-right">
+                                                            <button v-if="offersIblock?.abilities?.delete" type="button"
+                                                                    class="text-xs text-red-600 hover:underline dark:text-red-400"
+                                                                    @click="removeOffer(offer)">
+                                                                удалить
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <NButton v-if="offersIblock?.abilities?.create" size="sm" variant="secondary" icon="plus"
+                                             :to="{ name: 'elements.create', params: { iblock: offersIblock.id }, query: { parent: element } }">
+                                        Добавить предложение
+                                    </NButton>
+                                </div>
+                            </NField>
+
                             <NField v-else-if="key === 'sections'" label="Разделы элемента"
                                     hint="Элемент показывается во всех отмеченных разделах."
                                     :error="form.error('sections')">
@@ -416,8 +691,7 @@ onMounted(async () => {
 
             <div class="flex items-center gap-2">
                 <NButton type="submit" size="lg" :loading="form.busy.value">Сохранить</NButton>
-                <NButton variant="secondary" size="lg"
-                         :to="{ name: 'elements.index', params: { iblock } }">Отмена</NButton>
+                <NButton variant="secondary" size="lg" :to="backTo">Отмена</NButton>
             </div>
         </form>
 

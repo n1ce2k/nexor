@@ -9,6 +9,7 @@ use Nexor\Cms\Http\Requests\IblockRequest;
 use Nexor\Cms\Http\Resources\IblockResource;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Support\ActivityLogger;
+use Nexor\Cms\Support\CatalogManager;
 use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\PageGenerator;
 use Nexor\Cms\Support\Uploads;
@@ -50,6 +51,7 @@ class IblockController extends ApiController
         $iblock->save();
 
         $this->syncPage($iblock);
+        CatalogManager::sync($iblock);
 
         ActivityLogger::created($iblock);
 
@@ -66,6 +68,7 @@ class IblockController extends ApiController
         $iblock->save();
 
         $this->syncPage($iblock);
+        CatalogManager::sync($iblock);
 
         ActivityLogger::updated($iblock);
 

@@ -33,6 +33,7 @@ class IblockRequest extends FormRequest
             'detail_url' => ['nullable', 'string', 'max:255'],
             'has_sections' => ['boolean'],
             'has_page' => ['boolean'],
+            'is_catalog' => ['boolean'],
             'element_name' => ['nullable', 'string', 'max:100'],
             'pagination_template' => ['nullable', Rule::enum(PaginationTemplate::class)],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:500'],

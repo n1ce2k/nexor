@@ -5,6 +5,8 @@ namespace Nexor\Cms\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
+use Nexor\Cms\Enums\Currency;
+use Nexor\Cms\Enums\ProductType;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\IblockProperty;
 use Nexor\Cms\Support\PropertyValues;
@@ -59,7 +61,9 @@ class IblockElementRequest extends FormRequest
         if ($iblock->hasCommerce()) {
             $base += [
                 'catalog' => ['nullable', 'array'],
+                'catalog.type' => ['nullable', Rule::enum(ProductType::class)],
                 'catalog.price' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
+                'catalog.currency' => ['nullable', Rule::enum(Currency::class)],
                 'catalog.discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
                 'catalog.quantity' => ['nullable', 'numeric', 'min:0', 'max:99999999999'],
                 'catalog.measure' => ['nullable', 'string', 'max:20'],
@@ -113,7 +117,9 @@ class IblockElementRequest extends FormRequest
             'sort' => 'сортировка',
             'active_from' => 'начало активности',
             'active_to' => 'окончание активности',
+            'catalog.type' => 'тип товара',
             'catalog.price' => 'цена',
+            'catalog.currency' => 'валюта',
             'catalog.discount_percent' => 'скидка',
             'catalog.quantity' => 'доступное количество',
             'catalog.measure' => 'единица измерения',
@@ -137,6 +143,9 @@ class IblockElementRequest extends FormRequest
     {
         return [
             'code.regex' => 'Символьный код может содержать только латиницу в нижнем регистре, цифры, дефис и подчёркивание.',
+            // Код подставляется из названия автоматически, поэтому важно сказать,
+            // что занят он именно в этом инфоблоке, и его достаточно поправить.
+            'code.unique' => 'Такой символьный код в этом инфоблоке уже занят — измените его.',
         ];
     }
 

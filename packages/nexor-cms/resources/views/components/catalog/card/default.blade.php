@@ -26,12 +26,12 @@
     @if ($element->catalog?->hasPrice())
         <div class="mt-auto flex items-baseline gap-2 pt-4">
             <span class="text-lg font-semibold text-slate-900">
-                {{ \Nexor\Cms\Models\CatalogProduct::formatPrice($element->catalog->finalPrice()) }} ₽
+                {{ $element->catalog->withCurrency($element->catalog->finalPrice()) }}
             </span>
 
             @if ($element->catalog->hasDiscount())
                 <span class="text-sm text-slate-400 line-through">
-                    {{ \Nexor\Cms\Models\CatalogProduct::formatPrice((float) $element->catalog->price) }} ₽
+                    {{ $element->catalog->withCurrency((float) $element->catalog->price) }}
                 </span>
             @endif
         </div>

@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
+use Nexor\Cms\Enums\Currency;
 use Nexor\Cms\Models\CatalogProduct;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\IblockElement;
+use Nexor\Cms\Models\IblockProperty;
 use Nexor\Cms\Models\IblockType;
 use Nexor\Cms\Support\CatalogManager;
 use Tests\Concerns\CreatesAdminUsers;
@@ -207,6 +209,56 @@ class CatalogTest extends TestCase
         $this->assertSame('500.00', $element->catalog->refresh()->price);
     }
 
+    public function test_a_price_carries_its_currency(): void
+    {
+        $iblock = $this->catalogue();
+
+        $this->actingAs($this->superAdmin())->postJson("/admin/api/iblocks/{$iblock->id}/elements", [
+            'name' => 'Стул',
+            'catalog' => ['price' => 100, 'currency' => 'USD'],
+        ])->assertCreated()
+            ->assertJsonPath('data.catalog.currency', 'USD')
+            ->assertJsonPath('data.catalog.currency_symbol', '$');
+    }
+
+    public function test_a_currency_outside_the_list_is_refused(): void
+    {
+        $iblock = $this->catalogue();
+
+        $this->actingAs($this->superAdmin())->postJson("/admin/api/iblocks/{$iblock->id}/elements", [
+            'name' => 'Стул',
+            'catalog' => ['price' => 100, 'currency' => 'BTC'],
+        ])->assertStatus(422)->assertJsonValidationErrors('catalog.currency');
+    }
+
+    public function test_a_product_can_be_marked_as_having_offers(): void
+    {
+        $iblock = $this->catalogue();
+
+        $this->actingAs($this->superAdmin())->postJson("/admin/api/iblocks/{$iblock->id}/elements", [
+            'name' => 'Футболка',
+            'catalog' => ['type' => 'with_offers'],
+        ])->assertCreated()->assertJsonPath('data.catalog.type', 'with_offers');
+
+        $this->assertTrue(IblockElement::query()->where('name', 'Футболка')->firstOrFail()->catalog->usesOffers());
+    }
+
+    public function test_only_a_product_chooses_its_type(): void
+    {
+        $iblock = $this->catalogue();
+
+        $keys = fn (int $id) => array_column($this->actingAs($this->superAdmin())
+            ->getJson("/admin/api/iblocks/{$id}/schema")
+            ->json('form_fields'), 'key');
+
+        $this->assertContains('catalog.type', $keys($iblock->id));
+        $this->assertContains('catalog.currency', $keys($iblock->id));
+
+        // У предложения своих предложений нет, а валюта есть.
+        $this->assertNotContains('catalog.type', $keys($iblock->offers_iblock_id));
+        $this->assertContains('catalog.currency', $keys($iblock->offers_iblock_id));
+    }
+
     // ------------------------------------------------------ торговые предложения
 
     public function test_an_offer_belongs_to_a_product(): void
@@ -238,6 +290,67 @@ class CatalogTest extends TestCase
             'parent_element_id' => $stranger->id,
             'catalog' => ['price' => 1],
         ])->assertStatus(422)->assertJsonValidationErrors('parent_element_id');
+    }
+
+    public function test_the_offers_tab_brings_the_properties_of_the_offers_infoblock(): void
+    {
+        $iblock = $this->catalogue();
+        $offersIblock = $iblock->offersIblock;
+
+        IblockProperty::factory()->for($offersIblock)->create(['code' => 'SIZE', 'name' => 'Размер']);
+
+        $product = IblockElement::factory()->for($iblock)->create();
+        $offer = IblockElement::factory()->create(['iblock_id' => $offersIblock->id]);
+        CatalogProduct::factory()->create(['element_id' => $offer->id, 'parent_element_id' => $product->id]);
+
+        $response = $this->actingAs($this->superAdmin())
+            ->getJson("/admin/api/iblocks/{$iblock->id}/elements/{$product->id}/offers")
+            ->assertOk();
+
+        // Из них собирается список колонок таблицы и полей попапа.
+        $this->assertSame(['SIZE'], array_column($response->json('properties'), 'code'));
+        $this->assertArrayHasKey('properties', $response->json('data.0'));
+    }
+
+    public function test_an_existing_offer_can_be_attached_to_a_product(): void
+    {
+        $iblock = $this->catalogue();
+        $product = IblockElement::factory()->for($iblock)->create(['name' => 'Футболка']);
+        $offer = IblockElement::factory()->create(['iblock_id' => $iblock->offers_iblock_id, 'name' => 'Размер L']);
+
+        $this->actingAs($this->superAdmin())
+            ->postJson("/admin/api/iblocks/{$iblock->id}/elements/{$product->id}/offers", ['offers' => [$offer->id]])
+            ->assertOk();
+
+        $this->assertSame($product->id, $offer->refresh()->catalog->parent_element_id);
+
+        // Товар, у которого появились предложения, своей цены больше не имеет.
+        $this->assertTrue($product->refresh()->catalog->usesOffers());
+    }
+
+    public function test_an_element_of_another_infoblock_cannot_be_attached_as_an_offer(): void
+    {
+        $iblock = $this->catalogue();
+        $product = IblockElement::factory()->for($iblock)->create();
+        $stranger = IblockElement::factory()->create();
+
+        $this->actingAs($this->superAdmin())
+            ->postJson("/admin/api/iblocks/{$iblock->id}/elements/{$product->id}/offers", ['offers' => [$stranger->id]])
+            ->assertStatus(422)->assertJsonValidationErrors('offers.0');
+    }
+
+    public function test_attaching_offers_needs_the_right_to_edit_them(): void
+    {
+        $iblock = $this->catalogue();
+        $product = IblockElement::factory()->for($iblock)->create();
+        $offer = IblockElement::factory()->create(['iblock_id' => $iblock->offers_iblock_id]);
+
+        // Права на каталог выданы уже после включения, на предложения — нет.
+        $manager = $this->grantIblock($this->adminWith(), $iblock, ['view', 'update']);
+
+        $this->actingAs($manager)
+            ->postJson("/admin/api/iblocks/{$iblock->id}/elements/{$product->id}/offers", ['offers' => [$offer->id]])
+            ->assertForbidden();
     }
 
     public function test_the_offers_list_needs_access_to_the_offers_infoblock(): void
@@ -298,6 +411,20 @@ class CatalogTest extends TestCase
 
         $this->assertStringContainsString('1 800 ₽', $html);
         $this->assertStringContainsString('line-through', $html);
+    }
+
+    public function test_the_card_shows_the_price_in_its_own_currency(): void
+    {
+        $iblock = $this->catalogue();
+        $element = IblockElement::factory()->for($iblock)->create(['name' => 'Стул']);
+
+        CatalogProduct::factory()->create([
+            'element_id' => $element->id,
+            'price' => 2000,
+            'currency' => Currency::EUR,
+        ]);
+
+        $this->assertStringContainsString('2 000 €', Blade::render('<x-nexor::catalog.section iblock="katalog" />'));
     }
 
     public function test_the_detail_page_lists_the_offers(): void

@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Nexor\Cms\Database\Factories\CatalogProductFactory;
+use Nexor\Cms\Enums\Currency;
+use Nexor\Cms\Enums\ProductType;
 
 /**
  * Торговые данные элемента: цена, скидка, остатки.
@@ -16,8 +18,8 @@ use Nexor\Cms\Database\Factories\CatalogProductFactory;
  * наличию сортируют и фильтруют, и держать это в EAV было бы дорого.
  */
 #[Fillable([
-    'element_id', 'parent_element_id',
-    'price', 'discount_percent',
+    'element_id', 'parent_element_id', 'type',
+    'price', 'currency', 'discount_percent',
     'quantity', 'measure', 'ratio',
     'quantity_trace', 'can_buy_zero',
 ])]
@@ -26,8 +28,19 @@ class CatalogProduct extends Model
     /** @use HasFactory<CatalogProductFactory> */
     use HasFactory;
 
-    /** Единицы измерения, которые форма предлагает сразу. Свою можно вписать. */
+    /** Единицы измерения, из которых выбирают на вкладке «Остатки». */
     public const MEASURES = ['шт', 'кг', 'г', 'л', 'м', 'м²', 'м³', 'упак', 'компл'];
+
+    /**
+     * Дублирует умолчания колонок: свежесозданная запись должна знать свою
+     * валюту и тип ещё до того, как её перечитают из базы.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'currency' => Currency::RUB->value,
+        'type' => ProductType::Simple->value,
+    ];
 
     /**
      * Laravel guesses factories from the application namespace, which never
@@ -41,6 +54,8 @@ class CatalogProduct extends Model
     protected function casts(): array
     {
         return [
+            'currency' => Currency::class,
+            'type' => ProductType::class,
             'price' => 'decimal:2',
             'discount_percent' => 'decimal:2',
             'quantity' => 'decimal:3',
@@ -71,6 +86,26 @@ class CatalogProduct extends Model
     public function hasPrice(): bool
     {
         return $this->price !== null;
+    }
+
+    /**
+     * Цена и наличие приходят из торговых предложений, а не отсюда.
+     */
+    public function usesOffers(): bool
+    {
+        return $this->type === ProductType::WithOffers;
+    }
+
+    /**
+     * Цена со знаком её валюты: «1 800 ₽».
+     */
+    public function withCurrency(?float $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        return self::formatPrice($value).' '.($this->currency ?? Currency::RUB)->symbol();
     }
 
     public function hasDiscount(): bool

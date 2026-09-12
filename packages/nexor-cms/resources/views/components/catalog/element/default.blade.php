@@ -27,12 +27,12 @@
             @if ($catalog->hasPrice())
                 <div class="flex flex-wrap items-baseline gap-3">
                     <span class="text-3xl font-semibold text-slate-900">
-                        {{ \Nexor\Cms\Models\CatalogProduct::formatPrice($catalog->finalPrice()) }} ₽
+                        {{ $catalog->withCurrency($catalog->finalPrice()) }}
                     </span>
 
                     @if ($catalog->hasDiscount())
                         <span class="text-lg text-slate-400 line-through">
-                            {{ \Nexor\Cms\Models\CatalogProduct::formatPrice((float) $catalog->price) }} ₽
+                            {{ $catalog->withCurrency((float) $catalog->price) }}
                         </span>
                         <span class="rounded-full bg-red-50 px-2 py-0.5 text-sm font-medium text-red-600">
                             −{{ \Nexor\Cms\Models\CatalogProduct::formatPrice((float) $catalog->discount_percent) }}%
@@ -70,7 +70,7 @@
                         <span class="flex items-baseline gap-2">
                             @if ($offer->catalog?->hasPrice())
                                 <span class="font-semibold text-slate-900">
-                                    {{ \Nexor\Cms\Models\CatalogProduct::formatPrice($offer->catalog->finalPrice()) }} ₽
+                                    {{ $offer->catalog->withCurrency($offer->catalog->finalPrice()) }}
                                 </span>
                             @endif
 

@@ -19,9 +19,8 @@ const rows = ref([]);
 
 const loading = ref(true);
 
-const iblock = ref(session.iblock(props.iblock));
-
-// const info = ref(session.iblock(props.iblock));
+// Не `iblock`: в шаблоне это имя уже занято пропом с id, и ссылки получали объект.
+const info = ref(session.iblock(props.iblock));
 
 const columns = [
     { key: 'id', label: 'id', width: '4rem', muted: true },
@@ -43,7 +42,7 @@ async function load() {
     try {
         const [list, meta] = await Promise.all([
             api.get(`iblocks/${props.iblock}/properties`),
-            iblock.value ? Promise.resolve(null) : api.get(`iblocks/${props.iblock}`),
+            info.value ? Promise.resolve(null) : api.get(`iblocks/${props.iblock}`),
         ]);
 
 
@@ -52,7 +51,7 @@ async function load() {
 
 
         if (meta) {
-            iblock.value = meta.data;
+            info.value = meta.data;
         }
     } catch (error) {
         ui.notifyError(error);
@@ -86,12 +85,12 @@ onMounted(load);
 
 <template>
     <div>
-        <NPageHeader :title="`Свойства: ${iblock?.name ?? ''}`"
+        <NPageHeader :title="`Свойства: ${info?.name ?? ''}`"
                      :back="{ name: 'iblocks.index' }"
                      description="Набор полей, который будет у каждого элемента этого инфоблока."
                      :breadcrumbs="[
                          { label: 'Инфоблоки', to: { name: 'iblocks.index' } },
-                         { label: iblock?.name ?? '', to: { name: 'elements.index', params: { iblock } } },
+                         { label: info?.name ?? '', to: { name: 'elements.index', params: { iblock } } },
                          { label: 'Свойства' },
                      ]">
             <template #actions>
@@ -154,7 +153,7 @@ onMounted(load);
 
                 <template #cell-actions="{ row }">
                     <div class="flex items-center justify-end gap-0.5">
-                        <router-link :to="{ name: 'properties.edit', params: { iblock: iblock.id, property: row.id } }"
+                        <router-link :to="{ name: 'properties.edit', params: { iblock, property: row.id } }"
                                      title="Изменить"
                                      class="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--text-strong)]">
                             <NIcon name="pencil" size="size-4" />

@@ -3,6 +3,8 @@
 namespace Nexor\Cms\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Nexor\Cms\Enums\Currency;
+use Nexor\Cms\Enums\ProductType;
 use Nexor\Cms\Models\CatalogProduct;
 use Nexor\Cms\Models\IblockElement;
 
@@ -21,7 +23,9 @@ class CatalogProductFactory extends Factory
     {
         return [
             'element_id' => IblockElement::factory(),
+            'type' => ProductType::Simple,
             'price' => fake()->randomFloat(2, 100, 10000),
+            'currency' => Currency::RUB,
             'discount_percent' => 0,
             'quantity' => fake()->numberBetween(0, 100),
             'measure' => 'шт',
@@ -39,5 +43,13 @@ class CatalogProductFactory extends Factory
     public function discounted(float $percent): static
     {
         return $this->state(['discount_percent' => $percent]);
+    }
+
+    /**
+     * Товар, чья цена приходит из торговых предложений.
+     */
+    public function withOffers(): static
+    {
+        return $this->state(['type' => ProductType::WithOffers, 'price' => null]);
     }
 }

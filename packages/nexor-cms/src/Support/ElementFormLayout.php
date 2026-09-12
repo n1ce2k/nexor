@@ -54,10 +54,20 @@ class ElementFormLayout
      *
      * @return array<string, array{label: string, tab: string}>
      */
-    public static function commerceFields(): array
+    public static function commerceFields(Iblock $iblock): array
     {
-        return [
+        $fields = [];
+
+        // Тип товара выбирают только там, где предложения вообще бывают:
+        // у самих предложений его нет.
+        if ($iblock->hasOffers()) {
+            // На «Основном»: от типа зависит, какие вкладки вообще будут.
+            $fields['catalog.type'] = ['label' => 'Тип товара', 'tab' => 'main'];
+        }
+
+        return $fields + [
             'catalog.price' => ['label' => 'Цена', 'tab' => 'price'],
+            'catalog.currency' => ['label' => 'Валюта', 'tab' => 'price'],
             'catalog.quantity' => ['label' => 'Доступное количество', 'tab' => 'stock'],
             'catalog.measure' => ['label' => 'Единица измерения', 'tab' => 'stock'],
             'catalog.ratio' => ['label' => 'Коэффициент', 'tab' => 'stock'],
@@ -92,7 +102,7 @@ class ElementFormLayout
         $fields = self::baseFields();
 
         if ($iblock->hasCommerce()) {
-            $fields += self::commerceFields();
+            $fields += self::commerceFields($iblock);
         }
 
         // Предложения бывают только у товара, у самих предложений их нет.

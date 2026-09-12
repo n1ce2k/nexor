@@ -2,6 +2,8 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import FormLayoutEditor from '../../components/FormLayoutEditor.vue';
+import FieldPicker from '../../components/catalog/FieldPicker.vue';
+import OfferPicker from '../../components/catalog/OfferPicker.vue';
 import NButton from '../../components/ui/NButton.vue';
 import NCard from '../../components/ui/NCard.vue';
 import NField from '../../components/ui/NField.vue';
@@ -13,6 +15,7 @@ import NTabs from '../../components/ui/NTabs.vue';
 import NToggle from '../../components/ui/NToggle.vue';
 import PropertyField from '../../components/fields/PropertyField.vue';
 import { api, toFormData } from '../../api';
+import { propertyText, useFieldPrefs } from '../../composables/useFieldPrefs';
 import { slugify, useForm } from '../../composables/useForm';
 import { emit as emitHook } from '../../registry';
 import { useSession } from '../../stores/session';
@@ -60,7 +63,9 @@ const form = useForm({
     meta_keywords: '',
     // Торговые данные; уходят на сервер, только если инфоблок — каталог.
     catalog: {
+        type: 'simple',
         price: '',
+        currency: 'RUB',
         discount_percent: 0,
         quantity: 0,
         measure: 'шт',
@@ -76,6 +81,27 @@ const parentId = ref(null);
 const offers = ref([]);
 const offersIblock = ref(null);
 const offersLoading = ref(false);
+const pickerOpen = ref(false);
+
+const offerProperties = ref([]);
+const columnsOpen = ref(false);
+
+/** Какие свойства предложений показывать колонками таблицы. */
+const offerColumns = useFieldPrefs(() => (offersIblock.value ? `nexor.offer-columns.${offersIblock.value.id}` : null));
+
+const offerColumnFields = computed(() => offerProperties.value.map((property) => ({
+    key: property.code,
+    label: property.name,
+    hint: property.type_label,
+})));
+
+function offerColumnLabel(code) {
+    return offerProperties.value.find((property) => property.code === code)?.name ?? code;
+}
+
+function offerColumnValue(offer, code) {
+    return propertyText(offerProperties.value, offer, code);
+}
 
 const isEdit = computed(() => Boolean(props.element));
 
@@ -95,6 +121,33 @@ const sectionOptions = computed(() => (schema.value?.sections ?? []).map((sectio
 })));
 
 const measures = computed(() => schema.value?.measures ?? []);
+
+const measureOptions = computed(() => measures.value.map((measure) => ({ value: measure, label: measure })));
+
+const currencies = computed(() => schema.value?.currencies ?? []);
+
+const currencyOptions = computed(() => currencies.value.map((item) => ({
+    value: item.value,
+    label: `${item.label} (${item.symbol})`,
+})));
+
+/** Знак валюты — приписывается к ценам прямо в форме. */
+const currencySymbol = computed(() => currencies.value
+    .find((item) => item.value === form.fields.catalog.currency)?.symbol ?? '');
+
+const productTypes = computed(() => (schema.value?.product_types ?? []).map((item) => ({
+    value: item.value,
+    label: item.label,
+})));
+
+const productTypeHint = computed(() => (schema.value?.product_types ?? [])
+    .find((item) => item.value === form.fields.catalog.type)?.hint ?? '');
+
+/**
+ * У товара с предложениями своей цены и своего остатка нет: их задают
+ * предложения, поэтому форма прячет эти поля.
+ */
+const usesOffers = computed(() => Boolean(info.value?.has_offers) && form.fields.catalog.type === 'with_offers');
 
 const money = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
 
@@ -140,6 +193,7 @@ async function loadOffers() {
 
         offers.value = data.data;
         offersIblock.value = data.offers_iblock;
+        offerProperties.value = data.properties ?? [];
     } catch (error) {
         ui.notifyError(error);
     } finally {
@@ -188,11 +242,15 @@ function isVisible(key) {
     }
 
     if (key === 'offers') {
+        return usesOffers.value;
+    }
+
+    if (key === 'catalog.type') {
         return Boolean(info.value?.has_offers);
     }
 
     if (key.startsWith('catalog.')) {
-        return Boolean(info.value?.has_commerce);
+        return Boolean(info.value?.has_commerce) && !usesOffers.value;
     }
 
     return key.startsWith('prop:') ? Boolean(propertyOf(key)) : true;
@@ -220,13 +278,33 @@ function wide(key) {
     return ['preview_text', 'detail_text', 'meta_description', 'sections', 'offers'].includes(key);
 }
 
-const tabList = computed(() => tabs.value.map((tab) => ({
-    key: tab.key,
-    label: tab.label,
-    mark: visibleFields(tab).some((field) => Boolean(errorOf(field))),
-})));
+// У простого товара вкладки «Предложения» нет вовсе — не пустая, а скрытая.
+const tabList = computed(() => tabs.value
+    .filter((tab) => tab.key !== 'offers' || usesOffers.value)
+    .map((tab) => ({
+        key: tab.key,
+        label: tab.label,
+        mark: visibleFields(tab).some((field) => Boolean(errorOf(field))),
+    })));
+
+// Тип товара сменили, стоя на вкладке, которой больше нет.
+watch(tabList, (list) => {
+    // Пока форма грузится, вкладку выбирает load().
+    if (!ready.value) {
+        return;
+    }
+
+    if (!list.some((tab) => tab.key === activeTab.value)) {
+        activeTab.value = list[0]?.key ?? null;
+    }
+});
 
 const currentTab = computed(() => tabs.value.find((tab) => tab.key === activeTab.value) ?? tabs.value[0] ?? null);
+
+/** Пустая вкладка «Остатки» у товара с предложениями — не ошибка, а следствие. */
+const emptyNote = computed(() => (usesOffers.value && ['price', 'stock', 'discount'].includes(currentTab.value?.key)
+    ? 'Цена и остаток задаются в торговых предложениях — вкладка «Предложения».'
+    : 'На этой вкладке пока нет полей.'));
 
 // A failed save may put the error on a tab the operator is not looking at.
 watch(() => form.errors.value, () => {
@@ -275,6 +353,10 @@ function buildPayload() {
     // Не каталогу торговые поля не нужны — и сервер их не примет.
     if (!info.value?.has_commerce) {
         delete fields.catalog;
+    } else if (usesOffers.value) {
+        // Своя цена товару с предложениями не принадлежит — снимаем её,
+        // чтобы на витрине не осталась цена от прошлой жизни товара.
+        fields.catalog = { type: fields.catalog.type, price: '' };
     }
 
     const body = toFormData(fields);
@@ -315,7 +397,10 @@ function buildPayload() {
     return body;
 }
 
-async function save() {
+/**
+ * @param {boolean} stay Остаться в форме вместо возврата к списку
+ */
+async function save(stay = false) {
     const data = await form.submit(
         isEdit.value ? 'put' : 'post',
         isEdit.value
@@ -324,10 +409,31 @@ async function save() {
         { body: buildPayload(), files: true },
     );
 
-    if (data) {
-        emitHook('element.saved', { iblock: props.iblock, element: data.data });
-        router.push(backTo.value);
+    if (!data) {
+        return;
     }
+
+    emitHook('element.saved', { iblock: props.iblock, element: data.data });
+
+    if (!stay) {
+        router.push(backTo.value);
+
+        return;
+    }
+
+    // Созданный элемент дальше правится, а не создаётся заново — иначе
+    // следующее «Сохранить» сделало бы дубль.
+    if (!isEdit.value) {
+        router.replace({
+            name: 'elements.edit',
+            params: { iblock: props.iblock, element: data.data.id },
+            query: route.query,
+        });
+
+        return;
+    }
+
+    await loadOffers();
 }
 
 function applyLayout(next) {
@@ -338,16 +444,39 @@ function applyLayout(next) {
     }
 }
 
-onMounted(async () => {
+/** Всё, что осталось от предыдущего элемента, пока форма не пересоздана. */
+function resetState() {
+    ready.value = false;
+    form.reset();
+    form.fill({
+        sections: [],
+        catalog: {
+            type: 'simple',
+            price: '',
+            currency: 'RUB',
+            discount_percent: 0,
+            quantity: 0,
+            measure: 'шт',
+            ratio: 1,
+            quantity_trace: false,
+            can_buy_zero: false,
+        },
+    });
+    codeTouched.value = false;
+    parentId.value = null;
+    offers.value = [];
+    offersIblock.value = null;
+    offerProperties.value = [];
+    pickerOpen.value = false;
+}
+
+async function load() {
+    resetState();
+
     try {
         schema.value = await api.get(`iblocks/${props.iblock}/schema`);
 
         tabs.value = schema.value.form_tabs ?? [];
-
-        // `?tab=offers` — вернуться на ту вкладку, с которой уходили.
-        activeTab.value = tabs.value.some((tab) => tab.key === route.query.tab)
-            ? route.query.tab
-            : (tabs.value[0]?.key ?? null);
 
         if (route.query.parent) {
             parentId.value = Number(route.query.parent);
@@ -382,7 +511,9 @@ onMounted(async () => {
 
             if (element.catalog) {
                 form.fields.catalog = {
+                    type: element.catalog.type ?? 'simple',
                     price: element.catalog.price ?? '',
+                    currency: element.catalog.currency ?? 'RUB',
                     discount_percent: Number(element.catalog.discount_percent ?? 0),
                     quantity: Number(element.catalog.quantity ?? 0),
                     measure: element.catalog.measure ?? 'шт',
@@ -407,11 +538,28 @@ onMounted(async () => {
 
         values.value = blanks;
 
+        // `?tab=offers` — вернуться на ту вкладку, с которой уходили. Только после
+        // загрузки элемента: до неё тип товара неизвестен и «Предложения» скрыты.
+        activeTab.value = tabList.value.some((tab) => tab.key === route.query.tab)
+            ? route.query.tab
+            : (tabList.value[0]?.key ?? null);
+
         await loadOffers();
     } catch (error) {
         ui.notifyError(error);
     } finally {
         ready.value = true;
+    }
+}
+
+onMounted(load);
+
+// Товар и его предложение открываются одним маршрутом `elements.edit`:
+// vue-router не пересоздаёт компонент при смене параметров, и без этого
+// адрес менялся, а на экране оставался прежний элемент.
+watch(() => [props.iblock, props.element], (next, previous) => {
+    if (String(next) !== String(previous)) {
+        load();
     }
 });
 </script>
@@ -426,7 +574,7 @@ onMounted(async () => {
                          { label: isEdit ? form.fields.name : 'Новый элемент' },
                      ]" />
 
-        <form v-if="ready" class="space-y-6" @submit.prevent="save">
+        <form v-if="ready" class="space-y-6" @submit.prevent="save()">
             <NCard :padding="false">
                 <div class="px-5 pt-1">
                     <NTabs v-model="activeTab" :tabs="tabList">
@@ -526,13 +674,24 @@ onMounted(async () => {
                                 <NInput v-model="form.fields.meta_keywords" />
                             </NField>
 
+                            <NField v-else-if="key === 'catalog.type'" label="Тип товара"
+                                    :hint="productTypeHint" :error="form.error('catalog.type')">
+                                <NSelect v-model="form.fields.catalog.type" :options="productTypes" />
+                            </NField>
+
                             <NField v-else-if="key === 'catalog.price'" label="Цена"
                                     hint="Базовая цена за единицу, без скидки." :error="form.error('catalog.price')">
                                 <div class="flex items-center gap-2">
                                     <NInput v-model="form.fields.catalog.price" type="number" min="0" step="0.01"
                                             class="sm:max-w-48" :invalid="Boolean(form.error('catalog.price'))" />
-                                    <span class="text-sm text-[var(--text-muted)]">₽</span>
+                                    <span class="text-sm text-[var(--text-muted)]">{{ currencySymbol }}</span>
                                 </div>
+                            </NField>
+
+                            <NField v-else-if="key === 'catalog.currency'" label="Валюта"
+                                    hint="Цена показывается в этой валюте; пересчёта между валютами нет."
+                                    :error="form.error('catalog.currency')">
+                                <NSelect v-model="form.fields.catalog.currency" :options="currencyOptions" />
                             </NField>
 
                             <NField v-else-if="key === 'catalog.quantity'" label="Доступное количество"
@@ -542,11 +701,8 @@ onMounted(async () => {
                             </NField>
 
                             <NField v-else-if="key === 'catalog.measure'" label="Единица измерения"
-                                    hint="Выберите из списка или впишите свою." :error="form.error('catalog.measure')">
-                                <input v-model="form.fields.catalog.measure" list="nexor-measures" class="field-input">
-                                <datalist id="nexor-measures">
-                                    <option v-for="measure in measures" :key="measure" :value="measure" />
-                                </datalist>
+                                    :error="form.error('catalog.measure')">
+                                <NSelect v-model="form.fields.catalog.measure" :options="measureOptions" />
                             </NField>
 
                             <NField v-else-if="key === 'catalog.ratio'" label="Коэффициент"
@@ -583,9 +739,9 @@ onMounted(async () => {
                                 <div class="mt-3 rounded-lg bg-[var(--surface-muted)] p-3 text-sm">
                                     <template v-if="finalPrice !== null">
                                         <span class="text-[var(--text-muted)]">Цена со скидкой:</span>
-                                        <span class="font-semibold text-[var(--text-strong)]">{{ formatMoney(finalPrice) }} ₽</span>
+                                        <span class="font-semibold text-[var(--text-strong)]">{{ formatMoney(finalPrice) }} {{ currencySymbol }}</span>
                                         <span v-if="discountAmount > 0" class="text-[var(--text-muted)]">
-                                            — дешевле на {{ formatMoney(discountAmount) }} ₽
+                                            — дешевле на {{ formatMoney(discountAmount) }} {{ currencySymbol }}
                                         </span>
                                     </template>
                                     <span v-else class="text-[var(--text-muted)]">
@@ -602,6 +758,18 @@ onMounted(async () => {
                                 </p>
 
                                 <div v-else class="space-y-3">
+                                    <div class="flex justify-end">
+                                        <button type="button" title="Настроить колонки"
+                                                class="rounded-lg p-1.5 text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--text-strong)]"
+                                                @click="columnsOpen = true">
+                                            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <circle cx="12" cy="12" r="3" />
+                                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                                            </svg>
+                                        </button>
+                                    </div>
+
                                     <div class="overflow-x-auto rounded-lg border border-[var(--surface-border)]">
                                         <table class="w-full text-sm">
                                             <thead class="bg-[var(--surface-muted)] text-left text-xs text-[var(--text-muted)]">
@@ -610,15 +778,18 @@ onMounted(async () => {
                                                     <th class="px-3 py-2 font-medium">Цена</th>
                                                     <th class="px-3 py-2 font-medium">Остаток</th>
                                                     <th class="px-3 py-2 font-medium">Статус</th>
+                                                    <th v-for="code in offerColumns" :key="code" class="px-3 py-2 font-medium">
+                                                        {{ offerColumnLabel(code) }}
+                                                    </th>
                                                     <th class="px-3 py-2"></th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 <tr v-if="offersLoading">
-                                                    <td colspan="5" class="px-3 py-4 text-center text-[var(--text-muted)]">Загружаем…</td>
+                                                    <td :colspan="5 + offerColumns.length" class="px-3 py-4 text-center text-[var(--text-muted)]">Загружаем…</td>
                                                 </tr>
                                                 <tr v-else-if="!offers.length">
-                                                    <td colspan="5" class="px-3 py-4 text-center text-[var(--text-muted)]">Предложений пока нет.</td>
+                                                    <td :colspan="5 + offerColumns.length" class="px-3 py-4 text-center text-[var(--text-muted)]">Предложений пока нет.</td>
                                                 </tr>
                                                 <template v-else>
                                                     <tr v-for="offer in offers" :key="offer.id"
@@ -631,10 +802,10 @@ onMounted(async () => {
                                                         </td>
                                                         <td class="px-3 py-2 whitespace-nowrap">
                                                             <template v-if="offer.catalog?.final_price != null">
-                                                                {{ formatMoney(offer.catalog.final_price) }} ₽
+                                                                {{ formatMoney(offer.catalog.final_price) }} {{ offer.catalog.currency_symbol }}
                                                                 <span v-if="Number(offer.catalog.discount_percent) > 0"
                                                                       class="ml-1 text-xs text-[var(--text-faint)] line-through">
-                                                                    {{ formatMoney(offer.catalog.price) }} ₽
+                                                                    {{ formatMoney(offer.catalog.price) }} {{ offer.catalog.currency_symbol }}
                                                                 </span>
                                                             </template>
                                                             <span v-else class="text-[var(--text-faint)]">—</span>
@@ -647,6 +818,11 @@ onMounted(async () => {
                                                                 {{ offer.is_active ? 'активно' : 'скрыто' }}
                                                             </span>
                                                         </td>
+                                                        <td v-for="code in offerColumns" :key="code"
+                                                            class="px-3 py-2 text-[var(--text-muted)]">
+                                                            {{ offerColumnValue(offer, code) }}
+                                                        </td>
+
                                                         <td class="px-3 py-2 text-right">
                                                             <button v-if="offersIblock?.abilities?.delete" type="button"
                                                                     class="text-xs text-red-600 hover:underline dark:text-red-400"
@@ -660,10 +836,17 @@ onMounted(async () => {
                                         </table>
                                     </div>
 
-                                    <NButton v-if="offersIblock?.abilities?.create" size="sm" variant="secondary" icon="plus"
-                                             :to="{ name: 'elements.create', params: { iblock: offersIblock.id }, query: { parent: element } }">
-                                        Добавить предложение
-                                    </NButton>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <NButton v-if="offersIblock?.abilities?.create || offersIblock?.abilities?.update"
+                                                 size="sm" variant="secondary" icon="plus" @click="pickerOpen = true">
+                                            Добавить предложение
+                                        </NButton>
+
+                                        <NButton v-if="offersIblock?.abilities?.view" size="sm" variant="ghost"
+                                                 :to="{ name: 'elements.index', params: { iblock: offersIblock.id } }">
+                                            Все предложения
+                                        </NButton>
+                                    </div>
                                 </div>
                             </NField>
 
@@ -684,18 +867,33 @@ onMounted(async () => {
 
                     <p v-if="!visibleFields(currentTab).length"
                        class="text-sm text-[var(--text-muted)] sm:col-span-2">
-                        На этой вкладке пока нет полей.
+                        {{ emptyNote }}
                     </p>
                 </div>
             </NCard>
 
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
                 <NButton type="submit" size="lg" :loading="form.busy.value">Сохранить</NButton>
-                <NButton variant="secondary" size="lg" :to="backTo">Отмена</NButton>
+
+                <NButton type="button" variant="secondary" size="lg" :loading="form.busy.value"
+                         @click="save(true)">
+                    Сохранить и продолжить
+                </NButton>
+
+                <NButton variant="ghost" size="lg" :to="backTo">Отмена</NButton>
             </div>
         </form>
 
         <FormLayoutEditor v-if="ready && canEditLayout" v-model="layoutOpen" :iblock="iblock"
                           :tabs="tabs" :fields="fieldCatalogue" @saved="applyLayout" />
+
+        <OfferPicker v-if="isEdit && offersIblock" v-model="pickerOpen" :iblock="iblock" :element="element"
+                     :offers-iblock="offersIblock" :measures="measures" :currencies="currencies"
+                     :currency="form.fields.catalog.currency" :properties="offerProperties"
+                     @saved="loadOffers" />
+
+        <FieldPicker v-model="columnsOpen" v-model:selected="offerColumns" title="Колонки предложений"
+                     description="Отмеченные свойства станут колонками таблицы."
+                     :fields="offerColumnFields" />
     </div>
 </template>

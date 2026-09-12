@@ -43,7 +43,10 @@ class IblockElementResource extends JsonResource
             'meta_keywords' => $this->meta_keywords,
             'views' => $this->views,
             'catalog' => $this->whenLoaded('catalog', fn () => $this->catalog ? [
+                'type' => $this->catalog->type?->value,
                 'price' => $this->catalog->price,
+                'currency' => $this->catalog->currency?->value,
+                'currency_symbol' => $this->catalog->currency?->symbol(),
                 'discount_percent' => $this->catalog->discount_percent,
                 'final_price' => $this->catalog->finalPrice(),
                 'quantity' => $this->catalog->quantity,

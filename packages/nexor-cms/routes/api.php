@@ -71,6 +71,11 @@ Route::prefix('iblocks/{iblock}')->name('iblocks.')->group(function () use ($gua
         ->name('elements.offers')
         ->middleware('nexor.iblock:view');
 
+    // Привязка уже существующих предложений к товару.
+    Route::post('elements/{element}/offers', [IblockElementController::class, 'attachOffers'])
+        ->name('elements.offers.attach')
+        ->middleware('nexor.iblock:update');
+
     // Tabs of the element form, editable per infoblock.
     Route::put('form-layout', [IblockElementController::class, 'saveLayout'])
         ->name('form-layout.update')

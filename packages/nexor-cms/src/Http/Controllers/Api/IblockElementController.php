@@ -7,6 +7,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
+use Nexor\Cms\Enums\Currency;
+use Nexor\Cms\Enums\ProductType;
 use Nexor\Cms\Enums\PropertyType;
 use Nexor\Cms\Http\Requests\IblockElementRequest;
 use Nexor\Cms\Http\Resources\IblockElementResource;
@@ -36,7 +39,7 @@ class IblockElementController extends ApiController
         $properties = $iblock->properties()->active()->get();
 
         $elements = $iblock->elements()
-            ->with(['section', 'values.property', 'values.enum'])
+            ->with(['section', 'values.property', 'values.enum', 'catalog'])
             ->when($request->filled('search'), function (Builder $query) use ($request): void {
                 $search = '%'.$request->string('search')->trim().'%';
 
@@ -140,6 +143,8 @@ class IblockElementController extends ApiController
             'form_tabs' => ElementFormLayout::for($iblock),
             'form_fields' => array_values(ElementFormLayout::fields($iblock)),
             'measures' => CatalogProduct::MEASURES,
+            'currencies' => Currency::options(),
+            'product_types' => ProductType::options(),
         ]);
     }
 
@@ -228,14 +233,60 @@ class IblockElementController extends ApiController
         $offers = IblockElement::query()
             ->where('iblock_id', $offersIblock->id)
             ->whereHas('catalog', fn (Builder $query) => $query->where('parent_element_id', $element->id))
-            ->with('catalog')
+            ->with(['catalog', 'values.property', 'values.enum'])
             ->ordered()
             ->get();
 
         return response()->json([
             'offers_iblock' => IblockResource::make($offersIblock),
+            // Свойства предложений — из них выбирают колонки таблицы и попапа.
+            'properties' => IblockPropertyResource::collection(
+                $offersIblock->properties()->active()->with('enums')->get(),
+            ),
             'data' => IblockElementResource::collection($offers),
         ]);
+    }
+
+    /**
+     * Привязывает к товару уже существующие предложения — «выбрать» в попапе.
+     *
+     * Предложение живёт своей жизнью в инфоблоке предложений, привязка — это
+     * всего лишь его `parent_element_id`, поэтому переносить его от одного
+     * товара к другому можно сколько угодно.
+     */
+    public function attachOffers(Request $request, Iblock $iblock, IblockElement $element): JsonResponse
+    {
+        abort_unless($element->iblock_id === $iblock->id, 404);
+
+        $offersIblock = $iblock->offersIblock;
+
+        abort_unless($iblock->is_catalog && $offersIblock, 404);
+
+        // Привязка меняет сами предложения — нужно право на их инфоблок.
+        abort_unless($request->user()->hasPermission($offersIblock->permissionCode('update')), 403);
+
+        $data = $request->validate([
+            'offers' => ['required', 'array', 'min:1'],
+            'offers.*' => [
+                'integer',
+                Rule::exists('iblock_elements', 'id')
+                    ->where('iblock_id', $offersIblock->id)
+                    ->whereNull('deleted_at'),
+            ],
+        ], [], ['offers' => 'предложения', 'offers.*' => 'предложение']);
+
+        $offers = IblockElement::query()->whereKey($data['offers'])->get();
+
+        $offers->each(fn (IblockElement $offer) => $offer->catalog()->updateOrCreate([], [
+            'parent_element_id' => $element->id,
+        ]));
+
+        // Товар, у которого появились предложения, своей цены больше не имеет.
+        $element->catalog()->updateOrCreate([], ['type' => ProductType::WithOffers->value]);
+
+        ActivityLogger::updated($element, "Предложения товара «{$element->name}»");
+
+        return $this->ok('Предложений привязано: '.$offers->count().'.');
     }
 
     /**
@@ -254,7 +305,9 @@ class IblockElementController extends ApiController
         $current = $element->catalog;
 
         $values = [
+            'type' => filled($data['type'] ?? null) ? $data['type'] : ($current?->type?->value ?? ProductType::Simple->value),
             'price' => array_key_exists('price', $data) ? $data['price'] : $current?->price,
+            'currency' => filled($data['currency'] ?? null) ? $data['currency'] : ($current?->currency?->value ?? Currency::RUB->value),
             'discount_percent' => $data['discount_percent'] ?? $current?->discount_percent ?? 0,
             'quantity' => $data['quantity'] ?? $current?->quantity ?? 0,
             'measure' => filled($data['measure'] ?? null) ? $data['measure'] : ($current?->measure ?? 'шт'),

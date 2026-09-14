@@ -258,6 +258,49 @@ class CartTest extends TestCase
             ->assertSet('error', 'У товара не указана цена.');
     }
 
+    public function test_the_add_button_puts_the_chosen_quantity(): void
+    {
+        $product = $this->product();
+
+        Livewire::test(AddToCart::class, ['elementId' => $product->id])
+            ->call('add', 3)
+            ->assertSet('error', null)
+            ->assertSet('inCart', 3.0);
+    }
+
+    public function test_the_quantity_picker_follows_the_ratio_and_the_stock(): void
+    {
+        $this->ultimate();
+        $product = $this->product(['ratio' => 0.5, 'quantity' => 2, 'quantity_trace' => true]);
+
+        Livewire::withCookies($this->cartCookie([$product->id => 0.5]))
+            ->test(AddToCart::class, ['elementId' => $product->id])
+            ->assertSet('step', 0.5)
+            ->assertSet('available', 1.5);
+    }
+
+    public function test_the_counter_mode_changes_the_quantity_in_the_cart(): void
+    {
+        $product = $this->product();
+
+        Livewire::withCookies($this->cartCookie([$product->id => 2]))
+            ->test(AddToCart::class, ['elementId' => $product->id, 'mode' => 'counter'])
+            ->call('change', 1)
+            ->assertSet('inCart', 3.0)
+            ->assertDispatched('cart-updated');
+    }
+
+    public function test_the_counter_mode_removes_the_product_below_one_step(): void
+    {
+        $product = $this->product();
+
+        Livewire::withCookies($this->cartCookie([$product->id => 1]))
+            ->test(AddToCart::class, ['elementId' => $product->id, 'mode' => 'counter'])
+            ->call('change', -1)
+            ->assertSet('inCart', 0.0)
+            ->assertSee('В корзину');
+    }
+
     public function test_the_cart_page_lists_what_is_in_the_cookie(): void
     {
         $product = $this->product(['price' => 700], ['name' => 'Табурет']);

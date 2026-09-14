@@ -243,6 +243,24 @@ class CatalogTest extends TestCase
         $this->assertTrue(IblockElement::query()->where('name', 'Футболка')->firstOrFail()->catalog->usesOffers());
     }
 
+    public function test_a_product_shows_its_offers_by_properties_until_told_otherwise(): void
+    {
+        $iblock = $this->catalogue();
+        $admin = $this->superAdmin();
+
+        $created = $this->actingAs($admin)->postJson("/admin/api/iblocks/{$iblock->id}/elements", [
+            'name' => 'Футболка',
+            'catalog' => ['type' => 'with_offers'],
+        ])->assertCreated()->assertJsonPath('data.catalog.offers_by_properties', true);
+
+        $this->actingAs($admin)->putJson("/admin/api/iblocks/{$iblock->id}/elements/{$created->json('data.id')}", [
+            'name' => 'Футболка',
+            'catalog' => ['type' => 'with_offers', 'offers_by_properties' => false],
+        ])->assertOk()->assertJsonPath('data.catalog.offers_by_properties', false);
+
+        $this->assertTrue(IblockElement::query()->findOrFail($created->json('data.id'))->catalog->listsOffers());
+    }
+
     public function test_only_a_product_chooses_its_type(): void
     {
         $iblock = $this->catalogue();
@@ -440,5 +458,24 @@ class CatalogTest extends TestCase
 
         $this->assertStringContainsString('Размер L', $html);
         $this->assertStringContainsString('1 700 ₽', $html);
+    }
+
+    public function test_a_product_listing_its_offers_shows_every_offer_without_a_switcher(): void
+    {
+        $iblock = $this->catalogue();
+        $product = IblockElement::factory()->for($iblock)->create(['name' => 'Футболка']);
+
+        CatalogProduct::factory()->withOffers()->create(['element_id' => $product->id, 'offers_by_properties' => false]);
+
+        foreach (['Размер M' => 1600, 'Размер L' => 1700] as $name => $price) {
+            $offer = IblockElement::factory()->create(['iblock_id' => $iblock->offers_iblock_id, 'name' => $name, 'is_active' => true]);
+            CatalogProduct::factory()->create(['element_id' => $offer->id, 'parent_element_id' => $product->id, 'price' => $price]);
+        }
+
+        $html = Blade::render('<x-nexor::catalog.element :element="$element" />', ['element' => $product->fresh()]);
+
+        $this->assertStringContainsString('1 600 ₽', $html);
+        $this->assertStringContainsString('1 700 ₽', $html);
+        $this->assertStringNotContainsString('data-offer-link', $html);
     }
 }

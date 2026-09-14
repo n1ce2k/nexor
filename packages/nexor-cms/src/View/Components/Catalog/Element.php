@@ -26,7 +26,8 @@ class Element extends Component
      * @param  string|null  $code  Символьный код элемента
      * @param  string  $template  Имя шаблона вёрстки
      * @param  bool  $properties  Выводить ли таблицу свойств
-     * @param  IblockElement|null  $offer  Выбранное торговое предложение — из адреса страницы
+     * @param  IblockElement|null  $offer  Выбранное торговое предложение — из адреса страницы.
+     *                                     У товара со списком предложений не используется.
      */
     public function __construct(
         public ?IblockElement $element = null,
@@ -44,15 +45,20 @@ class Element extends Component
         $this->element ??= $this->find();
 
         $offers = $this->element->offerElements();
+        $offersByProperties = ! $this->element->catalog?->listsOffers();
 
-        // Без предложения в адресе выбрано первое доступное, а если купить нечего — первое.
-        $this->offer ??= $offers->first(fn (IblockElement $offer) => $offer->catalog?->isAvailable()) ?? $offers->first();
+        // Переключатель: без предложения в адресе выбрано первое доступное, а если
+        // купить нечего — первое. Списку выбранное не нужно — видны все сразу.
+        $this->offer = $offersByProperties
+            ? $this->offer ?? $offers->first(fn (IblockElement $offer) => $offer->catalog?->isAvailable()) ?? $offers->first()
+            : null;
 
         return $this->template($this->template, [
             'block' => $this->element->iblock,
             'values' => $this->properties ? $this->element->propertyValues() : collect(),
             'showProperties' => $this->properties,
             'offers' => $offers,
+            'offersByProperties' => $offersByProperties,
         ]);
     }
 

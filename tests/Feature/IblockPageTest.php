@@ -359,6 +359,19 @@ class IblockPageTest extends TestCase
         $this->get('/katalog-test/item-1/krasnyy')->assertOk()->assertSee('Красный');
     }
 
+    public function test_an_offer_of_a_product_listing_its_offers_opens_the_product(): void
+    {
+        [$product, $red] = $this->productWithOffers($this->pagedIblock());
+
+        $product->catalog->update(['offers_by_properties' => false]);
+
+        $this->assertSame(url('/katalog-test/item-1'), $red->fresh()->url());
+
+        $this->get('/katalog-test/item-1/krasnyy')->assertRedirect(url('/katalog-test/item-1'))->assertStatus(301);
+
+        $this->get('/katalog-test/item-1')->assertOk()->assertSee('Красный')->assertSee('Синий');
+    }
+
     public function test_an_unknown_offer_is_not_found(): void
     {
         $this->productWithOffers($this->pagedIblock());

@@ -2,6 +2,7 @@
 
 namespace Nexor\Shop\Support;
 
+use Nexor\Cms\Models\CatalogProduct;
 use Nexor\Cms\Models\IblockElement;
 use Nexor\Cms\Support\Nexor;
 
@@ -48,15 +49,12 @@ class CartPricing
 
         $catalog = $element->catalog;
         $product = self::productOf($element);
-        $ultimate = Shop::tracksStock();
 
         $problem = self::refusal($element);
 
-        $step = $ultimate ? max((float) ($catalog?->ratio ?? 1), 0.001) : 1.0;
-        $max = null;
+        ['step' => $step, 'max' => $max] = self::limits($catalog);
 
-        if ($ultimate && $catalog && $catalog->quantity_trace && ! $catalog->can_buy_zero) {
-            $max = floor(round((float) $catalog->quantity / $step, 6)) * $step;
+        if ($max !== null) {
             $problem ??= $max <= 0 ? 'Нет в наличии.' : null;
         }
 
@@ -92,6 +90,31 @@ class CartPricing
             converted: $converted,
             problem: $problem,
         );
+    }
+
+    /**
+     * Шаг количества и сколько всего можно купить.
+     *
+     * Basic продаёт штуками и без предела. Ultimate — кратно коэффициенту и не
+     * больше остатка, если остаток учитывается и покупка без него запрещена.
+     * Отсюда же берут границы счётчики у кнопки «В корзину».
+     *
+     * @return array{step: float, max: float|null}
+     */
+    public static function limits(?CatalogProduct $catalog): array
+    {
+        if (! Shop::tracksStock()) {
+            return ['step' => 1.0, 'max' => null];
+        }
+
+        $step = max((float) ($catalog?->ratio ?? 1), 0.001);
+        $max = null;
+
+        if ($catalog && $catalog->quantity_trace && ! $catalog->can_buy_zero) {
+            $max = floor(round((float) $catalog->quantity / $step, 6)) * $step;
+        }
+
+        return ['step' => $step, 'max' => $max];
     }
 
     /**

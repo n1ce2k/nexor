@@ -21,6 +21,7 @@ class IblockSectionResource extends JsonResource
             'iblock_id' => $this->iblock_id,
             'parent_id' => $this->parent_id,
             'code' => $this->code,
+            'url_path' => $this->url_path,
             'name' => $this->name,
             'indented_name' => $this->indented_name,
             'picture' => $this->picture,

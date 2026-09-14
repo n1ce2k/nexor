@@ -70,6 +70,7 @@ class IblockElementRequest extends FormRequest
                 'catalog.ratio' => ['nullable', 'numeric', 'gt:0', 'max:9999999'],
                 'catalog.quantity_trace' => ['boolean'],
                 'catalog.can_buy_zero' => ['boolean'],
+                'catalog.offers_by_properties' => ['boolean'],
             ];
         }
 

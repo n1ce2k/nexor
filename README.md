@@ -156,6 +156,17 @@ php artisan nexor:component catalog.section blog --force       # перезап�
 
 Пример переключения предложений без перезагрузки (кнопки по свойству, подмена зон `data-offer-zone`, `history.pushState`, обновление `<title>` и canonical) — в шаблоне `catalog.element` после `php artisan nexor:component catalog.element`. Для canonical в `<head>` макета нужна строка `<link rel="canonical" href="@yield('canonical', url()->current())">`.
 
+### Как товар выводит предложения
+
+У товара с предложениями на вкладке **Предложения** есть переключатель **«Выводить через свойства»** (колонка `catalog_products.offers_by_properties`, по умолчанию включён):
+
+| Переключатель | На странице товара | Адрес предложения |
+|---|---|---|
+| включён | кнопки вариантов, цена и «В корзину» у выбранного | свой: `/katalog/razdel1/futbolka/krasnyy` |
+| выключен | товар, под ним список всех предложений, у каждого цена, количество и «В корзину» | `IblockElement::url()` отдаёт адрес товара, старые ссылки отвечают 301 на `/katalog/razdel1/futbolka` |
+
+В шаблон `catalog.element` приходит `$offersByProperties`, по нему шаблон выбирает переключатель или список. В режиме списка `$offer` всегда `null`. В коде режим проверяет `CatalogProduct::listsOffers()`. Цена и наличие в обоих режимах выводятся общей частью `components/catalog/element/partials/price.blade.php`. Подпись варианта задаёт `$offerLabel` в начале шаблона: в пакете это название предложения, в своей копии можно подставить свойство, например `$item->property('SVOYSTVO1_PREDL') ?: $item->name`.
+
 ## Лицензии и модули
 
 Уровень сайта задаётся в `.env`:
@@ -253,6 +264,33 @@ php artisan nexor-shop:component cart-page --force  # перезаписать �
 | `/checkout` | оформление (только Ultimate) |
 
 Кнопка «В корзину» уже стоит в шаблонах карточки и детальной страницы каталога — тегом `<livewire:nexor-shop::add-to-cart :element-id="$element->id" />` внутри `@feature('shop')`. В своём шаблоне — так же.
+
+### Количество у кнопки «В корзину»
+
+У кнопки два режима, выбираются атрибутом `mode`. Шаг и предел счётчика в обоих считает сервер (`CartPricing::limits()`): в Basic шаг 1 и предела нет, в Ultimate шаг — коэффициент товара, предел — остаток, если он учитывается и покупка без остатка запрещена.
+
+**`button` — по умолчанию.** Рядом с кнопкой счётчик `− 1 +` и поле ввода. Количество меняется в браузере без запросов и уходит в корзину одним нажатием:
+
+```blade
+<livewire:nexor-shop::add-to-cart :element-id="$element->id" />
+```
+
+**`counter` — заготовка на будущее.** Пока товара нет в корзине, видна кнопка. После добавления на её месте счётчик, который меняет количество прямо в корзине, а на нуле убирает товар:
+
+```blade
+<livewire:nexor-shop::add-to-cart :element-id="$element->id" mode="counter" />
+```
+
+Где это лежит:
+
+| Что | Где |
+|---|---|
+| Выбор режима, `add($quantity)`, `change($direction)` для `counter` | `packages/nexor-shop/src/Livewire/AddToCart.php` |
+| Вёрстка обоих режимов: ветка `@if ($mode === 'counter' && $inCart > 0)` и счётчик Alpine для `button` | `packages/nexor-shop/resources/views/livewire/add-to-cart.blade.php` |
+| Шаг и предел количества | `CartPricing::limits()` в `packages/nexor-shop/src/Support/CartPricing.php` |
+| Своя копия шаблона кнопки | `resources/views/vendor/nexor-shop/livewire/add-to-cart.blade.php` (`php artisan nexor-shop:component add-to-cart`) |
+
+В шаблон кнопки приходят `$mode`, `$step`, `$available` (сколько ещё можно добавить, `null` — без предела) и `$inCart`. В Alpine те же значения доступны как `$wire.step` и `$wire.available` и обновляются после каждого изменения корзины. Своя вёрстка счётчика должна отправлять количество через `$wire.add(qty)` в режиме `button` и через `wire:click="change(1)"` / `change(-1)` в режиме `counter`.
 
 - **Корзина гостя** лежит в зашифрованной cookie: только id и количества. Цены каждый раз берутся из базы, подделать сумму через cookie нельзя.
 - **Валюта магазина** выбирается на странице корзины. Цена товара в другой валюте пересчитывается по курсу оттуда же и помечается знаком ≈. Без курса товар купить нельзя; сменили валюту магазина — курсы вводятся заново.

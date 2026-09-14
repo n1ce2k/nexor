@@ -308,7 +308,7 @@ onMounted(async () => {
 
                         <NToggle v-model="form.fields.is_catalog" label="Торговый каталог"
                                  :disabled="Boolean(productIblockId)"
-                                 hint="Цена, остатки и скидки у элементов, плюс торговые предложения — как в Битриксе." />
+                                 hint="Цена, остатки и скидки у элементов, и торговые предложения." />
 
                         <p v-if="productIblockId"
                            class="rounded-lg bg-[var(--surface-muted)] p-3 text-xs text-[var(--text-muted)]">

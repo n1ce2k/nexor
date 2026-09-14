@@ -1,29 +1,24 @@
 /**
- * Всё, что страницам магазина нужно из панели ядра, — одним местом.
+ * Всё, что страницам магазина нужно из панели ядра, — через window.Nexor.
  *
- * Пакеты лежат рядом (packages/ или vendor/n1ce2k/), поэтому относительный путь
- * одинаков в обоих случаях. Переедет ядро — поправить только здесь.
+ * Магазин собирается отдельно от панели и приходит в vendor готовым, поэтому
+ * не импортирует файлы ядра напрямую: иначе в сборке оказалась бы своя копия
+ * Vue, Pinia и UI-кита. Панель к моменту загрузки модуля уже опубликовала всё
+ * это в window.Nexor (скрипт ядра стоит на странице раньше).
  */
-export { api, toFormData } from '../../../nexor-cms/resources/js/panel/api.js';
-export { registerPage } from '../../../nexor-cms/resources/js/panel/registry.js';
-export { useForm } from '../../../nexor-cms/resources/js/panel/composables/useForm.js';
-export { useSession } from '../../../nexor-cms/resources/js/panel/stores/session.js';
-export { useUi } from '../../../nexor-cms/resources/js/panel/stores/ui.js';
+const Nexor = window.Nexor;
 
-export { default as NBadge } from '../../../nexor-cms/resources/js/panel/components/ui/NBadge.vue';
-export { default as NButton } from '../../../nexor-cms/resources/js/panel/components/ui/NButton.vue';
-export { default as NCard } from '../../../nexor-cms/resources/js/panel/components/ui/NCard.vue';
-export { default as NEmpty } from '../../../nexor-cms/resources/js/panel/components/ui/NEmpty.vue';
-export { default as NField } from '../../../nexor-cms/resources/js/panel/components/ui/NField.vue';
-export { default as NIcon } from '../../../nexor-cms/resources/js/panel/components/ui/NIcon.vue';
-export { default as NInput } from '../../../nexor-cms/resources/js/panel/components/ui/NInput.vue';
-export { default as NModal } from '../../../nexor-cms/resources/js/panel/components/ui/NModal.vue';
-export { default as NPageHeader } from '../../../nexor-cms/resources/js/panel/components/ui/NPageHeader.vue';
-export { default as NPagination } from '../../../nexor-cms/resources/js/panel/components/ui/NPagination.vue';
-export { default as NSelect } from '../../../nexor-cms/resources/js/panel/components/ui/NSelect.vue';
-export { default as NTable } from '../../../nexor-cms/resources/js/panel/components/ui/NTable.vue';
-export { default as NTabs } from '../../../nexor-cms/resources/js/panel/components/ui/NTabs.vue';
-export { default as NToggle } from '../../../nexor-cms/resources/js/panel/components/ui/NToggle.vue';
+export const api = Nexor.api;
+export const toFormData = Nexor.toFormData;
+export const registerPage = Nexor.registerPage;
+export const useForm = Nexor.useForm;
+export const useSession = Nexor.stores.useSession;
+export const useUi = Nexor.stores.useUi;
+
+export const {
+    NBadge, NButton, NCard, NEmpty, NField, NIcon, NInput,
+    NModal, NPageHeader, NPagination, NSelect, NTable, NTabs, NToggle,
+} = Nexor.ui;
 
 const money = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
 

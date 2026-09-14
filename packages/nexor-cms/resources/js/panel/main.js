@@ -1,12 +1,30 @@
+import * as Vue from 'vue';
+import * as VueRouter from 'vue-router';
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 
 import App from './App.vue';
 import { createPanelRouter } from './router';
-import { api, ApiError } from './api';
+import { api, ApiError, toFormData } from './api';
+import { slugify, useForm } from './composables/useForm';
 import * as registry from './registry';
 import { useSession } from './stores/session';
 import { useUi } from './stores/ui';
+
+import NBadge from './components/ui/NBadge.vue';
+import NButton from './components/ui/NButton.vue';
+import NCard from './components/ui/NCard.vue';
+import NEmpty from './components/ui/NEmpty.vue';
+import NField from './components/ui/NField.vue';
+import NIcon from './components/ui/NIcon.vue';
+import NInput from './components/ui/NInput.vue';
+import NModal from './components/ui/NModal.vue';
+import NPageHeader from './components/ui/NPageHeader.vue';
+import NPagination from './components/ui/NPagination.vue';
+import NSelect from './components/ui/NSelect.vue';
+import NTable from './components/ui/NTable.vue';
+import NTabs from './components/ui/NTabs.vue';
+import NToggle from './components/ui/NToggle.vue';
 
 import FieldBoolean from './components/fields/FieldBoolean.vue';
 import FieldFile from './components/fields/FieldFile.vue';
@@ -43,6 +61,22 @@ function registerBuiltInFields() {
 const Nexor = {
     api,
     ApiError,
+    toFormData,
+    useForm,
+    slugify,
+
+    /**
+     * Модули собираются отдельно от панели и берут Vue и роутер отсюда: две копии
+     * Vue на одной странице не видят реактивность и хранилища друг друга.
+     */
+    vendor: { vue: Vue, vueRouter: VueRouter },
+
+    /** UI-кит панели — чтобы страницы модулей выглядели как родные. */
+    ui: {
+        NBadge, NButton, NCard, NEmpty, NField, NIcon, NInput,
+        NModal, NPageHeader, NPagination, NSelect, NTable, NTabs, NToggle,
+    },
+
     registry: registry.registry,
     registerField: registry.registerField,
     registerPage: registry.registerPage,

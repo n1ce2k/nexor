@@ -16,7 +16,7 @@
         })();
     </script>
 
-    @vite(config('nexor.assets'))
+    {{ \Nexor\Cms\Support\PanelAssets::classic() }}
 </head>
 <body class="flex h-full items-center justify-center px-4 font-sans antialiased">
     <div class="w-full max-w-sm">

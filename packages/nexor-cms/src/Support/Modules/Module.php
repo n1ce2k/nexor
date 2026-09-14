@@ -79,6 +79,19 @@ abstract class Module
     }
 
     /**
+     * Страницы модуля в панели.
+     *
+     * `dist` — папка готовой сборки, `script` и `style` — файлы в ней;
+     * `source` — исходная точка входа для режима разработки (NEXOR_PANEL_ASSETS=vite).
+     *
+     * @return array{dist: string, script: string, style?: string, source: string}|null
+     */
+    public function panelAssets(): ?array
+    {
+        return null;
+    }
+
+    /**
      * Настройки модуля по умолчанию — поверх них ложится сохранённое.
      *
      * @return array<string, mixed>

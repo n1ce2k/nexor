@@ -32,7 +32,38 @@
             </div>
         </div>
     </section>
-lorem
+
+    @if ($pages->isNotEmpty())
+        <section class="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+            <h2 class="mb-8 text-2xl font-semibold text-slate-900">Блок1</h2>
+
+            Lorem ipsum dolor sit amet, consectetur adipisicing elit. Aperiam blanditiis consequatur corporis deleniti est eveniet ex explicabo id in incidunt iste, libero nam nemo, nisi pariatur placeat quae quibusdam sint.
+
+{{--            <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">--}}
+{{--                @foreach ($pages as $page)--}}
+{{--                    <a href="{{ route('page', $page->code) }}"--}}
+{{--                       class="group flex flex-col rounded-2xl border border-slate-200 p-6 transition hover:border-brand-300 hover:shadow-md">--}}
+{{--                        @if ($page->preview_picture_url)--}}
+{{--                            <img src="{{ $page->preview_picture_url }}" alt=""--}}
+{{--                                 class="mb-4 h-40 w-full rounded-xl object-cover">--}}
+{{--                        @endif--}}
+
+{{--                        <h3 class="text-lg font-semibold text-slate-900 transition group-hover:text-brand-600">--}}
+{{--                            {{ $page->name }}--}}
+{{--                        </h3>--}}
+
+{{--                        @if ($subtitle = $page->property('subtitle'))--}}
+{{--                            <p class="mt-1 text-sm text-slate-500">{{ $subtitle }}</p>--}}
+{{--                        @endif--}}
+
+{{--                        @if ($page->preview_text)--}}
+{{--                            <p class="mt-3 text-sm text-slate-600">{{ Str::limit($page->preview_text, 120) }}</p>--}}
+{{--                        @endif--}}
+{{--                    </a>--}}
+{{--                @endforeach--}}
+{{--            </div>--}}
+        </section>
+    @endif
 
 {{--    <section class="border-t border-slate-200 bg-slate-50">--}}
 {{--        <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">--}}

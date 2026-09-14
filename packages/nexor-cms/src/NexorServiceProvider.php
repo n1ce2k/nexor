@@ -16,12 +16,14 @@ use Nexor\Cms\Console\PublishComponentCommand;
 use Nexor\Cms\Console\SetPasswordCommand;
 use Nexor\Cms\Console\SyncPermissionsCommand;
 use Nexor\Cms\Contracts\NexorUser;
+use Nexor\Cms\Http\Middleware\CheckFeature;
 use Nexor\Cms\Http\Middleware\CheckIblockPermission;
 use Nexor\Cms\Http\Middleware\CheckMaintenanceMode;
 use Nexor\Cms\Http\Middleware\CheckPermission;
 use Nexor\Cms\Http\Middleware\EnsureUserCanAccessAdmin;
 use Nexor\Cms\Services\InfoBlockService;
 use Nexor\Cms\Support\MailConfig;
+use Nexor\Cms\Support\Modules\ModuleManager;
 use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\View\Components\News\Listing as NewsListing;
 
@@ -33,11 +35,16 @@ class NexorServiceProvider extends ServiceProvider
         'nexor.permission' => CheckPermission::class,
         'nexor.iblock' => CheckIblockPermission::class,
         'nexor.maintenance' => CheckMaintenanceMode::class,
+        'nexor.feature' => CheckFeature::class,
     ];
 
     public function register(): void
     {
         $this->mergeConfigFrom($this->path('config/nexor.php'), 'nexor');
+
+        // Модули регистрируются в register() своих провайдеров — раньше, чем
+        // ядро в boot() подключит их маршруты.
+        $this->app->singleton(ModuleManager::class);
 
         // Ядро выборок для публичной части. Один экземпляр на запрос, чтобы
         // компоненты на одной странице не искали инфоблок по коду заново.
@@ -139,7 +146,17 @@ class NexorServiceProvider extends ServiceProvider
             'prefix' => Nexor::routePrefix().'/api',
             'as' => 'admin.api.',
             'middleware' => [...$middleware, 'auth', 'nexor.admin'],
-        ], fn () => $this->loadRoutesFrom($this->path('routes/api.php')));
+        ], function (): void {
+            $this->loadRoutesFrom($this->path('routes/api.php'));
+
+            // API модулей — внутри той же группы и тоже до catch-all панели.
+            // Выключенный модуль отвечает 404 целиком.
+            foreach (Nexor::modules()->all() as $module) {
+                if ($file = $module->apiRoutes()) {
+                    Route::middleware('nexor.feature:'.$module->code())->group($file);
+                }
+            }
+        });
 
         Route::group([
             'prefix' => Nexor::routePrefix(),
@@ -148,10 +165,15 @@ class NexorServiceProvider extends ServiceProvider
         ], fn () => $this->loadRoutesFrom($this->path('routes/admin.php')));
 
         // Публичная часть: приём форм компонента `form`.
-        Route::group(
-            ['middleware' => $middleware],
-            fn () => $this->loadRoutesFrom($this->path('routes/site.php')),
-        );
+        Route::group(['middleware' => $middleware], function (): void {
+            $this->loadRoutesFrom($this->path('routes/site.php'));
+
+            foreach (Nexor::modules()->all() as $module) {
+                if ($file = $module->webRoutes()) {
+                    Route::middleware('nexor.feature:'.$module->code())->group($file);
+                }
+            }
+        });
     }
 
     /**
@@ -201,6 +223,8 @@ class NexorServiceProvider extends ServiceProvider
     {
         Blade::componentNamespace('Nexor\Cms\View\Components', 'nexor');
 
+        // @feature('shop') … @endfeature — кусок шаблона только для доступной функции.
+        Blade::if('feature', fn (string $code) => Nexor::feature($code));
         // `list` — зарезервированное слово PHP, класса `News\List` не бывает.
         // А имя `news.list` привычное, поэтому тег связан с классом псевдонимом.
         Blade::component(NewsListing::class, 'nexor::news.list');

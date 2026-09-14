@@ -11,7 +11,8 @@ use SplFileInfo;
  * Копирует шаблоны компонента в проект — тот же жест, что копирование папки
  * шаблона в свой шаблон сайта в Битриксе.
  *
- *     nexor:component catalog.section              все шаблоны под своими именами
+ *     nexor:component all                          шаблоны всех компонентов
+ *     nexor:component catalog.section              все шаблоны компонента под своими именами
  *     nexor:component catalog.section blog         свой шаблон blog на основе default
  *     nexor:component catalog.section blog --from=tiles
  *
@@ -20,7 +21,7 @@ use SplFileInfo;
 class PublishComponentCommand extends Command
 {
     protected $signature = 'nexor:component
-                            {component? : Название компонента, например catalog.section}
+                            {component? : Название компонента, например catalog.section, или all}
                             {template? : Имя вашего шаблона, например blog}
                             {--from=default : Шаблон пакета, с которого снимается копия}
                             {--force : Перезаписать уже скопированные файлы}';
@@ -52,6 +53,10 @@ class PublishComponentCommand extends Command
             $this->listComponents($available);
 
             return self::SUCCESS;
+        }
+
+        if ($name === 'all') {
+            return $this->copyEverything($available);
         }
 
         // Принимаем и `catalog.section`, и `catalog/section`.
@@ -111,9 +116,59 @@ class PublishComponentCommand extends Command
     }
 
     /**
+     * `all` — шаблоны всех компонентов разом.
+     *
+     * @param  array<int, string>  $available
+     */
+    protected function copyEverything(array $available): int
+    {
+        $copied = 0;
+
+        foreach ($available as $component) {
+            $this->newLine();
+            $this->components->info($component);
+
+            $copied += $this->copyFiles($component);
+        }
+
+        $this->newLine();
+
+        $copied > 0
+            ? $this->components->info('Все шаблоны лежат в resources/views/vendor/nexor/components — правьте их как угодно.')
+            : $this->components->warn('Всё уже скопировано. Перезаписать: --force');
+
+        return self::SUCCESS;
+    }
+
+    /**
      * Все шаблоны компонента под их собственными именами.
      */
     protected function copyAll(string $component): int
+    {
+        $relative = str_replace('.', '/', $component);
+        $copied = $this->copyFiles($component);
+
+        $this->newLine();
+
+        if ($copied > 0) {
+            $this->components->info('Шаблоны лежат в resources/views/vendor/nexor/components/'.$relative);
+            $this->line('  Правьте их как угодно — обновление CMS их не тронет.');
+            $this->newLine();
+            $this->line('  Свой шаблон отдельным именем:');
+            $this->line('  <fg=cyan>php artisan nexor:component '.$component.' blog</>');
+        } else {
+            $this->components->warn('Всё уже скопировано. Перезаписать: --force');
+        }
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Копирует файлы одного компонента; уже скопированные без --force не трогает.
+     *
+     * @return int Сколько файлов скопировано
+     */
+    protected function copyFiles(string $component): int
     {
         $relative = str_replace('.', '/', $component);
         $from = $this->packagePath().'/'.$relative;
@@ -122,14 +177,12 @@ class PublishComponentCommand extends Command
         File::ensureDirectoryExists($to);
 
         $copied = 0;
-        $skipped = 0;
 
         foreach ($this->templatesIn($from) as $file) {
             $target = $to.'/'.$file;
 
             if (File::exists($target) && ! $this->option('force')) {
                 $this->components->twoColumnDetail($file, '<fg=yellow>уже есть</>');
-                $skipped++;
 
                 continue;
             }
@@ -141,21 +194,7 @@ class PublishComponentCommand extends Command
             $copied++;
         }
 
-        $this->newLine();
-
-        if ($copied > 0) {
-            $this->components->info('Шаблоны лежат в resources/views/vendor/nexor/components/'.$relative);
-            $this->line('  Правьте их как угодно — обновление CMS их не тронет.');
-            $this->newLine();
-            $this->line('  Свой шаблон отдельным именем:');
-            $this->line('  <fg=cyan>php artisan nexor:component '.$component.' blog</>');
-        }
-
-        if ($skipped > 0 && $copied === 0) {
-            $this->components->warn('Всё уже скопировано. Перезаписать: --force');
-        }
-
-        return self::SUCCESS;
+        return $copied;
     }
 
     /**
@@ -173,9 +212,10 @@ class PublishComponentCommand extends Command
         }
 
         $this->newLine();
-        $this->line('  Забрать все шаблоны:  <fg=cyan>php artisan nexor:component catalog.section</>');
-        $this->line('  Свой шаблон:          <fg=cyan>php artisan nexor:component catalog.section blog</>');
-        $this->line('  На основе другого:    <fg=cyan>php artisan nexor:component catalog.section blog --from=tiles</>');
+        $this->line('  Забрать все компоненты:     <fg=cyan>php artisan nexor:component all</>');
+        $this->line('  Все шаблоны компонента:     <fg=cyan>php artisan nexor:component catalog.section</>');
+        $this->line('  Свой шаблон:                <fg=cyan>php artisan nexor:component catalog.section blog</>');
+        $this->line('  На основе другого:          <fg=cyan>php artisan nexor:component catalog.section blog --from=tiles</>');
     }
 
     /**

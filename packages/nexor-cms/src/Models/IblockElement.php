@@ -17,6 +17,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Nexor\Cms\Contracts\NexorUser;
 use Nexor\Cms\Database\Factories\IblockElementFactory;
+use Nexor\Cms\Enums\ElementUrl;
 use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\Site;
 
@@ -119,6 +120,10 @@ class IblockElement extends Model
      */
     public function offerElements(): Collection
     {
+        if (! Nexor::feature('catalog.offers')) {
+            return collect();
+        }
+
         $offerIds = CatalogProduct::query()
             ->where('parent_element_id', $this->id)
             ->pluck('element_id');
@@ -215,10 +220,47 @@ class IblockElement extends Model
             return url('/'.$code);
         }
 
-        // Элемент раздела лежит внутри его пути, как файл в папке.
-        $section = $this->section?->url_path;
+        // Предложение открывается на странице своего товара: /katalog/…/futbolka/razmer-m.
+        if ($this->iblock?->product_iblock_id && ($product = $this->parentProduct())) {
+            return rtrim($product->url(), '/').'/'.$code;
+        }
+
+        // С разделами элемент лежит внутри их пути, как файл в папке; без — сразу под инфоблоком.
+        $section = $this->iblock?->element_url === ElementUrl::Flat ? null : $this->section?->url_path;
 
         return url('/'.$this->iblock?->code.'/'.($section ? $section.'/' : '').$code);
+    }
+
+    /**
+     * Товар, к которому относится это торговое предложение.
+     */
+    public function parentProduct(): ?self
+    {
+        $parentId = $this->loadMissing('catalog')->catalog?->parent_element_id;
+
+        return $parentId ? self::query()->with(['iblock', 'section'])->find($parentId) : null;
+    }
+
+    /**
+     * Активное предложение этого товара по коду или id — как оно стоит в адресе.
+     */
+    public function findOffer(string $codeOrId): ?self
+    {
+        $offersIblock = $this->loadMissing('iblock')->iblock;
+
+        if (! $offersIblock?->hasOffers()) {
+            return null;
+        }
+
+        return self::query()
+            ->where('iblock_id', $offersIblock->offers_iblock_id)
+            ->where(fn (Builder $query) => ctype_digit($codeOrId)
+                ? $query->where('code', $codeOrId)->orWhere('id', (int) $codeOrId)
+                : $query->where('code', $codeOrId))
+            ->whereHas('catalog', fn (Builder $query) => $query->where('parent_element_id', $this->id))
+            ->active()
+            ->with(['catalog', 'values.property', 'values.enum'])
+            ->first();
     }
 
     public function getPreviewPictureUrlAttribute(): ?string

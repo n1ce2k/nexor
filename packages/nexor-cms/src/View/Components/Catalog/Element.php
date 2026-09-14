@@ -11,7 +11,7 @@ use RuntimeException;
  * Детальная карточка элемента — аналог `catalog.element` и `news.detail`.
  *
  * ```blade
- * <x-nexor::catalog.element :element="$element" />
+ * <x-nexor::catalog.element :element="$element" :offer="$offer" />
  * <x-nexor::catalog.element iblock="katalog" code="stul-venskiy" />
  * ```
  *
@@ -26,6 +26,7 @@ class Element extends Component
      * @param  string|null  $code  Символьный код элемента
      * @param  string  $template  Имя шаблона вёрстки
      * @param  bool  $properties  Выводить ли таблицу свойств
+     * @param  IblockElement|null  $offer  Выбранное торговое предложение — из адреса страницы
      */
     public function __construct(
         public ?IblockElement $element = null,
@@ -33,6 +34,7 @@ class Element extends Component
         public ?string $code = null,
         public string $template = 'default',
         public bool $properties = true,
+        public ?IblockElement $offer = null,
     ) {}
 
     public function render(): View
@@ -41,10 +43,16 @@ class Element extends Component
         // кладётся именно в проп, а не в массив данных.
         $this->element ??= $this->find();
 
+        $offers = $this->element->offerElements();
+
+        // Без предложения в адресе выбрано первое доступное, а если купить нечего — первое.
+        $this->offer ??= $offers->first(fn (IblockElement $offer) => $offer->catalog?->isAvailable()) ?? $offers->first();
+
         return $this->template($this->template, [
             'block' => $this->element->iblock,
             'values' => $this->properties ? $this->element->propertyValues() : collect(),
             'showProperties' => $this->properties,
+            'offers' => $offers,
         ]);
     }
 

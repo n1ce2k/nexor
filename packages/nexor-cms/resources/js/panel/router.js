@@ -12,6 +12,7 @@ import IblockForm from './pages/iblocks/IblockForm.vue';
 import IblockIndex from './pages/iblocks/IblockIndex.vue';
 import MailSmtp from './pages/mail/MailSmtp.vue';
 import MenuIndex from './pages/menus/MenuIndex.vue';
+import ModuleIndex from './pages/modules/ModuleIndex.vue';
 import TemplateForm from './pages/mail/TemplateForm.vue';
 import TemplateIndex from './pages/mail/TemplateIndex.vue';
 import PropertyForm from './pages/properties/PropertyForm.vue';
@@ -56,6 +57,7 @@ const routes = [
     { path: '/roles/:role/edit', name: 'roles.edit', component: RoleForm, props: true, meta: { permission: 'roles.update' } },
     { path: '/site-settings', name: 'settings', component: SiteSettings, meta: { permission: 'settings.view' } },
     { path: '/logs', name: 'logs', component: LogsIndex, meta: { permission: 'logs.view' } },
+    { path: '/modules', name: 'modules.index', component: ModuleIndex, meta: { permission: 'modules.view' } },
 
     // Настройки
     { path: '/settings/mail/smtp', name: 'mail.smtp', component: MailSmtp, meta: { permission: 'mail.view' } },
@@ -76,7 +78,7 @@ export function createPanelRouter(base) {
         name: page.name,
         component: page.component,
         props: page.props,
-        meta: { permission: page.permission },
+        meta: { permission: page.permission, feature: page.feature },
     }));
 
     const router = createRouter({
@@ -88,9 +90,15 @@ export function createPanelRouter(base) {
     router.beforeEach((to) => {
         const session = useSession();
         const permission = to.meta?.permission;
+        const feature = to.meta?.feature;
 
         if (permission && session.ready && !session.can(permission)) {
             return { name: 'dashboard' };
+        }
+
+        // Функция не входит в лицензию или модуль выключен — страницы как бы нет.
+        if (feature && session.ready && !session.feature(feature)) {
+            return { name: 'not-found', params: { pathMatch: to.path.split('/').filter(Boolean) } };
         }
 
         return true;

@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Nexor\Cms\Models\Iblock;
+use Nexor\Cms\Models\IblockElement;
 use Nexor\Cms\Models\IblockSection;
 use Nexor\Cms\Support\PageGenerator;
 use Nexor\Cms\Support\Site;
@@ -39,9 +42,10 @@ class PageController extends Controller
      * Segments are matched against sections one level at a time; the first
      * segment that is not a section has to be an element. That keeps
      * /katalog/mebel a section and /katalog/mebel/stul the element inside it,
-     * at any nesting depth, without the two ever colliding.
+     * at any nesting depth, without the two ever colliding. One more segment
+     * after the element is its trade offer: /katalog/mebel/stul/krasnyy.
      */
-    public function inside(string $code, string $path): View
+    public function inside(Request $request, string $code, string $path): View|RedirectResponse
     {
         $iblock = $this->pagedIblock($code);
 
@@ -59,19 +63,21 @@ class PageController extends Controller
                 continue;
             }
 
-            // Не раздел — значит элемент, и он обязан быть последним сегментом.
-            abort_unless($index === count($segments) - 1, 404);
+            // Не раздел — значит элемент. После него может стоять только код предложения.
+            $rest = array_slice($segments, $index + 1);
 
-            return $this->element($iblock, $segment, $section);
+            abort_if(count($rest) > 1, 404);
+
+            return $this->element($request, $iblock, $segment, $section, $rest[0] ?? null);
         }
 
         return $this->sectionPage($iblock, $section);
     }
 
     /**
-     * Детальная страница элемента.
+     * Детальная страница элемента или его торгового предложения.
      */
-    protected function element(Iblock $iblock, string $code, ?IblockSection $section): View
+    protected function element(Request $request, Iblock $iblock, string $code, ?IblockSection $section, ?string $offerCode): View|RedirectResponse
     {
         $view = PageGenerator::view($iblock, 'detail');
 
@@ -81,13 +87,38 @@ class PageController extends Controller
 
         abort_if($element === null, 404);
 
-        // Элемент, лежащий в другом разделе, по этому адресу не открывается:
-        // иначе одна и та же страница была бы доступна по множеству адресов.
-        abort_if($section && $element->section_id !== $section->id, 404);
+        $offer = $offerCode !== null ? $element->findOffer($offerCode) : null;
+
+        abort_if($offerCode !== null && $offer === null, 404);
+
+        // У страницы один адрес — канонический, заданный в инфоблоке. Любой другой
+        // путь к тому же элементу (не тот раздел, лишний или пропущенный раздел,
+        // id вместо кода) уводит на него, а не плодит дубли.
+        if ($redirect = $this->toCanonical($request, $offer ?? $element)) {
+            return $redirect;
+        }
 
         $element->increment('views');
 
-        return view($view, ['element' => $element, 'iblock' => $iblock, 'section' => $section]);
+        return view($view, [
+            'element' => $element,
+            'offer' => $offer,
+            'iblock' => $iblock,
+            'section' => $section ?? $element->section,
+        ]);
+    }
+
+    protected function toCanonical(Request $request, IblockElement $target): ?RedirectResponse
+    {
+        $canonical = $target->url();
+
+        if (trim(parse_url($canonical, PHP_URL_PATH) ?? '', '/') === trim($request->path(), '/')) {
+            return null;
+        }
+
+        $query = $request->getQueryString();
+
+        return redirect()->to($canonical.($query ? '?'.$query : ''), 301);
     }
 
     /**

@@ -28,6 +28,7 @@ class IblockResource extends JsonResource
             'list_url' => $this->list_url,
             'section_url' => $this->section_url,
             'detail_url' => $this->detail_url,
+            'element_url' => $this->element_url?->value ?? 'nested',
             'has_sections' => $this->has_sections,
             'has_page' => $this->has_page,
             'page_path' => $this->page_path,

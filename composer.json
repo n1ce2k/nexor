@@ -9,10 +9,11 @@
     ],
     "license": "MIT",
     "require": {
+        "php": "^8.3",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
         "n1ce2k/nexor-cms": "@dev",
-        "php": "^8.3"
+        "n1ce2k/nexor-shop": "@dev"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -92,6 +93,13 @@
         {
             "type": "path",
             "url": "packages/nexor-cms",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "packages/nexor-shop",
             "options": {
                 "symlink": true
             }

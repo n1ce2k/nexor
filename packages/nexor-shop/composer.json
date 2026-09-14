@@ -1,0 +1,36 @@
+{
+    "name": "n1ce2k/nexor-shop",
+    "description": "Модуль «Магазин» для NEXOR CMS: корзина Basic и Ultimate, промокоды, оформление и заказы.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["laravel", "cms", "shop", "cart", "nexor"],
+    "authors": [
+        {
+            "name": "Андрей Айнагоз",
+            "email": "a.aynagoz@nastart-web.ru"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "n1ce2k/nexor-cms": "*",
+        "livewire/livewire": "^4.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Nexor\\Shop\\": "src/",
+            "Nexor\\Shop\\Database\\Factories\\": "database/factories/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Nexor\\Shop\\ShopServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

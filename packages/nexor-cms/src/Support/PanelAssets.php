@@ -29,8 +29,6 @@ class PanelAssets
 
     protected const CLASSIC_ENTRIES = [self::STYLES_ENTRY, 'resources/js/admin.js'];
 
-    protected const FONTS = 'https://fonts.bunny.net/css?family=inter:400,500,600,700';
-
     /** @var array<string, array<string, mixed>> */
     protected static array $manifests = [];
 
@@ -69,7 +67,7 @@ class PanelAssets
             ]);
         }
 
-        return new HtmlString(self::fonts().self::entryTags(self::STYLES_ENTRY).self::entryTags(self::PANEL_ENTRY));
+        return new HtmlString(self::entryTags(self::STYLES_ENTRY).self::entryTags(self::PANEL_ENTRY));
     }
 
     /**
@@ -84,7 +82,7 @@ class PanelAssets
             ));
         }
 
-        return new HtmlString(self::fonts().implode('', array_map(self::entryTags(...), self::CLASSIC_ENTRIES)));
+        return new HtmlString(implode('', array_map(self::entryTags(...), self::CLASSIC_ENTRIES)));
     }
 
     /**
@@ -178,11 +176,6 @@ class PanelAssets
         }
 
         return self::$manifests[$path];
-    }
-
-    protected static function fonts(): string
-    {
-        return '<link rel="preconnect" href="https://fonts.bunny.net"><link rel="stylesheet" href="'.self::FONTS.'">';
     }
 
     protected static function corePath(string $relative = ''): string

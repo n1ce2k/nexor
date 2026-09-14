@@ -363,9 +363,33 @@ npm run build:packages
 
 ## Выпуск версии
 
-1. `npm run build:packages` и закоммитить `packages/*/dist`.
-2. Поднять `Nexor::VERSION`, закоммитить, поставить тег `vX.Y.Z` и отправить: `git push origin main --tags`.
-3. GitHub Action [split.yml](.github/workflows/split.yml) переносит `packages/nexor-cms` и `packages/nexor-shop` в репозитории `n1ce2k/nexor-cms` и `n1ce2k/nexor-shop` вместе с тегом, а Packagist подхватывает новую версию.
+Код правится **только здесь**, в `n1ce2k/nexor`. Репозитории `n1ce2k/nexor-cms` и `n1ce2k/nexor-shop` — копии только для чтения: их заполняет Action, ручные правки там затрутся следующим пуском.
+
+```
+n1ce2k/nexor ──(split.yml)──► n1ce2k/nexor-cms, n1ce2k/nexor-shop ──► Packagist ──► composer update на сайтах
+```
+
+1. Если менялась панель (`.vue`, `resources/js`, `admin.css`) — `npm run build:packages`, собранный `packages/*/dist` коммитится вместе с кодом.
+2. `php artisan test --compact` и `vendor/bin/pint --dirty`.
+3. Поднять `Nexor::VERSION` в `packages/nexor-cms/src/Support/Nexor.php`, закоммитить.
+4. Поставить тег и отправить:
+
+   ```bash
+   git tag vX.Y.Z
+   git push origin main --tags
+   ```
+
+5. GitHub Action [split.yml](.github/workflows/split.yml) переносит `packages/nexor-cms` и `packages/nexor-shop` в отдельные репозитории вместе с тегом. Проверить: вкладка **Actions** в `n1ce2k/nexor` — два зелёных прогона (ветка `main` и тег), а в обоих репозиториях появился тег.
+6. Packagist подхватывает версию сам, если в его настройках подключён GitHub. Иначе — кнопка **Update** на страницах пакетов.
+
+**Если прогон по тегу не запустился** (так было с первым тегом, пришедшим в одном пуше с новым workflow) — отправить тот же тег заново:
+
+```bash
+git push origin :refs/tags/vX.Y.Z
+git push origin vX.Y.Z
+```
+
+**Для работы нужно:** секрет `ACCESS_TOKEN` в `n1ce2k/nexor` → Settings → Secrets and variables → Actions — fine-grained токен GitHub с правом *Contents: Read and write* на `nexor-cms` и `nexor-shop`. У токена есть срок: когда истечёт, Action упадёт с ошибкой доступа — выпустить новый и заменить секрет.
 
 При смене минорной версии (0.2 → 0.3) поправьте `branch-alias` в `composer.json` обоих пакетов и требование `n1ce2k/nexor-cms` у магазина.
 

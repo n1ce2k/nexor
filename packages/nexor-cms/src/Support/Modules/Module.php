@@ -84,6 +84,10 @@ abstract class Module
      * `dist` — папка готовой сборки, `script` и `style` — файлы в ней;
      * `source` — исходная точка входа для режима разработки (NEXOR_PANEL_ASSETS=vite).
      *
+     * В `style` не кладите утилиты Tailwind: грузясь после стилей ядра, они
+     * перебивают его адаптивные классы (`.hidden` окажется позже `lg:flex`).
+     * Только собственные классы модуля.
+     *
      * @return array{dist: string, script: string, style?: string, source: string}|null
      */
     public function panelAssets(): ?array

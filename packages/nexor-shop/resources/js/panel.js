@@ -1,4 +1,3 @@
-import '../css/panel.css';
 import { registerPage } from './core.js';
 
 import CartSettings from './pages/CartSettings.vue';

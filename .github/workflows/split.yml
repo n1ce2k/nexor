@@ -1,0 +1,61 @@
+# Разносит пакеты монорепо по отдельным репозиториям — только из них их
+# умеют ставить Composer и Packagist (composer.json должен лежать в корне).
+#
+#   push в main  → ветка main в n1ce2k/nexor-cms и n1ce2k/nexor-shop
+#   тег v0.2.2   → тот же тег в обоих репозиториях → новая версия на Packagist
+#
+# Нужен секрет ACCESS_TOKEN: личный токен GitHub с правом записи в оба репозитория.
+
+name: Split packages
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+concurrency:
+  group: split-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  split:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - path: packages/nexor-cms
+            repository: nexor-cms
+          - path: packages/nexor-shop
+            repository: nexor-shop
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Split ${{ matrix.package.repository }} (main)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: symplify/monorepo-split-github-action@v2.3.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        with:
+          package_directory: ${{ matrix.package.path }}
+          repository_organization: n1ce2k
+          repository_name: ${{ matrix.package.repository }}
+          branch: main
+          user_name: n1ce2k
+          user_email: a.aynagoz@nastart-web.ru
+
+      - name: Split ${{ matrix.package.repository }} (tag)
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        uses: symplify/monorepo-split-github-action@v2.3.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        with:
+          tag: ${GITHUB_REF#refs/tags/}
+          package_directory: ${{ matrix.package.path }}
+          repository_organization: n1ce2k
+          repository_name: ${{ matrix.package.repository }}
+          branch: main
+          user_name: n1ce2k
+          user_email: a.aynagoz@nastart-web.ru

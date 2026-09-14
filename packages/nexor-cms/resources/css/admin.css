@@ -188,3 +188,20 @@
 .button-primary{
     cursor: pointer;
 }
+
+.modalChange{
+    header{
+        button{
+            cursor: pointer;
+        }
+    }
+    .space-y-2 .flex.items-center.gap-2{
+        .field-input.w-40{
+            display: none;
+        }
+    }
+}
+
+.table-row td .flex button{
+    cursor: pointer;
+}

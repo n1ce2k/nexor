@@ -4,6 +4,7 @@ namespace Nexor\Cms\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
 use Nexor\Cms\Database\Seeders\IblockSeeder;
 use Nexor\Cms\Database\Seeders\MenuSeeder;
 use Nexor\Cms\Database\Seeders\RoleSeeder;
@@ -11,6 +12,7 @@ use Nexor\Cms\Database\Seeders\SettingSeeder;
 use Nexor\Cms\Models\Role;
 use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\Permissions;
+use Nexor\Cms\Support\TailwindSources;
 
 class InstallCommand extends Command
 {
@@ -43,12 +45,50 @@ class InstallCommand extends Command
             return true;
         });
 
+        $this->components->task('Шаблоны сайта', fn () => $this->publishSiteViews() >= 0);
+
+        $this->components->task('Tailwind видит шаблоны компонентов', function (): bool {
+            TailwindSources::add(dirname(__DIR__, 2).'/resources/views/components');
+            TailwindSources::add(dirname(__DIR__, 2).'/resources/views/site');
+
+            return true;
+        });
+
         $this->createAdministrator();
 
         $this->newLine();
         $this->components->info('Готово. Панель управления: /'.Nexor::routePrefix());
+        $this->line('  Админка приходит в пакете уже собранной — Node для неё не нужен.');
+        $this->line('  Для стилей сайта соберите его CSS как обычно: <fg=cyan>npm install && npm run build</>');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Стартовые шаблоны сайта: макет, главная, страница, поиск и 404.
+     *
+     * Кладутся только недостающие — свой макет установка не перезапишет никогда.
+     *
+     * @return int Сколько файлов добавлено
+     */
+    public static function publishSiteViews(): int
+    {
+        $stubs = dirname(__DIR__, 2).'/stubs/site/views';
+        $added = 0;
+
+        foreach (File::allFiles($stubs) as $file) {
+            $target = resource_path('views/'.str_replace('\\', '/', $file->getRelativePathname()));
+
+            if (File::exists($target)) {
+                continue;
+            }
+
+            File::ensureDirectoryExists(dirname($target));
+            File::copy($file->getPathname(), $target);
+            $added++;
+        }
+
+        return $added;
     }
 
     protected function seed(string $class): bool

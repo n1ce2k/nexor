@@ -34,7 +34,7 @@ class Setting extends Model
             'boolean' => 'Да / Нет',
             'integer' => 'Число',
             'image' => 'Изображение',
-            'password' => 'Пароль (хранится зашифрованным)',
+            //            'password' => 'Пароль (хранится зашифрованным)',
         ];
     }
 

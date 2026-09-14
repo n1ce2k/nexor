@@ -94,8 +94,8 @@ class ShopModule extends Module
 
         return [
             'dist' => $root.'/dist',
+            // Своего CSS нет: утилиты страниц магазина собираются в стили ядра.
             'script' => 'panel.js',
-            'style' => 'panel.css',
             'source' => $root.'/resources/js/panel.js',
         ];
     }

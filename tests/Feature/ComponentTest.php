@@ -13,6 +13,7 @@ use Nexor\Cms\Models\IblockElement;
 use Nexor\Cms\Models\IblockProperty;
 use Nexor\Cms\Models\IblockSection;
 use Nexor\Cms\Services\InfoBlockService;
+use Tests\Concerns\PreservesPublishedViews;
 use Tests\TestCase;
 
 /**
@@ -21,21 +22,24 @@ use Tests\TestCase;
  */
 class ComponentTest extends TestCase
 {
-    use RefreshDatabase;
+    use PreservesPublishedViews, RefreshDatabase;
 
-    /** Опубликованные шаблоны, которые надо убрать за собой. */
+    /** Опубликованные шаблоны: свои тест убирает, шаблоны сайта возвращает. */
     protected string $published = '';
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->published = resource_path('views/vendor/nexor/components');
+        // Шаблоны сайта откладываются и возвращаются после теста, а сам тест
+        // идёт на пустой папке: иначе он проверял бы вёрстку сайта, а не пакета.
+        $this->published = $this->preserveViews('vendor/nexor/components');
+        File::deleteDirectory($this->published);
     }
 
     protected function tearDown(): void
     {
-        File::deleteDirectory($this->published);
+        $this->restorePreservedViews();
 
         parent::tearDown();
     }

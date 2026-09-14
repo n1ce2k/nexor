@@ -35,16 +35,25 @@ export function resolveField(type) {
 /**
  * Add a route. `menu` shortcuts registering a matching sidebar entry.
  */
-export function registerPage({ path, name, component, menu = null, permission = null, props = true }) {
-    registry.pages.push({ path, name, component: markRaw(component), permission, props });
+export function registerPage({ path, name, component, menu = null, permission = null, feature = null, props = true }) {
+    registry.pages.push({ path, name, component: markRaw(component), permission, feature, props });
 
     if (menu) {
-        registerMenuItem({ ...menu, to: menu.to ?? { name }, permission: menu.permission ?? permission });
+        registerMenuItem({
+            ...menu,
+            to: menu.to ?? { name },
+            permission: menu.permission ?? permission,
+            feature: menu.feature ?? feature,
+        });
     }
 }
 
+/**
+ * `feature` — код функции или модуля: пункт виден, только пока она доступна
+ * на лицензии сайта. `group` с новым названием заводит свою группу в сайдбаре.
+ */
 export function registerMenuItem(item) {
-    registry.menuItems.push({ group: null, icon: 'document', permission: null, ...item });
+    registry.menuItems.push({ group: null, icon: 'document', permission: null, feature: null, ...item });
 }
 
 /**

@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Nexor\Cms\Enums\PaginationTemplate;
+use Nexor\Cms\Models\CatalogProduct;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\IblockElement;
 use Nexor\Cms\Models\IblockSection;
+use Nexor\Cms\Support\CatalogManager;
 use Nexor\Cms\Support\PageGenerator;
 use Tests\Concerns\CreatesAdminUsers;
 use Tests\TestCase;
@@ -273,7 +275,7 @@ class IblockPageTest extends TestCase
         $this->get('/katalog-test/mebel/stulya/item-1')->assertOk()->assertSee('Товар 1');
     }
 
-    public function test_an_element_is_not_served_from_a_foreign_section(): void
+    public function test_an_element_reached_through_a_foreign_section_goes_to_its_own_address(): void
     {
         $iblock = $this->pagedIblock();
         [$mebel, $stulya] = $this->sections($iblock);
@@ -281,8 +283,107 @@ class IblockPageTest extends TestCase
         $element = $this->elements($iblock, 1)[0];
         $element->update(['section_id' => $stulya->id]);
 
-        // Одна страница — один адрес; из чужого раздела элемент не открывается.
-        $this->get('/katalog-test/mebel/item-1')->assertNotFound();
+        // Одна страница — один адрес: из чужого раздела и без раздела — 301 на канонический.
+        $this->get('/katalog-test/mebel/item-1')->assertRedirect(url('/katalog-test/mebel/stulya/item-1'))->assertStatus(301);
+        $this->get('/katalog-test/item-1?utm=1')->assertRedirect(url('/katalog-test/mebel/stulya/item-1?utm=1'));
+    }
+
+    public function test_a_flat_infoblock_serves_elements_right_under_itself(): void
+    {
+        $iblock = $this->pagedIblock(['element_url' => 'flat']);
+        [, $stulya] = $this->sections($iblock);
+
+        $element = $this->elements($iblock, 1)[0];
+        $element->update(['section_id' => $stulya->id]);
+
+        $this->assertSame(url('/katalog-test/item-1'), $element->refresh()->url());
+
+        $this->get('/katalog-test/item-1')->assertOk()->assertSee('Товар 1');
+        $this->get('/katalog-test/mebel/stulya/item-1')->assertRedirect(url('/katalog-test/item-1'))->assertStatus(301);
+    }
+
+    public function test_the_element_address_is_chosen_in_the_infoblock_form(): void
+    {
+        $iblock = $this->pagedIblock();
+
+        $this->actingAs($this->superAdmin())->putJson("/admin/api/iblocks/{$iblock->id}", [
+            'iblock_type_id' => $iblock->iblock_type_id,
+            'code' => $iblock->code,
+            'name' => $iblock->name,
+            'has_page' => '1',
+            'element_url' => 'flat',
+        ])->assertOk()->assertJsonPath('data.element_url', 'flat');
+
+        $this->actingAs($this->superAdmin())->putJson("/admin/api/iblocks/{$iblock->id}", [
+            'iblock_type_id' => $iblock->iblock_type_id,
+            'code' => $iblock->code,
+            'name' => $iblock->name,
+            'element_url' => 'somewhere',
+        ])->assertStatus(422)->assertJsonValidationErrors('element_url');
+    }
+
+    // -------------------------------------------------------------- предложения
+
+    /**
+     * Товар каталога с двумя предложениями.
+     *
+     * @return array{0: IblockElement, 1: IblockElement, 2: IblockElement}
+     */
+    protected function productWithOffers(Iblock $iblock): array
+    {
+        $iblock->update(['is_catalog' => true]);
+        $offers = CatalogManager::sync($iblock->refresh());
+
+        $product = $this->elements($iblock, 1)[0];
+        CatalogProduct::factory()->withOffers()->create(['element_id' => $product->id]);
+
+        $made = [];
+
+        foreach (['krasnyy' => 'Красный', 'siniy' => 'Синий'] as $code => $name) {
+            $offer = IblockElement::factory()->create([
+                'iblock_id' => $offers->id, 'code' => $code, 'name' => $name, 'is_active' => true,
+            ]);
+            CatalogProduct::factory()->create(['element_id' => $offer->id, 'parent_element_id' => $product->id, 'price' => 1000]);
+            $made[] = $offer;
+        }
+
+        return [$product, ...$made];
+    }
+
+    public function test_an_offer_has_its_product_address_plus_its_code(): void
+    {
+        [$product, $red] = $this->productWithOffers($this->pagedIblock());
+
+        $this->assertSame(url('/katalog-test/item-1/krasnyy'), $red->url());
+
+        $this->get('/katalog-test/item-1/krasnyy')->assertOk()->assertSee('Красный');
+    }
+
+    public function test_an_unknown_offer_is_not_found(): void
+    {
+        $this->productWithOffers($this->pagedIblock());
+
+        $this->get('/katalog-test/item-1/zelenyy')->assertNotFound();
+        $this->get('/katalog-test/item-1/krasnyy/lishnee')->assertNotFound();
+    }
+
+    public function test_an_offer_of_another_product_is_not_served_under_this_one(): void
+    {
+        $iblock = $this->pagedIblock();
+        [, $red] = $this->productWithOffers($iblock);
+
+        IblockElement::factory()->for($iblock)->create(['code' => 'drugoy', 'is_active' => true]);
+
+        $this->get('/katalog-test/drugoy/'.$red->code)->assertNotFound();
+    }
+
+    public function test_offers_are_hidden_below_standart(): void
+    {
+        $this->productWithOffers($this->pagedIblock());
+
+        config(['nexor.license' => 'lite']);
+
+        $this->get('/katalog-test/item-1/krasnyy')->assertNotFound();
     }
 
     public function test_renaming_a_section_moves_the_whole_branch(): void

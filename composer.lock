@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d40c43b9b52f8886f298c38b7f7a97e7",
+    "content-hash": "aee5fa909743656e3064dec96c844825",
     "packages": [
         {
             "name": "brick/math",
@@ -2030,6 +2030,82 @@
             "time": "2026-03-08T20:05:35+00:00"
         },
         {
+            "name": "livewire/livewire",
+            "version": "v4.4.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/livewire/livewire.git",
+                "reference": "00bf1b9959807d7cbcf38fc088515a7261cb6fa8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/livewire/livewire/zipball/00bf1b9959807d7cbcf38fc088515a7261cb6fa8",
+                "reference": "00bf1b9959807d7cbcf38fc088515a7261cb6fa8",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/database": "^10.0|^11.0|^12.0|^13.0",
+                "illuminate/routing": "^10.0|^11.0|^12.0|^13.0",
+                "illuminate/support": "^10.0|^11.0|^12.0|^13.0",
+                "illuminate/validation": "^10.0|^11.0|^12.0|^13.0",
+                "laravel/prompts": "^0.1.24|^0.2|^0.3",
+                "league/mime-type-detection": "^1.9",
+                "php": "^8.1",
+                "symfony/console": "^6.0|^7.0|^8.0",
+                "symfony/http-kernel": "^6.2|^7.0|^8.0"
+            },
+            "require-dev": {
+                "calebporzio/sushi": "^2.1",
+                "laravel/framework": "^10.15.0|^11.0|^12.0|^13.0",
+                "mockery/mockery": "^1.3.1",
+                "orchestra/testbench": "^8.21.0|^9.0|^10.0|^11.0",
+                "orchestra/testbench-dusk": "^8.24|^9.1|^10.0|^11.0",
+                "phpunit/phpunit": "^10.4|^11.5|^12.5",
+                "psy/psysh": "^0.11.22|^0.12"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "Livewire": "Livewire\\Livewire"
+                    },
+                    "providers": [
+                        "Livewire\\LivewireServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "files": [
+                    "src/helpers.php"
+                ],
+                "psr-4": {
+                    "Livewire\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Caleb Porzio",
+                    "email": "calebporzio@gmail.com"
+                }
+            ],
+            "description": "A front-end framework for Laravel.",
+            "support": {
+                "issues": "https://github.com/livewire/livewire/issues",
+                "source": "https://github.com/livewire/livewire/tree/v4.4.4"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/livewire",
+                    "type": "github"
+                }
+            ],
+            "time": "2026-09-07T16:02:43+00:00"
+        },
+        {
             "name": "monolog/monolog",
             "version": "3.11.0",
             "source": {
@@ -2185,6 +2261,55 @@
                 "infoblocks",
                 "laravel",
                 "nexor"
+            ],
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "n1ce2k/nexor-shop",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/nexor-shop",
+                "reference": "fd815568280ae6a92afd2315c41a31b982fd6aa1"
+            },
+            "require": {
+                "livewire/livewire": "^4.4",
+                "n1ce2k/nexor-cms": "*",
+                "php": "^8.3"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Nexor\\Shop\\ShopServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Nexor\\Shop\\": "src/",
+                    "Nexor\\Shop\\Database\\Factories\\": "database/factories/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Андрей Айнагоз",
+                    "email": "a.aynagoz@nastart-web.ru"
+                }
+            ],
+            "description": "Модуль «Магазин» для NEXOR CMS: корзина Basic и Ultimate, промокоды, оформление и заказы.",
+            "keywords": [
+                "cart",
+                "cms",
+                "laravel",
+                "nexor",
+                "shop"
             ],
             "transport-options": {
                 "symlink": true,
@@ -8752,7 +8877,8 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "n1ce2k/nexor-cms": 20
+        "n1ce2k/nexor-cms": 20,
+        "n1ce2k/nexor-shop": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

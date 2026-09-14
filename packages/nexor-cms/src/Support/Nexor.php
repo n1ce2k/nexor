@@ -4,7 +4,9 @@ namespace Nexor\Cms\Support;
 
 use Illuminate\Database\Eloquent\Model;
 use Nexor\Cms\Contracts\NexorUser;
+use Nexor\Cms\Enums\License;
 use Nexor\Cms\Enums\PropertyType;
+use Nexor\Cms\Support\Modules\ModuleManager;
 
 /**
  * Entry points into the package's configuration.
@@ -20,7 +22,7 @@ class Nexor
      * The release is the git tag; this constant is what the running code can
      * print — in the panel, in a bug report, in an upgrade check.
      */
-    public const VERSION = '0.1.15';
+    public const VERSION = '0.2.0';
 
     /**
      * @return class-string<Model&NexorUser>
@@ -38,6 +40,27 @@ class Nexor
         $class = self::userModel();
 
         return new $class;
+    }
+
+    /**
+     * Модули, лицензия и функции сайта.
+     */
+    public static function modules(): ModuleManager
+    {
+        return app(ModuleManager::class);
+    }
+
+    public static function license(): License
+    {
+        return self::modules()->license();
+    }
+
+    /**
+     * Доступна ли функция (`catalog.offers`) или модуль (`shop`).
+     */
+    public static function feature(string $code): bool
+    {
+        return self::modules()->allows($code);
     }
 
     public static function disk(): string

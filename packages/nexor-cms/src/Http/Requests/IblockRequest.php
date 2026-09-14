@@ -4,6 +4,7 @@ namespace Nexor\Cms\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Nexor\Cms\Enums\ElementUrl;
 use Nexor\Cms\Enums\PaginationTemplate;
 
 class IblockRequest extends FormRequest
@@ -31,6 +32,7 @@ class IblockRequest extends FormRequest
             'list_url' => ['nullable', 'string', 'max:255'],
             'section_url' => ['nullable', 'string', 'max:255'],
             'detail_url' => ['nullable', 'string', 'max:255'],
+            'element_url' => ['nullable', Rule::enum(ElementUrl::class)],
             'has_sections' => ['boolean'],
             'has_page' => ['boolean'],
             'is_catalog' => ['boolean'],
@@ -73,6 +75,7 @@ class IblockRequest extends FormRequest
             'list_url' => 'URL списка',
             'section_url' => 'URL раздела',
             'detail_url' => 'URL детальной страницы',
+            'element_url' => 'канонический адрес элемента',
             'sort' => 'сортировка',
         ];
     }

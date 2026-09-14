@@ -33,6 +33,7 @@ const form = useForm({
     list_url: '',
     section_url: '',
     detail_url: '',
+    element_url: 'nested',
     has_sections: true,
     has_page: false,
     is_catalog: false,
@@ -66,6 +67,16 @@ const paginationHint = computed(() => session.paginationTemplates
 const loadsOnDemand = computed(() => form.fields.pagination_template === 'pagination_btnload');
 
 const showsChunkSize = computed(() => loadsOnDemand.value || form.fields.has_load_more);
+
+/** Варианты канонического адреса элемента с примером под код этого инфоблока. */
+const elementUrlOptions = computed(() => {
+    const code = form.fields.code || 'katalog';
+
+    return [
+        { value: 'nested', label: 'С разделами', example: `/${code}/razdel/podrazdel/element` },
+        { value: 'flat', label: 'Без разделов', example: `/${code}/element` },
+    ];
+});
 
 /** Preview of the caption the element list will show. */
 const addLabel = computed(() => {
@@ -117,6 +128,7 @@ onMounted(async () => {
                 list_url: data.data.list_url ?? '',
                 section_url: data.data.section_url ?? '',
                 detail_url: data.data.detail_url ?? '',
+                element_url: data.data.element_url ?? 'nested',
                 has_sections: data.data.has_sections,
                 has_page: data.data.has_page,
                 is_catalog: data.data.is_catalog,
@@ -204,6 +216,19 @@ onMounted(async () => {
                 <NCard title="Адреса на сайте"
                        description="Шаблоны URL для публичной части. Доступны подстановки #ID#, #CODE#, #SECTION_CODE#.">
                     <div class="space-y-5">
+                        <NField label="Канонический адрес элемента" :error="form.error('element_url')"
+                                hint="Элемент открывается только по этому адресу — остальные варианты уводят на него 301-редиректом. Предложение торгового каталога получает адрес товара плюс свой код.">
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <label v-for="option in elementUrlOptions" :key="option.value"
+                                       :class="['flex cursor-pointer flex-col gap-1 rounded-xl border p-3 transition',
+                                                form.fields.element_url === option.value ? 'border-brand-600 ring-2 ring-brand-500/20' : 'border-[var(--surface-border)]']">
+                                    <input v-model="form.fields.element_url" type="radio" :value="option.value" class="sr-only">
+                                    <span class="text-sm font-semibold text-[var(--text-strong)]">{{ option.label }}</span>
+                                    <code class="font-mono text-xs text-[var(--text-muted)]">{{ option.example }}</code>
+                                </label>
+                            </div>
+                        </NField>
+
                         <NField label="URL списка" :error="form.error('list_url')">
                             <NInput v-model="form.fields.list_url" class="font-mono" placeholder="/catalog" />
                         </NField>

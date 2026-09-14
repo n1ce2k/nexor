@@ -44,6 +44,12 @@ const paths = {
     tabs: '<rect x="3" y="7" width="18" height="14" rx="2"/><path d="M7 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>',
     'panel-left': '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/>',
     'list-tree': '<path d="M3 5h18"/><path d="M8 12h13"/><path d="M8 19h13"/><path d="M4 9v10"/><path d="M4 12h4M4 19h4"/>',
+    puzzle: '<path d="M19.44 7.85c-.49.49-.29 1.4.37 1.62a2.5 2.5 0 1 1-3.2 3.2c-.22-.66-1.13-.86-1.62-.37L12 15.29l-1.8-1.8c-.49-.49-.29-1.4.37-1.62a2.5 2.5 0 1 0-3.2-3.2c-.22.66-1.13.86-1.62.37L4 7.24 7.24 4l1.8 1.8c.49.49 1.4.29 1.62-.37a2.5 2.5 0 1 1 3.2 3.2c-.66.22-.86 1.13-.37 1.62L15.29 12l1.8-1.8"/>',
+    cart: '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>',
+    tag: '<path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"/><path d="M7 7h.01"/>',
+    receipt: '<path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 3 2V2l-3 2-3-2-3 2-3-2-3 2-3-2Z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+    truck: '<path d="M1 3h15v13H1Z"/><path d="M16 8h4l3 3v5h-7V8Z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
+    lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
 };
 
 const markup = computed(() => paths[props.name] ?? paths.info);

@@ -7,12 +7,17 @@ import SettingsEditor from '../../components/SettingsEditor.vue';
 
 <template>
     <div>
-        <NPageHeader title="SMTP почта"
-                     description="Параметры отправки писем. Пока переключатель выключен, письма уходят через настройки из .env." />
+<!--        description="Параметры отправки писем. Пока переключатель выключен, письма уходят через настройки из .env."-->
+        <NPageHeader
+            title="SMTP почта"
+                      />
 
         <div class="mb-6">
             <NCard>
                 <div class="flex items-start gap-3">
+
+
+
                     <span class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
                         <NIcon name="info" size="size-4" />
                     </span>

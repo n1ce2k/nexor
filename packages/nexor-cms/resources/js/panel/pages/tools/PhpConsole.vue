@@ -50,10 +50,10 @@ onMounted(async () => {
         </NPageHeader>
 
         <NEmpty v-if="state && !state.enabled" icon="alert" title="Инструменты выключены"
-                description="Включите NEXOR_TOOLS=true в .env." />
+                description="Включите NEXOR_TOOLS=true в .env" />
 
         <NEmpty v-else-if="state && !state.php_allowed" icon="alert" title="PHP-консоль выключена"
-                description="Отдельный переключатель: NEXOR_TOOLS_PHP=true. Держите его выключенным на боевом сервере." />
+                description="Отдельный переключатель: NEXOR_TOOLS_PHP=true." />
 
         <NEmpty v-else-if="state && !state.allowed" icon="shield" title="Недостаточно прав"
                 description="PHP-консоль доступна только супер-администратору." />

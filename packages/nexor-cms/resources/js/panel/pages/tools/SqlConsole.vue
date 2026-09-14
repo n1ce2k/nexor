@@ -60,7 +60,7 @@ onMounted(async () => {
         </NPageHeader>
 
         <NEmpty v-if="state && !state.enabled" icon="alert" title="Инструменты выключены"
-                description="Включите NEXOR_TOOLS=true в .env. На боевом сервере их лучше держать выключенными." />
+                description="Включите NEXOR_TOOLS=true в .env" />
 
         <NEmpty v-else-if="state && !state.allowed" icon="shield" title="Недостаточно прав"
                 description="SQL-консоль доступна только супер-администратору." />

@@ -40,7 +40,7 @@ onBeforeUnmount(() => {
             <div v-if="modelValue" class="fixed inset-0 z-[60] flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" @click="close"></div>
 
-                <div :class="['surface relative flex max-h-[90vh] w-full flex-col rounded-2xl border shadow-2xl', maxWidth]">
+                <div :class="['modalChange surface relative flex max-h-[90vh] w-full flex-col rounded-2xl border shadow-2xl', maxWidth]">
                     <header v-if="title"
                             class="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--surface-border)] px-5 py-4">
                         <h2 class="text-sm font-semibold text-[var(--text-strong)]">{{ title }}</h2>

@@ -230,21 +230,23 @@ BLADE;
 {{--
     Детальная страница элемента инфоблока «{$name}».
 
-    В шаблон приходит переменная \$element.
+    В шаблон приходят \$element и \$offer — торговое предложение из адреса
+    /{$code}/…/<товар>/<предложение>, или null.
 
     Забрать шаблон карточки себе: php artisan nexor:component catalog.element
 --}}
 
 @extends('site.layout')
 
-@section('title', \$element->meta_title ?: \$element->name)
+@section('title', (\$element->meta_title ?: \$element->name).(\$offer ? ' — '.\$offer->name : ''))
 @section('description', \$element->meta_description ?: Str::limit(strip_tags((string) \$element->preview_text), 160))
+@section('canonical', (\$offer ?? \$element)->url())
 
 @section('content')
     <div class="mx-auto max-w-3xl px-4 py-14 sm:px-6 lg:px-8">
         <x-nexor::breadcrumbs iblock="{$code}" :element="\$element" />
 
-        <x-nexor::catalog.element :element="\$element" />
+        <x-nexor::catalog.element :element="\$element" :offer="\$offer" />
     </div>
 
     {{-- Ещё один список на той же странице: похожие элементы. --}}

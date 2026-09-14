@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 
 @source '../views';
+@source '../../packages/nexor-shop/resources/views';
 @source '../../app/Http/Controllers/Site';
 @source '../../app/Support';
 

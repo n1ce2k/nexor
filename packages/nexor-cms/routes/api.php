@@ -13,6 +13,7 @@ use Nexor\Cms\Http\Controllers\Api\IblockTypeController;
 use Nexor\Cms\Http\Controllers\Api\MailTemplateController;
 use Nexor\Cms\Http\Controllers\Api\MenuController;
 use Nexor\Cms\Http\Controllers\Api\MenuItemController;
+use Nexor\Cms\Http\Controllers\Api\ModuleController;
 use Nexor\Cms\Http\Controllers\Api\RoleController;
 use Nexor\Cms\Http\Controllers\Api\SettingController;
 use Nexor\Cms\Http\Controllers\Api\ToolsController;
@@ -32,6 +33,14 @@ $guard = function (PendingResourceRegistration $resource, string $middleware, st
 
 Route::get('bootstrap', BootstrapController::class)->name('bootstrap');
 Route::get('dashboard', DashboardController::class)->name('dashboard');
+
+Route::get('modules', [ModuleController::class, 'index'])
+    ->name('modules.index')
+    ->middleware('nexor.permission:modules.view');
+
+Route::put('modules/{code}', [ModuleController::class, 'update'])
+    ->name('modules.update')
+    ->middleware('nexor.permission:modules.update');
 
 $guard(Route::apiResource('users', UserController::class), 'nexor.permission', 'users.');
 $guard(Route::apiResource('roles', RoleController::class), 'nexor.permission', 'roles.');

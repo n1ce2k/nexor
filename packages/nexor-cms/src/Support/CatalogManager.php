@@ -39,6 +39,11 @@ class CatalogManager
             return $offers;
         }
 
+        // Цены и остатки есть на любой лицензии, а предложения — со Standart.
+        if (! Nexor::feature('catalog.offers')) {
+            return null;
+        }
+
         return DB::transaction(fn () => self::createOffers($iblock));
     }
 

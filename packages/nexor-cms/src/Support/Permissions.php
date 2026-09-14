@@ -103,7 +103,15 @@ class Permissions
                     'logs.view' => 'Просмотр журнала действий',
                 ],
             ],
-        ];
+            'modules' => [
+                'label' => 'Модули',
+                'sort' => 750,
+                'items' => [
+                    'modules.view' => 'Просмотр модулей и лицензии',
+                    'modules.update' => 'Включение и выключение модулей',
+                ],
+            ],
+        ] + Nexor::modules()->permissionDefinitions();
     }
 
     /**

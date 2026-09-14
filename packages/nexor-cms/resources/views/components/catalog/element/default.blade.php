@@ -2,7 +2,7 @@
     Шаблон компонента catalog.element: детальная карточка.
 
     Приходит: $element, $block (инфоблок), $values (значения свойств по кодам),
-    $showProperties.
+    $showProperties, $offers (активные предложения товара), $offer (выбранное).
 
     Свой шаблон: php artisan nexor:component catalog.element
 --}}
@@ -52,11 +52,17 @@
                     В наличии
                 @endif
             </p>
+
+            {{-- Кнопка корзины — модуль «Магазин». У товара с предложениями её нет: покупают предложение. --}}
+            @feature('shop')
+                @if ($catalog->hasPrice() && ! ($catalog->usesOffers() && $element->iblock?->hasOffers()))
+                    <livewire:nexor-shop::add-to-cart :element-id="$element->id" />
+                @endif
+            @endfeature
         </div>
     @endif
 
     {{-- Торговые предложения товара. --}}
-    @php($offers = $element->offerElements())
 
     @if ($offers->isNotEmpty())
         <div class="mb-8">
@@ -64,7 +70,7 @@
 
             <ul class="divide-y divide-slate-100 rounded-2xl border border-slate-200">
                 @foreach ($offers as $offer)
-                    <li class="flex items-center justify-between gap-4 px-5 py-3">
+                    <li class="flex flex-wrap items-center justify-between gap-4 px-5 py-3">
                         <span class="text-slate-800">{{ $offer->name }}</span>
 
                         <span class="flex items-baseline gap-2">
@@ -78,6 +84,13 @@
                                 <span class="text-xs text-slate-400">нет в наличии</span>
                             @endif
                         </span>
+
+                        {{-- Кнопка корзины у предложения — модуль «Магазин». --}}
+                        @feature('shop')
+                            @if ($offer->catalog?->hasPrice())
+                                <livewire:nexor-shop::add-to-cart :element-id="$offer->id" :key="'buy-offer-'.$offer->id" label="Купить" />
+                            @endif
+                        @endfeature
                     </li>
                 @endforeach
             </ul>

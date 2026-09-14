@@ -6,6 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\File;
 use Nexor\Cms\Models\Iblock;
+use Tests\Concerns\PreservesPublishedViews;
 use Tests\TestCase;
 
 /**
@@ -14,7 +15,7 @@ use Tests\TestCase;
  */
 class PublishComponentCommandTest extends TestCase
 {
-    use RefreshDatabase;
+    use PreservesPublishedViews, RefreshDatabase;
 
     protected string $published = '';
 
@@ -22,12 +23,14 @@ class PublishComponentCommandTest extends TestCase
     {
         parent::setUp();
 
-        $this->published = resource_path('views/vendor/nexor/components');
+        // Тест работает в той же папке, что и шаблоны сайта: копирует их в сторону и возвращает.
+        $this->published = $this->preserveViews('vendor/nexor/components');
+        File::deleteDirectory($this->published);
     }
 
     protected function tearDown(): void
     {
-        File::deleteDirectory($this->published);
+        $this->restorePreservedViews();
 
         parent::tearDown();
     }
@@ -46,6 +49,41 @@ class PublishComponentCommandTest extends TestCase
             ->doesntExpectOutputToContain('admin.')
             ->doesntExpectOutputToContain('pagination.partials')
             ->assertSuccessful();
+    }
+
+    public function test_all_copies_every_component(): void
+    {
+        $this->artisan('nexor:component', ['component' => 'all'])->assertSuccessful();
+
+        $this->assertFileExists($this->published.'/catalog/section/tiles.blade.php');
+        $this->assertFileExists($this->published.'/menu/sections/chips.blade.php');
+        $this->assertFileExists($this->published.'/pagination/btnload.blade.php');
+        $this->assertDirectoryDoesNotExist($this->published.'/admin');
+    }
+
+    public function test_the_listing_explains_how_to_take_everything(): void
+    {
+        $this->artisan('nexor:component')
+            ->expectsOutputToContain('php artisan nexor:component all')
+            ->assertSuccessful();
+    }
+
+    public function test_site_templates_survive_a_test_that_wipes_the_folder(): void
+    {
+        $folder = resource_path('views/vendor/nexor-preserve-check');
+        File::ensureDirectoryExists($folder);
+        File::put($folder.'/site.blade.php', 'шаблон сайта');
+
+        try {
+            $this->preserveViews('vendor/nexor-preserve-check');
+            File::deleteDirectory($folder);
+
+            $this->restorePreservedViews();
+
+            $this->assertSame('шаблон сайта', File::get($folder.'/site.blade.php'));
+        } finally {
+            File::deleteDirectory($folder);
+        }
     }
 
     public function test_a_component_is_copied_with_all_its_templates(): void

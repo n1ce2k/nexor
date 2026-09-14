@@ -225,7 +225,7 @@ class IblockElementController extends ApiController
 
         $offersIblock = $iblock->offersIblock;
 
-        abort_unless($iblock->is_catalog && $offersIblock, 404);
+        abort_unless($iblock->hasOffers() && $offersIblock, 404);
 
         // Права на предложения — свои, даже если их копируют с каталога.
         abort_unless($request->user()->hasPermission($offersIblock->permissionCode('view')), 403);
@@ -260,7 +260,7 @@ class IblockElementController extends ApiController
 
         $offersIblock = $iblock->offersIblock;
 
-        abort_unless($iblock->is_catalog && $offersIblock, 404);
+        abort_unless($iblock->hasOffers() && $offersIblock, 404);
 
         // Привязка меняет сами предложения — нужно право на их инфоблок.
         abort_unless($request->user()->hasPermission($offersIblock->permissionCode('update')), 403);

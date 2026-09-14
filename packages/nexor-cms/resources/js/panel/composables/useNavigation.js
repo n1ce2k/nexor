@@ -14,8 +14,13 @@ export function useNavigation() {
 
     return computed(() => {
         const groups = [];
-        const custom = registry.menuItems.filter((item) => !item.permission || session.can(item.permission));
+        const custom = registry.menuItems.filter((item) => (!item.permission || session.can(item.permission))
+            && (!item.feature || session.feature(item.feature)));
         const extras = (group) => custom.filter((item) => item.group === group);
+
+        // Группы, которые принесли модули («Магазин»), встают после «Структуры».
+        const known = ['Контент', 'Структура', 'Настройки', 'Администрирование'];
+        const moduleGroups = [...new Set(custom.map((item) => item.group).filter((group) => group && !known.includes(group)))];
 
         groups.push({
             label: null,
@@ -59,6 +64,8 @@ export function useNavigation() {
 
         groups.push({ label: 'Структура', items: [...structure, ...extras('Структура')] });
 
+        moduleGroups.forEach((label) => groups.push({ label, items: extras(label) }));
+
         // Настройки
         const settings = [];
         const mail = [];
@@ -99,6 +106,10 @@ export function useNavigation() {
 
         if (session.can('settings.view')) {
             settings.push({ label: 'Настройки сайта', icon: 'settings', to: { name: 'settings' } });
+        }
+
+        if (session.can('modules.view')) {
+            settings.push({ label: 'Модули', icon: 'puzzle', to: { name: 'modules.index' } });
         }
 
         // if (session.can('logs.view')) {

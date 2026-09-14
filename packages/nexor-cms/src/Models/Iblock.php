@@ -11,12 +11,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Nexor\Cms\Database\Factories\IblockFactory;
+use Nexor\Cms\Enums\ElementUrl;
 use Nexor\Cms\Enums\PaginationTemplate;
+use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\Permissions;
 
 #[Fillable([
     'iblock_type_id', 'code', 'name', 'element_name', 'picture', 'description',
-    'list_url', 'section_url', 'detail_url',
+    'list_url', 'section_url', 'detail_url', 'element_url',
     'has_sections', 'has_page', 'is_catalog', 'is_active', 'sort', 'settings',
     'pagination_template', 'per_page', 'has_load_more', 'load_more_size',
 ])]
@@ -45,6 +47,7 @@ class Iblock extends Model
         'per_page' => 20,
         'has_load_more' => false,
         'load_more_size' => 12,
+        'element_url' => ElementUrl::Nested->value,
     ];
 
     protected function casts(): array
@@ -54,6 +57,7 @@ class Iblock extends Model
             'has_page' => 'boolean',
             'is_catalog' => 'boolean',
             'pagination_template' => PaginationTemplate::class,
+            'element_url' => ElementUrl::class,
             'per_page' => 'integer',
             'has_load_more' => 'boolean',
             'load_more_size' => 'integer',
@@ -116,7 +120,9 @@ class Iblock extends Model
      */
     public function hasOffers(): bool
     {
-        return $this->is_catalog && $this->offers_iblock_id !== null;
+        // Предложения — функция уровня Standart: на Lite инфоблок предложений
+        // остаётся в базе, но вкладка и выборки его не видят.
+        return $this->is_catalog && $this->offers_iblock_id !== null && Nexor::feature('catalog.offers');
     }
 
     /**

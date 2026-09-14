@@ -14,6 +14,8 @@ export const useSession = defineStore('session', {
         iblocks: [],
         propertyTypes: [],
         paginationTemplates: [],
+        license: { value: 'lite', label: 'Lite' },
+        features: {},
         routes: {},
         ready: false,
         error: null,
@@ -24,6 +26,9 @@ export const useSession = defineStore('session', {
         can: (state) => (code) => state.isSuperAdmin || state.permissions.includes(code),
 
         canAny: (state) => (codes) => state.isSuperAdmin || codes.some((code) => state.permissions.includes(code)),
+
+        /** Доступна ли функция или модуль на этой лицензии: `feature('shop.promocodes')`. */
+        feature: (state) => (code) => Boolean(state.features[code]),
 
         iblock: (state) => (id) => state.iblocks.find((item) => String(item.id) === String(id)) ?? null,
 
@@ -52,6 +57,8 @@ export const useSession = defineStore('session', {
                 this.iblocks = data.iblocks.data ?? data.iblocks;
                 this.propertyTypes = data.property_types;
                 this.paginationTemplates = data.pagination_templates ?? [];
+                this.license = data.license ?? this.license;
+                this.features = data.features ?? {};
                 this.routes = data.routes;
                 this.ready = true;
             } catch (error) {
@@ -69,6 +76,15 @@ export const useSession = defineStore('session', {
             const data = await api.get('bootstrap');
 
             this.iblocks = data.iblocks.data ?? data.iblocks;
+            this.permissions = data.permissions ?? [];
+        },
+
+        /** После включения модуля: меню и страницы должны появиться без перезагрузки. */
+        async refreshFeatures() {
+            const data = await api.get('bootstrap');
+
+            this.features = data.features ?? {};
+            this.license = data.license ?? this.license;
             this.permissions = data.permissions ?? [];
         },
     },

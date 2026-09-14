@@ -52,6 +52,12 @@ class BootstrapController extends ApiController
                 'settings' => $type->settingKeys(),
             ])->values(),
             'pagination_templates' => PaginationTemplate::options(),
+            'license' => [
+                'value' => Nexor::license()->value,
+                'label' => Nexor::license()->label(),
+            ],
+            // «Код функции или модуля → доступно»: по нему панель прячет меню и страницы.
+            'features' => Nexor::modules()->allowed(),
             'routes' => [
                 'home' => url('/'),
                 'logout' => route('admin.logout'),

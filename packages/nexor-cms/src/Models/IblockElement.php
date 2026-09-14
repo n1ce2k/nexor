@@ -132,7 +132,13 @@ class IblockElement extends Model
             return collect();
         }
 
-        return self::query()->whereKey($offerIds)->active()->with('catalog')->ordered()->get();
+        // Свойства подгружаются разом: шаблон читает их у каждого предложения.
+        return self::query()
+            ->whereKey($offerIds)
+            ->active()
+            ->with(['catalog', 'iblock.properties', 'values.property', 'values.enum'])
+            ->ordered()
+            ->get();
     }
 
     /**
@@ -221,8 +227,11 @@ class IblockElement extends Model
         }
 
         // Предложение открывается на странице своего товара: /katalog/…/futbolka/razmer-m.
+        // Товар, выводящий предложения списком, страницу держит одну — его собственную.
         if ($this->iblock?->product_iblock_id && ($product = $this->parentProduct())) {
-            return rtrim($product->url(), '/').'/'.$code;
+            return $product->catalog?->listsOffers()
+                ? $product->url()
+                : rtrim($product->url(), '/').'/'.$code;
         }
 
         // С разделами элемент лежит внутри их пути, как файл в папке; без — сразу под инфоблоком.
@@ -238,7 +247,7 @@ class IblockElement extends Model
     {
         $parentId = $this->loadMissing('catalog')->catalog?->parent_element_id;
 
-        return $parentId ? self::query()->with(['iblock', 'section'])->find($parentId) : null;
+        return $parentId ? self::query()->with(['iblock', 'section', 'catalog'])->find($parentId) : null;
     }
 
     /**

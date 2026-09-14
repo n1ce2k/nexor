@@ -314,6 +314,7 @@ class IblockElementController extends ApiController
             'ratio' => $data['ratio'] ?? $current?->ratio ?? 1,
             'quantity_trace' => (bool) ($data['quantity_trace'] ?? $current?->quantity_trace ?? false),
             'can_buy_zero' => (bool) ($data['can_buy_zero'] ?? $current?->can_buy_zero ?? false),
+            'offers_by_properties' => (bool) ($data['offers_by_properties'] ?? $current?->offers_by_properties ?? true),
         ];
 
         if ($iblock->product_iblock_id && $request->has('parent_element_id')) {

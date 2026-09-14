@@ -120,6 +120,30 @@ const sectionOptions = computed(() => (schema.value?.sections ?? []).map((sectio
     label: section.indented_name,
 })));
 
+/**
+ * Как примерно будет выглядеть адрес элемента на сайте — из кода, основного
+ * раздела и режима адреса инфоблока. Сервер строит его так же (IblockElement::url).
+ */
+const urlPreview = computed(() => {
+    const iblock = info.value;
+
+    if (!iblock?.has_page) {
+        return null;
+    }
+
+    const code = form.fields.code || (isEdit.value ? String(props.element) : 'kod-elementa');
+
+    // Элементы инфоблока «Страницы» живут в корне сайта.
+    if (iblock.code === 'pages') {
+        return `/${code}`;
+    }
+
+    const section = (schema.value?.sections ?? []).find((item) => String(item.id) === String(form.fields.section_id));
+    const path = iblock.element_url !== 'flat' && section?.url_path ? `${section.url_path}/` : '';
+
+    return `/${iblock.code}/${path}${code}`;
+});
+
 const measures = computed(() => schema.value?.measures ?? []);
 
 const measureOptions = computed(() => measures.value.map((measure) => ({ value: measure, label: measure })));
@@ -356,7 +380,11 @@ function buildPayload() {
     } else if (usesOffers.value) {
         // Своя цена товару с предложениями не принадлежит — снимаем её,
         // чтобы на витрине не осталась цена от прошлой жизни товара.
-        fields.catalog = { type: fields.catalog.type, price: '' };
+        fields.catalog = {
+            type: fields.catalog.type,
+            price: '',
+            offers_by_properties: fields.catalog.offers_by_properties,
+        };
     }
 
     const body = toFormData(fields);
@@ -460,6 +488,7 @@ function resetState() {
             ratio: 1,
             quantity_trace: false,
             can_buy_zero: false,
+            offers_by_properties: true,
         },
     });
     codeTouched.value = false;
@@ -520,6 +549,7 @@ async function load() {
                     ratio: Number(element.catalog.ratio ?? 1),
                     quantity_trace: Boolean(element.catalog.quantity_trace),
                     can_buy_zero: Boolean(element.catalog.can_buy_zero),
+                    offers_by_properties: element.catalog.offers_by_properties ?? true,
                 };
 
                 parentId.value = element.catalog.parent_element_id ?? parentId.value;
@@ -612,6 +642,12 @@ watch(() => [props.iblock, props.element], (next, previous) => {
                                     :error="form.error('section_id')">
                                 <NSelect v-model="form.fields.section_id" :options="sectionOptions"
                                          placeholder="— без раздела —" />
+
+                                <p v-if="urlPreview" class="mt-1.5 text-xs text-[var(--text-muted)]">
+                                    Адрес на сайте:
+                                    <code class="font-mono break-all text-[var(--text-base)]">{{ urlPreview }}</code>
+                                    <template v-if="info?.element_url === 'flat'"> — раздел в адрес не входит, так настроен инфоблок</template>
+                                </p>
                             </NField>
 
                             <NField v-else-if="key === 'is_active'" label="Активность">
@@ -758,6 +794,20 @@ watch(() => [props.iblock, props.element], (next, previous) => {
                                 </p>
 
                                 <div v-else class="space-y-3">
+                                    <div class="rounded-lg border border-[var(--surface-border)] p-3">
+                                        <NToggle v-model="form.fields.catalog.offers_by_properties"
+                                                 label="Выводить через свойства" />
+                                        <p class="mt-1.5 text-xs text-[var(--text-muted)]">
+                                            <template v-if="form.fields.catalog.offers_by_properties">
+                                                Варианты переключаются кнопками по свойствам, у каждого предложения свой адрес на сайте.
+                                            </template>
+                                            <template v-else>
+                                                Предложения выводятся списком под товаром, у каждого своя кнопка «В корзину».
+                                                Адрес предложения открывает страницу товара.
+                                            </template>
+                                        </p>
+                                    </div>
+
                                     <div class="flex justify-end">
                                         <button type="button" title="Настроить колонки"
                                                 class="rounded-lg p-1.5 text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--text-strong)]"

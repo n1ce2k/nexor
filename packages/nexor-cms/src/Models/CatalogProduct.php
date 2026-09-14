@@ -18,7 +18,7 @@ use Nexor\Cms\Enums\ProductType;
  * наличию сортируют и фильтруют, и держать это в EAV было бы дорого.
  */
 #[Fillable([
-    'element_id', 'parent_element_id', 'type',
+    'element_id', 'parent_element_id', 'type', 'offers_by_properties',
     'price', 'currency', 'discount_percent',
     'quantity', 'measure', 'ratio',
     'quantity_trace', 'can_buy_zero',
@@ -40,6 +40,7 @@ class CatalogProduct extends Model
     protected $attributes = [
         'currency' => Currency::RUB->value,
         'type' => ProductType::Simple->value,
+        'offers_by_properties' => true,
     ];
 
     /**
@@ -62,6 +63,7 @@ class CatalogProduct extends Model
             'ratio' => 'decimal:3',
             'quantity_trace' => 'boolean',
             'can_buy_zero' => 'boolean',
+            'offers_by_properties' => 'boolean',
         ];
     }
 
@@ -94,6 +96,16 @@ class CatalogProduct extends Model
     public function usesOffers(): bool
     {
         return $this->type === ProductType::WithOffers;
+    }
+
+    /**
+     * Предложения выводятся списком под товаром, а не переключателем по свойствам.
+     *
+     * Страница у товара тогда одна: адрес предложения открывает сам товар.
+     */
+    public function listsOffers(): bool
+    {
+        return $this->usesOffers() && ! $this->offers_by_properties;
     }
 
     /**

@@ -41,9 +41,6 @@ class ShopServiceProvider extends ServiceProvider
         // <livewire:nexor-shop::cart-page /> → Nexor\Shop\Livewire\CartPage
         Livewire::addNamespace('nexor-shop', classNamespace: 'Nexor\\Shop\\Livewire');
 
-        // Страницы магазина в панели.
-        config()->push('nexor.panel_extensions', config('nexor-shop.panel_asset'));
-
         if ($this->app->runningInConsole()) {
             $this->commands([
                 InstallCommand::class,

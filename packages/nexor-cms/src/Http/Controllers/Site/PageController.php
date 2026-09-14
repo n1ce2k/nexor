@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\Site;
+namespace Nexor\Cms\Http\Controllers\Site;
 
-use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controller;
 use Illuminate\View\View;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\IblockElement;

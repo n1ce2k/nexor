@@ -302,38 +302,72 @@ php artisan nexor-shop:component cart-page --force  # перезаписать �
 
 Шаблоны меняются копией в `resources/views/vendor/nexor-shop/`, макет страниц — `NEXOR_SHOP_LAYOUT`.
 
-## Запуск
+## Установка на чистый Laravel
+
+```bash
+composer require n1ce2k/nexor-cms
+php artisan nexor:install
+```
+
+`nexor:install` проводит миграции, создаёт роли и администратора, кладёт в `resources/views/site` стартовые шаблоны сайта (только недостающие — свои не перезапишет) и дописывает в `resources/css/app.css` строки `@source` на шаблоны компонентов пакета, чтобы Tailwind сайта видел их классы.
+
+- **Админка приходит уже собранной.** Скрипты и стили панели лежат в `vendor/n1ce2k/nexor-cms/dist` и отдаются адресом `/admin/nexor-assets/...` с долгим кешем. Node для админки не нужен, `composer update` приносит новую панель сразу.
+- **Маршруты сайта тоже в пакете:** `/`, `/search`, `/robots.txt`, `/{раздел}` и `/{раздел}/{путь}` — это fallback-маршруты. Любой маршрут в `routes/web.php` с тем же адресом важнее. Выключить их целиком — `NEXOR_SITE_ROUTES=false`.
+
+Магазин ставится так же:
+
+```bash
+composer require n1ce2k/nexor-shop
+php artisan nexor-shop:install --layout=site.layout
+```
+
+Стили сайта собирает сам сайт: `npm install && npm run build`. Пароль администратора задаётся отдельно:
+
+```bash
+php artisan nexor:password admin@example.com
+```
+
+## Запуск этого репозитория
 
 ```bash
 composer install
 npm install
 cp .env.example .env
 php artisan key:generate
-```
-
-Пропишите доступ к базе в `.env`, затем:
-
-```bash
 php artisan nexor:install
 npm run build
 php artisan serve
 ```
 
-Панель управления — `/admin`. Пароль администратора задаётся отдельно:
-
-```bash
-php artisan nexor:password admin@example.com
-```
-
 ## Разработка
 
-Правьте исходники ядра в `packages/nexor-cms`, а не в `vendor/` — там симлинк на тот же каталог.
+Правьте исходники в `packages/`, а не в `vendor/` — там симлинк на тот же каталог.
 
 ```bash
 php artisan test --compact          # тесты
 vendor/bin/pint --dirty             # форматирование
-npm run dev                         # сборка стилей и скриптов
+npm run dev                         # стили и скрипты сайта
 ```
+
+Панель по умолчанию грузится из готовой сборки `dist/`. Чтобы править Vue-страницы с горячей перезагрузкой, переключите её на исходники:
+
+```dotenv
+NEXOR_PANEL_ASSETS=vite
+```
+
+После правок панели пересоберите сборки пакетов — они коммитятся вместе с кодом:
+
+```bash
+npm run build:packages
+```
+
+## Выпуск версии
+
+1. `npm run build:packages` и закоммитить `packages/*/dist`.
+2. Поднять `Nexor::VERSION`, закоммитить, поставить тег `vX.Y.Z` и отправить: `git push origin main --tags`.
+3. GitHub Action [split.yml](.github/workflows/split.yml) переносит `packages/nexor-cms` и `packages/nexor-shop` в репозитории `n1ce2k/nexor-cms` и `n1ce2k/nexor-shop` вместе с тегом, а Packagist подхватывает новую версию.
+
+При смене минорной версии (0.2 → 0.3) поправьте `branch-alias` в `composer.json` обоих пакетов и требование `n1ce2k/nexor-cms` у магазина.
 
 ## Лицензия
 

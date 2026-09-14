@@ -36,6 +36,9 @@
             "providers": [
                 "Nexor\\Cms\\NexorServiceProvider"
             ]
+        },
+        "branch-alias": {
+            "dev-main": "0.2.x-dev"
         }
     },
     "config": {

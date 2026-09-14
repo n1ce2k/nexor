@@ -12,7 +12,7 @@
     ],
     "require": {
         "php": "^8.3",
-        "n1ce2k/nexor-cms": "*",
+        "n1ce2k/nexor-cms": "^0.2",
         "livewire/livewire": "^4.4"
     },
     "autoload": {
@@ -26,6 +26,9 @@
             "providers": [
                 "Nexor\\Shop\\ShopServiceProvider"
             ]
+        },
+        "branch-alias": {
+            "dev-main": "0.2.x-dev"
         }
     },
     "config": {

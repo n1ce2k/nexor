@@ -19,12 +19,11 @@
         })();
     </script>
 
-    @vite(config('nexor.panel_assets'))
+    {{-- Готовая сборка из пакета (или исходники через Vite при NEXOR_PANEL_ASSETS=vite). --}}
+    {{ \Nexor\Cms\Support\PanelAssets::panel() }}
 
-    {{-- Bundles registered here run before mount() and can extend the panel. --}}
-    @if ($extensions = config('nexor.panel_extensions'))
-        @vite($extensions)
-    @endif
+    {{-- Страницы модулей и бандлы сайта: грузятся до mount() и могут расширить панель. --}}
+    {{ \Nexor\Cms\Support\PanelAssets::extensions() }}
 </head>
 <body class="h-full font-sans antialiased">
     <div id="nexor-panel" data-base="{{ $base }}"></div>

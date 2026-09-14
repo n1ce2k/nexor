@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Http\Controllers\Site;
+namespace Nexor\Cms\Http\Controllers\Site;
 
-use App\Http\Controllers\Controller;
 use Illuminate\Http\Response;
+use Illuminate\Routing\Controller;
 use Nexor\Cms\Models\Setting;
 
 class RobotsController extends Controller

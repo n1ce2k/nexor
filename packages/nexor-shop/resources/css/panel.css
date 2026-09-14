@@ -1,0 +1,27 @@
+/*
+ * Утилиты Tailwind для страниц магазина в панели.
+ *
+ * Базовые стили, тему и переменные поверхностей (--surface-*, --text-*) даёт
+ * CSS панели ядра — здесь только классы, которых в ядре может не оказаться.
+ * Палитра brand и тёмный режим повторяют настройки панели.
+ */
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities) source(none);
+
+@source '../js';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --color-brand-50: #eef4ff;
+    --color-brand-100: #d9e6ff;
+    --color-brand-200: #bcd3ff;
+    --color-brand-300: #8eb8ff;
+    --color-brand-400: #5991ff;
+    --color-brand-500: #336aff;
+    --color-brand-600: #1c47f5;
+    --color-brand-700: #1735e1;
+    --color-brand-800: #192db6;
+    --color-brand-900: #1a2d8f;
+    --color-brand-950: #151d57;
+}

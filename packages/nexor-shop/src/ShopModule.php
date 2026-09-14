@@ -88,6 +88,18 @@ class ShopModule extends Module
         ];
     }
 
+    public function panelAssets(): ?array
+    {
+        $root = dirname(__DIR__);
+
+        return [
+            'dist' => $root.'/dist',
+            'script' => 'panel.js',
+            'style' => 'panel.css',
+            'source' => $root.'/resources/js/panel.js',
+        ];
+    }
+
     public function apiRoutes(): ?string
     {
         return dirname(__DIR__).'/routes/api.php';

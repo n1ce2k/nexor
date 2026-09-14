@@ -4,6 +4,7 @@ namespace Nexor\Shop\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
+use Nexor\Cms\Support\TailwindSources;
 
 /**
  * Ставит магазин на сайт: таблицы, права и корзину в макет.
@@ -29,6 +30,11 @@ class InstallCommand extends Command
     {
         $this->components->task('Таблицы магазина', fn () => $this->callSilently('migrate', ['--force' => true]) === 0);
         $this->components->task('Права ролей', fn () => $this->callSilently('nexor:permissions') === 0);
+        $this->components->task('Tailwind видит шаблоны корзины', function (): bool {
+            TailwindSources::add(dirname(__DIR__, 2).'/resources/views');
+
+            return true;
+        });
 
         if ($layout = $this->option('layout')) {
             return $this->installIntoLayout((string) $layout);

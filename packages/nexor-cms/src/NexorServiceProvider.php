@@ -16,6 +16,7 @@ use Nexor\Cms\Console\PublishComponentCommand;
 use Nexor\Cms\Console\SetPasswordCommand;
 use Nexor\Cms\Console\SyncPermissionsCommand;
 use Nexor\Cms\Contracts\NexorUser;
+use Nexor\Cms\Http\Controllers\AssetController;
 use Nexor\Cms\Http\Middleware\CheckFeature;
 use Nexor\Cms\Http\Middleware\CheckIblockPermission;
 use Nexor\Cms\Http\Middleware\CheckMaintenanceMode;
@@ -140,6 +141,12 @@ class NexorServiceProvider extends ServiceProvider
 
         $middleware = config('nexor.route.middleware', ['web']);
 
+        // Готовая сборка админки — статика без сессии; раньше catch-all панели.
+        Route::get(Nexor::routePrefix().'/nexor-assets/{package}/{path}', AssetController::class)
+            ->where('package', '[a-z0-9-]+')
+            ->where('path', '.+')
+            ->name('admin.assets');
+
         // The API is registered first: the panel's catch-all route would
         // otherwise swallow every /admin/api/* request.
         Route::group([
@@ -167,6 +174,12 @@ class NexorServiceProvider extends ServiceProvider
         // Публичная часть: приём форм компонента `form`.
         Route::group(['middleware' => $middleware], function (): void {
             $this->loadRoutesFrom($this->path('routes/site.php'));
+
+            // Главная, поиск и страницы инфоблоков — fallback-маршруты: маршруты
+            // приложения с теми же адресами всегда важнее.
+            if (config('nexor.site.routes', true)) {
+                $this->loadRoutesFrom($this->path('routes/pages.php'));
+            }
 
             foreach (Nexor::modules()->all() as $module) {
                 if ($file = $module->webRoutes()) {
@@ -243,6 +256,12 @@ class NexorServiceProvider extends ServiceProvider
         $this->publishes([
             $this->path('database/seeders') => database_path('seeders/nexor'),
         ], 'nexor-seeders');
+
+        // Стартовые шаблоны сайта: макет, главная, страница, поиск, 404.
+        $this->publishes([
+            $this->path('stubs/site/views/site') => resource_path('views/site'),
+            $this->path('stubs/site/views/errors') => resource_path('views/errors'),
+        ], 'nexor-site');
 
         // Шаблоны компонентов целиком. Отдельный компонент удобнее
         // забирать командой `php artisan nexor:component`.

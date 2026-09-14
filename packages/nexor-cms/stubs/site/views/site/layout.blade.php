@@ -15,12 +15,9 @@
 
     <title>@yield('title', Setting::get('seo.meta_title') ?: $siteName)</title>
     <meta name="description" content="@yield('description', Setting::get('seo.meta_description'))">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     @hasSection('keywords')
         <meta name="keywords" content="@yield('keywords')">
     @endif
-
-    <link rel="stylesheet" href="/assets/css/style.css">
 
     @if ($favicon = Setting::get('site.favicon'))
         <link rel="icon" href="{{ Storage::disk('public')->url($favicon) }}">
@@ -35,14 +32,16 @@
             <a href="{{ route('home') }}" class="flex shrink-0 items-center gap-2.5">
                 @if ($logo)
                     <img src="{{ Storage::disk('public')->url($logo) }}" alt="{{ $siteName }}" class="h-8 w-auto">
+                @else
+                    <span class="flex size-9 items-center justify-center rounded-xl bg-brand-600 text-sm font-bold text-white">N</span>
                 @endif
                 <span class="text-base font-semibold text-slate-900">{{ $siteName }}</span>
             </a>
 
+            {{-- Пункты меню «main» настраиваются в админке: Структура → Меню. --}}
             <div class="hidden flex-1 md:block">
                 <x-nexor::menu code="main" />
             </div>
-            <livewire:nexor-shop::cart-button />
 
             <div class="ml-auto hidden items-center gap-4 md:flex">
                 @if ($phone = Setting::get('contacts.phone'))
@@ -66,11 +65,11 @@
             </div>
         </div>
     </header>
-    <livewire:nexor-shop::cart-offcanvas />
+
     <main class="flex-1">
         @yield('content')
     </main>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
     <footer class="mt-20 border-t border-slate-200 bg-slate-50">
         <div class="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-3 lg:px-8">
             <div>
@@ -80,17 +79,15 @@
                 @endif
             </div>
 
-{{--            <div>--}}
-{{--                <p class="mb-3 text-sm font-semibold text-slate-900">Разделы</p>--}}
+            <div>
+                <p class="mb-3 text-sm font-semibold text-slate-900">Разделы</p>
 
-{{--                <x-nexor::menu code="footer" template="stacked" />--}}
-{{--            </div>--}}
+                <x-nexor::menu code="footer" template="stacked" />
+            </div>
 
             <div>
                 <p class="mb-3 text-sm font-semibold text-slate-900">Контакты</p>
                 <ul class="space-y-2 text-sm text-slate-600">
-
-            {{--  test standart def--}}
                     @if ($phone = Setting::get('contacts.phone'))
                         <li><a href="tel:{{ preg_replace('/[^0-9+]/', '', $phone) }}" class="hover:text-brand-600">{{ $phone }}</a></li>
                     @endif
@@ -110,7 +107,7 @@
         <div class="border-t border-slate-200">
             <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-xs text-slate-500 sm:px-6 lg:px-8">
                 <p>&copy; {{ date('Y') }} {{ $siteName }}</p>
-
+                <a href="{{ route('admin.dashboard') }}" class="transition hover:text-brand-600">Панель управления</a>
             </div>
         </div>
     </footer>

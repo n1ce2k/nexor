@@ -602,7 +602,14 @@ watch(() => [props.iblock, props.element], (next, previous) => {
                      :breadcrumbs="[
                          { label: info?.name ?? '', to: { name: 'elements.index', params: { iblock } } },
                          { label: isEdit ? form.fields.name : 'Новый элемент' },
-                     ]" />
+                     ]" >
+            <template v-if="isEdit" #actions>
+                <NButton variant="secondary" icon="grip" :to="{ name: 'properties.index', params: { iblock } }">
+                    Свойства
+                </NButton>
+
+            </template>
+        </NPageHeader>
 
         <form v-if="ready" class="space-y-6" @submit.prevent="save()">
             <NCard :padding="false">

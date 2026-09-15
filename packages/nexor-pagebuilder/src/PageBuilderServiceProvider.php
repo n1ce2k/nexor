@@ -8,10 +8,14 @@ use Nexor\Cms\Models\IblockElement;
 use Nexor\Cms\Support\Nexor;
 use Nexor\PageBuilder\Blocks\AccordionBlock;
 use Nexor\PageBuilder\Blocks\BlockRegistry;
+use Nexor\PageBuilder\Blocks\CatalogListBlock;
 use Nexor\PageBuilder\Blocks\HeaderBlock;
+use Nexor\PageBuilder\Blocks\LinkCardsBlock;
 use Nexor\PageBuilder\Blocks\PhotoBlock;
 use Nexor\PageBuilder\Blocks\QuoteBlock;
+use Nexor\PageBuilder\Blocks\SliderBlock;
 use Nexor\PageBuilder\Blocks\TableBlock;
+use Nexor\PageBuilder\Blocks\TabsBlock;
 use Nexor\PageBuilder\Blocks\TextBlock;
 use Nexor\PageBuilder\Blocks\TextImageBlock;
 use Nexor\PageBuilder\Blocks\VideoBlock;
@@ -34,7 +38,8 @@ class PageBuilderServiceProvider extends ServiceProvider
 
             foreach ([
                 new HeaderBlock, new TextBlock, new QuoteBlock, new TextImageBlock,
-                new PhotoBlock, new VideoBlock, new AccordionBlock, new TableBlock,
+                new PhotoBlock, new SliderBlock, new VideoBlock, new AccordionBlock,
+                new TabsBlock, new TableBlock, new LinkCardsBlock, new CatalogListBlock,
             ] as $block) {
                 $registry->register($block);
             }

@@ -109,6 +109,24 @@
 .pb-table table td { padding: 1rem 1.25rem; vertical-align: top; border: 1px solid var(--color-grey-400, #9ca3af); }
 .pb-table table tbody tr:nth-child(2n) { background-color: #fafafa; }
 
+/* ---------------------------------------------------- слайдер, каталог */
+
+.pb-slider, .pb-catalog-list__wrapper { position: relative; }
+.pb-slider__item { position: relative; aspect-ratio: 1 / 1; border-radius: 40px; overflow: hidden; }
+.pb-slider__item img { width: 100%; height: 100%; object-fit: cover; }
+.pb-slider .swiper-button-prev svg, .pb-slider .swiper-button-next svg { width: 24px; height: 24px; }
+.pb-slider .swiper-pagination-bullet-active, .pb-catalog-list .swiper-pagination-bullet-active { background: var(--color-black, #000); }
+.pb-block-header { margin-bottom: 1.5rem; }
+.pb-block-title { margin: 0 0 .75rem; color: var(--color-grey-dark, #202231); font-weight: 700; font-variation-settings: var(--font-weight-700); font-size: clamp(1.5rem, 1.136rem + 1.553vw, 3rem); line-height: 110%; letter-spacing: -.48px; }
+.pb-catalog-list .swiper-slide { height: auto; }
+.pb-catalog-list .swiper-slide > * { height: 100%; }
+
+/* Без Swiper на сайте карусель показывается обычной сеткой, а не стопкой. */
+.js-pb-slider:not(.swiper-initialized) .swiper-wrapper { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap: 20px; }
+.js-pb-slider:not(.swiper-initialized) .swiper-button-prev,
+.js-pb-slider:not(.swiper-initialized) .swiper-button-next,
+.js-pb-slider:not(.swiper-initialized) .swiper-pagination { display: none; }
+
 /* --------------------------------------------------------------- видео */
 
 .pb-video__wrapper { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 40px; overflow: hidden; background-color: #000; }
@@ -139,6 +157,43 @@
 .nw-accordion__body-wrap { display: flex; flex-direction: column; gap: 1.5625rem; color: var(--color-white, #fff); font-size: 1rem; font-weight: 500; font-variation-settings: var(--font-weight-500); line-height: 130%; letter-spacing: -.16px; }
 .nw-accordion__body-wrap p { margin: 0; }
 
+/* ---------------------------------------------------------------- табы */
+
+.nw-pb-tabs { display: flex; flex-direction: column; gap: clamp(2.5rem, 2.197rem + 1.294vw, 3.75rem); }
+.nw-pb-tabs__nav { display: flex; justify-content: space-between; border-radius: 24px; background: var(--color-blue-50, #eff5ff); overflow-y: hidden; overflow-x: auto; scrollbar-width: none; }
+.nw-pb-tabs__nav::-webkit-scrollbar { display: none; }
+.nw-pb-tabs__btn { position: relative; flex: 0 1 100%; min-width: fit-content; padding: 1rem 1.5rem; border: 0; background: transparent; color: var(--color-blue-600, #2967eb); font: inherit; font-size: 1rem; font-weight: 600; font-variation-settings: var(--font-weight-600); line-height: 110%; letter-spacing: -.16px; text-align: center; transition: color .2s, background-color .2s; cursor: pointer; }
+.nw-pb-tabs__btn:first-child { border-radius: 24px 0 0 24px; }
+.nw-pb-tabs__btn:last-child { border-radius: 0 24px 24px 0; }
+.nw-pb-tabs__btn:hover, .nw-pb-tabs__btn[data-active] { color: var(--color-white, #fff); background-color: var(--color-blue-600, #2967eb); }
+.nw-pb-tabs__pane { animation: pbFadeIn .4s ease-in-out; }
+.nw-pb-tabs__pane[hidden] { display: none; }
+
+@keyframes pbFadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ------------------------------------------------------ ссылки / файлы */
+
+.pb-block-description { margin-bottom: 1.5rem; color: var(--color-grey-700, #4b5563); }
+.pb-block-description p { margin: 0 0 .75rem; }
+.pb-block-description p:last-child { margin-bottom: 0; }
+.pb-cards-grid { display: grid; gap: 20px; grid-template-columns: repeat(3, 1fr); }
+.pb-cards-grid--cols-1 { grid-template-columns: 1fr; }
+.pb-cards-grid--cols-2 { grid-template-columns: repeat(2, 1fr); }
+.pb-cards-grid--cols-3 { grid-template-columns: repeat(3, 1fr); }
+.pb-cards-grid--cols-4 { grid-template-columns: repeat(4, 1fr); }
+.pb-card-item { display: block; height: 100%; padding: 1.5rem; border-radius: 20px; background-color: var(--color-grey-50, #f6f7f9); color: var(--color-grey-dark, #202231); text-decoration: none; transition: background-color .2s, color .2s; }
+.pb-card-item:hover { background-color: var(--color-blue-50, #eff5ff); color: var(--color-blue-600, #2967eb); }
+.pb-card-body { display: flex; height: 100%; gap: 1rem; }
+.pb-cards--apps .pb-card-body { align-items: center; justify-content: space-between; }
+.pb-cards--docs .pb-card-body { flex-direction: column; justify-content: space-between; min-height: 8rem; }
+.pb-card-text, .pb-card-text-bottom { font-size: 1rem; font-weight: 600; font-variation-settings: var(--font-weight-600); line-height: 130%; letter-spacing: -.16px; }
+.pb-card-image { flex: 0 0 auto; width: 64px; height: 64px; }
+.pb-card-image img { width: 100%; height: 100%; object-fit: contain; }
+.pb-card-icon-wrap { display: flex; align-items: center; justify-content: center; width: 2.75rem; height: 2.75rem; border-radius: 50%; background-color: var(--color-white, #fff); color: var(--color-blue-600, #2967eb); }
+
 /* ------------------------------------------------------------ адаптив */
 
 @media (max-width: 61.9375em) {
@@ -150,6 +205,11 @@
     .pb-text-image .pb-text-image__grid { grid-template-columns: 100%; grid-template-areas: "text" "image"; }
     .pb-video .pb-video__grid { grid-template-columns: 100%; grid-template-areas: "video" "text"; }
     .pb-text__content.is-col-2 { grid-template-columns: 100%; }
+    .pb-cards-grid--cols-3, .pb-cards-grid--cols-4 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 36em) {
+    .pb-cards-grid--cols-2, .pb-cards-grid--cols-3, .pb-cards-grid--cols-4 { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 48em) {

@@ -5,9 +5,13 @@ namespace Tests\Feature\PageBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\View;
+use Nexor\Cms\Models\CatalogProduct;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\IblockElement;
+use Nexor\Cms\Models\IblockSection;
 use Nexor\Cms\Models\IblockType;
 use Nexor\Cms\Support\Nexor;
 use Nexor\PageBuilder\Models\Layout;
@@ -225,6 +229,30 @@ class PageBuilderTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_a_document_is_uploaded_but_html_dressed_as_pdf_is_not(): void
+    {
+        Storage::fake('public');
+        $iblock = $this->iblock();
+        $admin = $this->superAdmin();
+
+        $this->actingAs($admin)
+            ->post('/admin/api/pagebuilder/uploads', [
+                'iblock' => $iblock->id,
+                'kind' => 'document',
+                'file' => UploadedFile::fake()->createWithContent('price.pdf', "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF"),
+            ], ['Accept' => 'application/json'])
+            ->assertCreated();
+
+        $this->actingAs($admin)
+            ->post('/admin/api/pagebuilder/uploads', [
+                'iblock' => $iblock->id,
+                'kind' => 'document',
+                // Фейковый файл узнаёт тип по имени — задаём тот, что определит содержимое.
+                'file' => UploadedFile::fake()->createWithContent('price.pdf', '<html><script>alert(1)</script></html>')->mimeType('text/html'),
+            ], ['Accept' => 'application/json'])
+            ->assertJsonValidationErrors('file');
+    }
+
     public function test_svg_and_html_are_not_accepted_as_pictures(): void
     {
         Storage::fake('public');
@@ -245,7 +273,10 @@ class PageBuilderTest extends TestCase
         $types = collect($this->actingAs($this->superAdmin())->getJson('/admin/api/pagebuilder/blocks')->assertOk()->json('data'))
             ->pluck('type');
 
-        $this->assertSame(['header', 'text', 'quote', 'text_image', 'photo', 'video', 'accordion', 'table'], $types->all());
+        $this->assertSame(
+            ['header', 'text', 'quote', 'text_image', 'photo', 'slider', 'video', 'accordion', 'tabs', 'table', 'link_cards', 'catalog_list'],
+            $types->all(),
+        );
     }
 
     // ----------------------------------------------------------------- сайт
@@ -323,6 +354,226 @@ class PageBuilderTest extends TestCase
         $this->assertStringContainsString('id="block-h1"', $html);
         $this->assertStringContainsString('<a href="#block-h1" class="pb-aside__menu-link js-scroll-to" rel="nofollow">К заголовку</a>', $html);
         $this->assertStringNotContainsString('В никуда', $html);
+    }
+
+    public function test_tabs_render_with_the_chosen_tab_open(): void
+    {
+        $element = IblockElement::factory()->for($this->iblock())->create();
+
+        PageBuilder::save($element, ['blocks' => [[
+            'id' => 't1',
+            'type' => 'tabs',
+            'data' => [
+                'activeTabId' => 'second',
+                'items' => [
+                    ['id' => 'first', 'title' => 'Описание', 'content' => '<p>Раз</p>'],
+                    ['id' => 'second', 'title' => 'Характеристики', 'content' => '<p>Два<script>x</script></p>'],
+                    ['id' => 'empty', 'title' => '', 'content' => '<p><br></p>'],
+                ],
+            ],
+        ]]]);
+
+        $html = PageBuilder::render($element->fresh('iblock'))->toHtml();
+
+        $this->assertStringContainsString('class="pb-block pb-tabs "', $html);
+        $this->assertStringContainsString('<div class="nw-pb-tabs" data-tabs>', $html);
+        $this->assertSame(2, substr_count($html, 'class="nw-pb-tabs__btn"'));
+        $this->assertMatchesRegularExpression('~data-tab-target="tab_t1_second"\s+data-active~', $html);
+        $this->assertMatchesRegularExpression('~data-tab-content="tab_t1_first"\s+hidden~', $html);
+        $this->assertStringNotContainsString('<script>x', $html);
+    }
+
+    public function test_link_cards_point_at_the_uploaded_file_or_the_link(): void
+    {
+        $element = IblockElement::factory()->for($this->iblock())->create();
+
+        PageBuilder::save($element, ['blocks' => [[
+            'id' => 'l1',
+            'type' => 'link_cards',
+            'data' => [
+                'variant' => 'docs',
+                'cols' => 2,
+                'items' => [
+                    ['text' => 'Прайс', 'file' => ['path' => 'pagebuilder/price.pdf'], 'isDownload' => true],
+                    ['text' => "Сайт\nпартнёра", 'link' => 'https://example.com'],
+                ],
+            ],
+        ]]]);
+
+        $html = PageBuilder::render($element->fresh('iblock'))->toHtml();
+
+        $this->assertStringContainsString('class="pb-block pb-link-cards pb-cards--docs "', $html);
+        $this->assertStringContainsString('class="pb-cards-grid pb-cards-grid--cols-2"', $html);
+        $this->assertMatchesRegularExpression('~href="[^"]*pagebuilder/price\.pdf" class="pb-card-item"\s+download~', $html);
+        $this->assertMatchesRegularExpression('~href="https://example\.com" class="pb-card-item"\s+target="_blank" rel="nofollow"~', $html);
+        $this->assertStringContainsString('Сайт<br />', $html);
+    }
+
+    public function test_a_link_card_cannot_carry_javascript(): void
+    {
+        $iblock = $this->iblock();
+
+        $this->actingAs($this->superAdmin())
+            ->postJson("/admin/api/iblocks/{$iblock->id}/elements", [
+                'name' => 'Страница',
+                'modules' => ['pagebuilder' => ['content' => $this->content([
+                    ['type' => 'link_cards', 'data' => ['items' => [['text' => 'Х', 'link' => 'javascript:alert(1)']]]],
+                ])]],
+            ])
+            ->assertJsonValidationErrors('modules.pagebuilder.content');
+    }
+
+    public function test_the_slider_renders_swiper_markup(): void
+    {
+        $element = IblockElement::factory()->for($this->iblock())->create();
+
+        PageBuilder::save($element, ['blocks' => [[
+            'id' => 's1',
+            'type' => 'slider',
+            'data' => [
+                'slidesPerView' => 2,
+                'gap' => 10,
+                'autoplay' => true,
+                'dots' => false,
+                'images' => [['path' => 'pagebuilder/1.jpg', 'alt' => 'Один'], ['path' => 'pagebuilder/2.jpg']],
+            ],
+        ]]]);
+
+        $html = PageBuilder::render($element->fresh('iblock'))->toHtml();
+
+        $this->assertStringContainsString('class="pb-block pb-slider "', $html);
+        $this->assertMatchesRegularExpression('~class="swiper js-pb-slider"\s+data-slides="2"\s+data-gap="10"\s+data-autoplay="true"~', $html);
+        $this->assertSame(2, substr_count($html, '<div class="swiper-slide">'));
+        $this->assertStringContainsString('swiper-button-next', $html);
+        $this->assertStringNotContainsString('swiper-pagination', $html);
+    }
+
+    public function test_the_catalog_block_shows_published_elements_of_a_section_with_its_children(): void
+    {
+        $page = IblockElement::factory()->for($this->iblock())->create();
+
+        $catalog = Iblock::factory()->create(['code' => 'katalog', 'is_active' => true, 'is_catalog' => true]);
+        $root = IblockSection::factory()->create(['iblock_id' => $catalog->id, 'code' => 'stulya']);
+        $child = IblockSection::factory()->childOf($root)->create(['code' => 'barnye']);
+        $other = IblockSection::factory()->create(['iblock_id' => $catalog->id, 'code' => 'stoly']);
+
+        $inRoot = IblockElement::factory()->for($catalog)->create(['name' => 'Стул венский', 'section_id' => $root->id, 'is_active' => true, 'sort' => 1]);
+        IblockElement::factory()->for($catalog)->create(['name' => 'Стул барный', 'section_id' => $child->id, 'is_active' => true, 'sort' => 2]);
+        IblockElement::factory()->for($catalog)->create(['name' => 'Стол', 'section_id' => $other->id, 'is_active' => true]);
+        IblockElement::factory()->for($catalog)->create(['name' => 'Стул в архиве', 'section_id' => $root->id, 'is_active' => false]);
+        CatalogProduct::factory()->create(['element_id' => $inRoot->id, 'price' => 1500, 'discount_percent' => 0]);
+
+        PageBuilder::save($page, ['blocks' => [[
+            'id' => 'c1',
+            'type' => 'catalog_list',
+            'data' => [
+                'title' => 'Похожие товары',
+                'source' => ['iblockId' => $catalog->id, 'selectionMode' => 'section', 'sectionId' => $root->id, 'sortBy' => 'sort'],
+                'view' => ['slidesPerView' => 3, 'arrows' => false],
+            ],
+        ]]]);
+
+        $html = PageBuilder::render($page->fresh('iblock'))->toHtml();
+
+        $this->assertStringContainsString('class="pb-block pb-catalog-list "', $html);
+        $this->assertStringContainsString('<h2 class="pb-block-title">Похожие товары</h2>', $html);
+        $this->assertMatchesRegularExpression('~data-slides="3"~', $html);
+        $this->assertLessThan(mb_strpos($html, 'Стул барный'), mb_strpos($html, 'Стул венский'));
+        $this->assertStringNotContainsString('Стол<', $html);
+        $this->assertStringNotContainsString('Стул в архиве', $html);
+        // Карточка каталога с ценой; кнопка магазина — внутри @feature('shop').
+        $this->assertStringContainsString('1 500', $html);
+        $this->assertStringNotContainsString('swiper-button-next', $html);
+    }
+
+    public function test_hand_picked_catalog_elements_keep_their_order_and_their_iblock(): void
+    {
+        $page = IblockElement::factory()->for($this->iblock())->create();
+        $catalog = Iblock::factory()->create(['code' => 'katalog', 'is_active' => true]);
+        $foreign = Iblock::factory()->create(['code' => 'drugoy', 'is_active' => true]);
+
+        $first = IblockElement::factory()->for($catalog)->create(['name' => 'Первый', 'is_active' => true]);
+        $second = IblockElement::factory()->for($catalog)->create(['name' => 'Второй', 'is_active' => true]);
+        $stranger = IblockElement::factory()->for($foreign)->create(['name' => 'Чужой', 'is_active' => true]);
+
+        $layout = PageBuilder::save($page, ['blocks' => [[
+            'type' => 'catalog_list',
+            'data' => ['source' => [
+                'iblockId' => $catalog->id,
+                'selectionMode' => 'manual',
+                'manualItems' => [['id' => $second->id], ['id' => $stranger->id], ['id' => $first->id]],
+            ]],
+        ]]]);
+
+        $this->assertSame(
+            [['id' => $second->id, 'name' => 'Второй'], ['id' => $first->id, 'name' => 'Первый']],
+            $layout->blocks()[0]['data']['source']['manualItems'],
+        );
+
+        $html = PageBuilder::render($page->fresh('iblock'))->toHtml();
+
+        $this->assertLessThan(mb_strpos($html, 'Первый'), mb_strpos($html, 'Второй'));
+        $this->assertStringNotContainsString('Чужой', $html);
+    }
+
+    public function test_the_catalog_block_uses_the_chosen_card_template(): void
+    {
+        // Свой шаблон карточки — во временной папке, чтобы не трогать шаблоны сайта.
+        $views = storage_path('framework/testing/pagebuilder-cards');
+        File::ensureDirectoryExists($views.'/components/catalog/card');
+        File::put($views.'/components/catalog/card/mini.blade.php', '<div class="mini-card">{{ $element->name }}</div>');
+        View::prependNamespace('nexor', $views);
+
+        try {
+            $page = IblockElement::factory()->for($this->iblock())->create();
+            $catalog = Iblock::factory()->create(['code' => 'katalog', 'is_active' => true]);
+            IblockElement::factory()->for($catalog)->create(['name' => 'Стул', 'is_active' => true]);
+
+            $layout = PageBuilder::save($page, ['blocks' => [[
+                'type' => 'catalog_list',
+                'data' => [
+                    // Вставили вместе с префиксом — он отрезается.
+                    'cardTemplate' => 'nexor::components.catalog.card.mini',
+                    'source' => ['iblockId' => $catalog->id, 'selectionMode' => 'all'],
+                ],
+            ]]]);
+
+            $this->assertSame('catalog.card.mini', $layout->blocks()[0]['data']['cardTemplate']);
+            $this->assertStringContainsString('<div class="mini-card">Стул</div>', PageBuilder::render($page->fresh('iblock'))->toHtml());
+
+            $this->actingAs($this->superAdmin())
+                ->getJson('/admin/api/pagebuilder/card-templates')
+                ->assertOk()
+                ->assertJsonPath('prefix', 'nexor::components.')
+                ->assertJsonFragment(['catalog.card.mini']);
+
+            // Шаблон удалили — на сайте стандартная карточка, а не ошибка.
+            File::delete($views.'/components/catalog/card/mini.blade.php');
+            View::getFinder()->flush();
+
+            $html = PageBuilder::render($page->fresh('iblock'))->toHtml();
+
+            $this->assertStringNotContainsString('mini-card', $html);
+            $this->assertStringContainsString('Стул', $html);
+        } finally {
+            File::deleteDirectory($views);
+        }
+    }
+
+    public function test_an_unknown_card_template_is_reported(): void
+    {
+        $iblock = $this->iblock();
+        $catalog = Iblock::factory()->create(['code' => 'katalog', 'is_active' => true]);
+
+        $this->actingAs($this->superAdmin())
+            ->postJson("/admin/api/iblocks/{$iblock->id}/elements", [
+                'name' => 'Страница',
+                'modules' => ['pagebuilder' => ['content' => $this->content([[
+                    'type' => 'catalog_list',
+                    'data' => ['cardTemplate' => 'catalog.card.net-takogo', 'source' => ['iblockId' => $catalog->id, 'selectionMode' => 'all']],
+                ]])]],
+            ])
+            ->assertJsonValidationErrors(['modules.pagebuilder.content' => 'шаблон карточки catalog.card.net-takogo не найден']);
     }
 
     public function test_blocks_saved_without_newer_keys_still_render(): void

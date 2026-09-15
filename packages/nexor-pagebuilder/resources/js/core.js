@@ -10,6 +10,7 @@ const Nexor = window.Nexor;
 export const api = Nexor.api;
 export const registerFormField = Nexor.registerFormField;
 export const useUi = Nexor.stores.useUi;
+export const useSession = Nexor.stores.useSession;
 export const Draggable = Nexor.vendor.draggable;
 
 export const {

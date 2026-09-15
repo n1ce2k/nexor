@@ -10,10 +10,10 @@ use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\Uploads;
 
 /**
- * Загрузка файлов в блоки: картинки и видео.
+ * Загрузка файлов в блоки: картинки, видео и документы.
  *
  * Загружать может только тот, кто вправе создавать или менять элементы этого
- * инфоблока. Принимаются только растровые картинки и видеофайлы: SVG и HTML
+ * инфоблока. Принимаются растровые картинки, видео и документы: SVG и HTML
  * с кодом внутри на сайт через конструктор не попадут.
  */
 class UploadController extends Controller
@@ -21,11 +21,13 @@ class UploadController extends Controller
     /**
      * Тип файла → проверка.
      *
-     * @var array<string, array{mimes: string, mimetypes: string, max: int}>
+     * @var array<string, array{mimes: string, mimetypes: string|null, max: int}>
      */
     protected const KINDS = [
         'image' => ['mimes' => 'jpg,jpeg,png,webp,gif', 'mimetypes' => 'image/jpeg,image/png,image/webp,image/gif', 'max' => 8192],
         'video' => ['mimes' => 'mp4,webm,ogv', 'mimetypes' => 'video/mp4,video/webm,video/ogg', 'max' => 102400],
+        // Документы проверяются по содержимому (mimes): HTML под видом .pdf не пройдёт.
+        'document' => ['mimes' => 'pdf,doc,docx,xls,xlsx,ppt,pptx,odt,ods,rtf,txt,csv,zip,rar,7z', 'mimetypes' => null, 'max' => 51200],
     ];
 
     public function store(Request $request): JsonResponse
@@ -35,7 +37,11 @@ class UploadController extends Controller
         $data = $request->validate([
             'kind' => ['nullable', 'in:'.implode(',', array_keys(self::KINDS))],
             'iblock' => ['required', 'integer'],
-            'file' => ['required', 'file', 'mimes:'.$kind['mimes'], 'mimetypes:'.$kind['mimetypes'], 'max:'.$kind['max']],
+            'file' => array_filter([
+                'required', 'file', 'mimes:'.$kind['mimes'],
+                $kind['mimetypes'] ? 'mimetypes:'.$kind['mimetypes'] : null,
+                'max:'.$kind['max'],
+            ]),
         ], [], ['file' => 'файл']);
 
         $iblock = Iblock::query()->findOrFail($data['iblock']);

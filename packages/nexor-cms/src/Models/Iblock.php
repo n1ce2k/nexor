@@ -163,6 +163,14 @@ class Iblock extends Model
     }
 
     /**
+     * Переключатель модуля у этого инфоблока: `moduleSetting('pagebuilder', 'detail')`.
+     */
+    public function moduleSetting(string $module, string $key, mixed $default = null): mixed
+    {
+        return data_get($this->settings, "modules.{$module}.{$key}", $default);
+    }
+
+    /**
      * How many elements one page of the public listing holds.
      *
      * Whenever the listing loads on demand — either because the operator turned

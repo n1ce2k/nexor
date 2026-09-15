@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Nexor\Cms\Enums\PaginationTemplate;
 use Nexor\Cms\Models\Iblock;
+use Nexor\Cms\Support\Modules\ModuleFields;
 
 /**
  * @mixin Iblock
@@ -43,6 +44,8 @@ class IblockResource extends JsonResource
             'product_iblock_id' => $this->product_iblock_id,
             'has_commerce' => $this->resource->hasCommerce(),
             'has_offers' => $this->resource->hasOffers(),
+            // Переключатели модулей: `module_settings.pagebuilder.detail`.
+            'module_settings' => ModuleFields::iblockSettingValues($this->resource),
             'is_active' => $this->is_active,
             'sort' => $this->sort,
             'elements_count' => $this->whenCounted('elements'),

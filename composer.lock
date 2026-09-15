@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "aee5fa909743656e3064dec96c844825",
+    "content-hash": "41a1a42b40d6b41e2da9b3f3a1dbff0f",
     "packages": [
         {
             "name": "brick/math",
@@ -2214,7 +2214,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/nexor-cms",
-                "reference": "96281b755d09e9297b0398b32ec7fa3fd815890b"
+                "reference": "7a06347bfdbbe9658906e51816a4d4b9615d3f88"
             },
             "require": {
                 "illuminate/auth": "^12.0|^13.0",
@@ -2236,6 +2236,9 @@
                     "providers": [
                         "Nexor\\Cms\\NexorServiceProvider"
                     ]
+                },
+                "branch-alias": {
+                    "dev-main": "0.2.x-dev"
                 }
             },
             "autoload": {
@@ -2268,16 +2271,67 @@
             }
         },
         {
+            "name": "n1ce2k/nexor-pagebuilder",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/nexor-pagebuilder",
+                "reference": "62e75dd9528c169b957b735111782a6b37e328bd"
+            },
+            "require": {
+                "ext-dom": "*",
+                "n1ce2k/nexor-cms": "^0.2",
+                "php": "^8.3"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Nexor\\PageBuilder\\PageBuilderServiceProvider"
+                    ]
+                },
+                "branch-alias": {
+                    "dev-main": "0.2.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Nexor\\PageBuilder\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Андрей Айнагоз",
+                    "email": "a.aynagoz@nastart-web.ru"
+                }
+            ],
+            "description": "Модуль «Конструктор страниц» для NEXOR CMS: детальная страница элемента из блоков.",
+            "keywords": [
+                "blocks",
+                "cms",
+                "laravel",
+                "nexor",
+                "page-builder"
+            ],
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
             "name": "n1ce2k/nexor-shop",
             "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "packages/nexor-shop",
-                "reference": "fd815568280ae6a92afd2315c41a31b982fd6aa1"
+                "reference": "1672165fbd3bb9eeb821cab6acf065e73550457c"
             },
             "require": {
                 "livewire/livewire": "^4.4",
-                "n1ce2k/nexor-cms": "*",
+                "n1ce2k/nexor-cms": "^0.2",
                 "php": "^8.3"
             },
             "type": "library",
@@ -2286,6 +2340,9 @@
                     "providers": [
                         "Nexor\\Shop\\ShopServiceProvider"
                     ]
+                },
+                "branch-alias": {
+                    "dev-main": "0.2.x-dev"
                 }
             },
             "autoload": {
@@ -8878,6 +8935,7 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "n1ce2k/nexor-cms": 20,
+        "n1ce2k/nexor-pagebuilder": 20,
         "n1ce2k/nexor-shop": 20
     },
     "prefer-stable": true,

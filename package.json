@@ -4,7 +4,7 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "build:packages": "vite build -c vite.nexor-cms.config.js && vite build -c vite.nexor-shop.config.js",
+        "build:packages": "vite build -c vite.nexor-cms.config.js && vite build -c vite.nexor-shop.config.js && vite build -c vite.nexor-pagebuilder.config.js",
         "dev": "vite"
     },
     "devDependencies": {

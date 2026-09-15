@@ -41,7 +41,7 @@ class NexorServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-        $this->mergeConfigFrom($this->path('config/nexor.php'), 'nexor');
+        $this->mergeNestedConfig($this->path('config/nexor.php'), 'nexor');
 
         // Модули регистрируются в register() своих провайдеров — раньше, чем
         // ядро в boot() подключит их маршруты.
@@ -268,6 +268,48 @@ class NexorServiceProvider extends ServiceProvider
         $this->publishes([
             $this->path('resources/views/components') => resource_path('views/vendor/nexor/components'),
         ], 'nexor-components');
+    }
+
+    /**
+     * Как `mergeConfigFrom`, но и во вложенных разделах.
+     *
+     * Опубликованный `config/nexor.php` мог появиться раньше нового ключа
+     * пакета: штатное слияние заменило бы раздел `panel` целиком, и ключ
+     * `panel.assets` пропал бы вместе с `NEXOR_PANEL_ASSETS`. Здесь недостающие
+     * ключи берутся из пакета, а списки (массивы без ключей) сайта не
+     * смешиваются с пакетными.
+     */
+    protected function mergeNestedConfig(string $path, string $key): void
+    {
+        if ($this->app->configurationIsCached()) {
+            return;
+        }
+
+        $config = $this->app->make('config');
+
+        $config->set($key, $this->withDefaults($config->get($key, []), require $path));
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $values
+     * @param  array<array-key, mixed>  $defaults
+     * @return array<array-key, mixed>
+     */
+    protected function withDefaults(array $values, array $defaults): array
+    {
+        if (array_is_list($values) && $values !== []) {
+            return $values;
+        }
+
+        foreach ($defaults as $name => $default) {
+            if (! array_key_exists($name, $values)) {
+                $values[$name] = $default;
+            } elseif (is_array($values[$name]) && is_array($default) && ! array_is_list($default)) {
+                $values[$name] = $this->withDefaults($values[$name], $default);
+            }
+        }
+
+        return $values;
     }
 
     protected function path(string $relative): string

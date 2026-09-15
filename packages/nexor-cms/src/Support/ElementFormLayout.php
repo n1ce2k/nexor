@@ -6,6 +6,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\IblockProperty;
+use Nexor\Cms\Support\Modules\ModuleFields;
 
 /**
  * Which tabs the element form has, and which field sits on each of them.
@@ -110,7 +111,28 @@ class ElementFormLayout
             $fields['offers'] = ['label' => 'Торговые предложения', 'tab' => 'offers'];
         }
 
+        // Поля модулей — у каждого своя вкладка, например «Конструктор».
+        foreach (ModuleFields::elementFields($iblock) as $key => $field) {
+            $fields[$key] = ['label' => $field['label'], 'tab' => $field['tab']];
+        }
+
         return $fields;
+    }
+
+    /**
+     * Вкладки, которые появляются не у всех: торговые и вкладки модулей.
+     *
+     * @return array<string, string>
+     */
+    protected static function extraTabs(Iblock $iblock): array
+    {
+        $tabs = self::commerceTabs();
+
+        foreach (ModuleFields::elementFields($iblock) as $field) {
+            $tabs[$field['tab']] ??= $field['tab_label'];
+        }
+
+        return $tabs;
     }
 
     /**
@@ -139,7 +161,11 @@ class ElementFormLayout
         $fields = [];
 
         foreach (self::knownFields($iblock) as $key => $field) {
-            $group = str_starts_with($key, 'catalog.') || $key === 'offers' ? 'catalog' : 'base';
+            $group = match (true) {
+                str_starts_with($key, 'catalog.') || $key === 'offers' => 'catalog',
+                str_starts_with($key, ModuleFields::PREFIX) => 'module',
+                default => 'base',
+            };
 
             $fields[$key] = ['key' => $key, 'label' => $field['label'], 'group' => $group];
         }
@@ -181,13 +207,14 @@ class ElementFormLayout
         // инфоблок могли сделать каталогом уже после настройки формы.
         $orphans = array_values(array_diff($known, $placed));
         $defaults = self::knownFields($iblock);
+        $extraTabs = self::extraTabs($iblock);
 
         foreach ($orphans as $field) {
             $tabKey = $defaults[$field]['tab'] ?? null;
             $index = $tabKey === null ? false : array_search($tabKey, array_column($tabs, 'key'), true);
 
-            if ($index === false && $tabKey !== null && isset(self::commerceTabs()[$tabKey])) {
-                $tabs[] = ['key' => $tabKey, 'label' => self::commerceTabs()[$tabKey], 'fields' => []];
+            if ($index === false && $tabKey !== null && isset($extraTabs[$tabKey])) {
+                $tabs[] = ['key' => $tabKey, 'label' => $extraTabs[$tabKey], 'fields' => []];
                 $index = array_key_last($tabs);
             }
 
@@ -213,6 +240,8 @@ class ElementFormLayout
             $tabList += self::commerceTabs();
         }
 
+        $tabList += self::extraTabs($iblock);
+
         foreach ($tabList as $key => $label) {
             $fields = array_keys(array_filter(
                 $known,
@@ -220,7 +249,7 @@ class ElementFormLayout
             ));
 
             // Вкладка без полей — например, «Предложения» у самих предложений.
-            if ($fields === [] && isset(self::commerceTabs()[$key])) {
+            if ($fields === [] && ! isset(self::defaultTabs()[$key])) {
                 continue;
             }
 

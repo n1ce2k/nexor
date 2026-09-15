@@ -123,13 +123,23 @@
         </section>
     @endif
 
-    <div class="space-y-4 leading-relaxed text-slate-700">
-        @if ($element->detail_text_type === 'html')
-            {!! $element->detail_text !!}
-        @else
-            {!! nl2br(e($element->detail_text)) !!}
-        @endif
-    </div>
+    {{-- Конструктор страниц (модуль pagebuilder): если у инфоблока он включён и
+         блоки заполнены — они выводятся вместо подробного текста. --}}
+    @feature('pagebuilder')
+        @php($pageBuilder = \Nexor\PageBuilder\PageBuilder::render($element)->toHtml())
+    @endfeature
+
+    @if (! empty($pageBuilder))
+        {!! $pageBuilder !!}
+    @else
+        <div class="space-y-4 leading-relaxed text-slate-700">
+            @if ($element->detail_text_type === 'html')
+                {!! $element->detail_text !!}
+            @else
+                {!! nl2br(e($element->detail_text)) !!}
+            @endif
+        </div>
+    @endif
 
     @if ($showProperties)
         <dl class="mt-8 grid gap-2 text-sm">

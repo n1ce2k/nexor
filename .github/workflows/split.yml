@@ -1,10 +1,10 @@
 # Разносит пакеты монорепо по отдельным репозиториям — только из них их
 # умеют ставить Composer и Packagist (composer.json должен лежать в корне).
 #
-#   push в main  → ветка main в n1ce2k/nexor-cms и n1ce2k/nexor-shop
-#   тег v0.2.2   → тот же тег в обоих репозиториях → новая версия на Packagist
+#   push в main  → ветка main в n1ce2k/nexor-cms, n1ce2k/nexor-shop и n1ce2k/nexor-pagebuilder
+#   тег v0.2.2   → тот же тег во всех репозиториях → новая версия на Packagist
 #
-# Нужен секрет ACCESS_TOKEN: личный токен GitHub с правом записи в оба репозитория.
+# Нужен секрет ACCESS_TOKEN: личный токен GitHub с правом записи во все эти репозитории.
 
 name: Split packages
 
@@ -29,6 +29,8 @@ jobs:
             repository: nexor-cms
           - path: packages/nexor-shop
             repository: nexor-shop
+          - path: packages/nexor-pagebuilder
+            repository: nexor-pagebuilder
 
     steps:
       - uses: actions/checkout@v4

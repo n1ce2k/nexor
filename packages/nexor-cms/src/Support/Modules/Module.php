@@ -3,6 +3,8 @@
 namespace Nexor\Cms\Support\Modules;
 
 use Nexor\Cms\Enums\License;
+use Nexor\Cms\Models\Iblock;
+use Nexor\Cms\Models\IblockElement;
 
 /**
  * Описание модуля NEXOR.
@@ -93,6 +95,64 @@ abstract class Module
     public function panelAssets(): ?array
     {
         return null;
+    }
+
+    /**
+     * Переключатели модуля в карточке «Параметры» формы инфоблока.
+     *
+     * Значения лежат в `iblocks.settings.modules.<код модуля>.<ключ>`, читаются
+     * через `$iblock->moduleSetting('pagebuilder', 'detail')`.
+     *
+     * @return array<string, array{label: string, hint?: string, default?: bool}>
+     */
+    public function iblockSettings(): array
+    {
+        return [];
+    }
+
+    /**
+     * Поля формы элемента, которые добавляет модуль.
+     *
+     * В раскладке формы поле называется `module:<код>.<ключ>`, в запросе
+     * приходит как `modules[<код>][<ключ>]`. В панели его рисует компонент,
+     * зарегистрированный через `Nexor.registerFormField('<код>.<ключ>', …)`.
+     *
+     * @return array<string, array{label: string, tab: string, tab_label: string}>
+     */
+    public function elementFields(Iblock $iblock): array
+    {
+        return [];
+    }
+
+    /**
+     * Правила проверки своих полей элемента; ключи — без префикса `modules.<код>.`.
+     *
+     * @return array<string, mixed>
+     */
+    public function elementRules(Iblock $iblock): array
+    {
+        return [];
+    }
+
+    /**
+     * Сохранённые значения своих полей — для формы элемента.
+     *
+     * @return array<string, mixed>
+     */
+    public function elementValues(IblockElement $element): array
+    {
+        return [];
+    }
+
+    /**
+     * Сохраняет свои поля; вызывается после сохранения самого элемента.
+     * Приходят только проверенные значения, которые были в запросе.
+     *
+     * @param  array<string, mixed>  $values
+     */
+    public function saveElement(IblockElement $element, array $values): void
+    {
+        //
     }
 
     /**

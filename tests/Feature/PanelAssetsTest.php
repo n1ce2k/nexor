@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Nexor\Cms\NexorServiceProvider;
 use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\PanelAssets;
 use Tests\Concerns\CreatesAdminUsers;
@@ -55,6 +56,20 @@ class PanelAssetsTest extends TestCase
         $this->get('/admin/nexor-assets/nexor/..%2F..%2Fcomposer.json')->assertNotFound();
         $this->get('/admin/nexor-assets/nexor/manifest.json')->assertNotFound();
         $this->get('/admin/nexor-assets/unknown/panel.js')->assertNotFound();
+    }
+
+    public function test_an_old_published_config_still_gets_new_nested_keys(): void
+    {
+        // Опубликованный конфиг сайта без ключа panel.assets, как до его появления.
+        config(['nexor' => ['panel' => ['default' => 'vue'], 'panel_extensions' => ['resources/js/site-panel.js']]]);
+
+        (new NexorServiceProvider($this->app))->register();
+
+        $this->assertSame('vue', config('nexor.panel.default'));
+        // Значение зависит от NEXOR_PANEL_ASSETS в .env — важно, что ключ вернулся.
+        $this->assertContains(config('nexor.panel.assets'), ['dist', 'vite']);
+        $this->assertSame('classic', config('nexor.panel.classic_path'));
+        $this->assertSame(['resources/js/site-panel.js'], config('nexor.panel_extensions'));
     }
 
     public function test_a_switched_off_module_does_not_load_its_pages(): void

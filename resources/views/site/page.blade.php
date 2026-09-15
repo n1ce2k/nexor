@@ -34,13 +34,23 @@
             </p>
         @endif
 
-        <div class="prose-site">
-            @if ($page->detail_text_type === 'html')
-                {{-- Detail text is authored in the admin panel by trusted editors. --}}
-                {!! $page->detail_text !!}
-            @else
-                {!! nl2br(e($page->detail_text)) !!}
-            @endif
-        </div>
+        {{-- Конструктор страниц (модуль pagebuilder): если у инфоблока он включён и
+             блоки заполнены — они выводятся вместо подробного текста. --}}
+        @feature('pagebuilder')
+            @php($pageBuilder = \Nexor\PageBuilder\PageBuilder::render($page)->toHtml())
+        @endfeature
+
+        @if (! empty($pageBuilder))
+            {!! $pageBuilder !!}
+        @else
+            <div class="prose-site">
+                @if ($page->detail_text_type === 'html')
+                    {{-- Detail text is authored in the admin panel by trusted editors. --}}
+                    {!! $page->detail_text !!}
+                @else
+                    {!! nl2br(e($page->detail_text)) !!}
+                @endif
+            </div>
+        @endif
     </article>
 @endsection

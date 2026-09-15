@@ -2,6 +2,7 @@ import * as Vue from 'vue';
 import * as VueRouter from 'vue-router';
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
+import Draggable from 'vuedraggable';
 
 import App from './App.vue';
 import { createPanelRouter } from './router';
@@ -14,8 +15,10 @@ import { useUi } from './stores/ui';
 import NBadge from './components/ui/NBadge.vue';
 import NButton from './components/ui/NButton.vue';
 import NCard from './components/ui/NCard.vue';
+import NEditor from './components/ui/NEditor.vue';
 import NEmpty from './components/ui/NEmpty.vue';
 import NField from './components/ui/NField.vue';
+import NHtmlInput from './components/ui/NHtmlInput.vue';
 import NIcon from './components/ui/NIcon.vue';
 import NInput from './components/ui/NInput.vue';
 import NModal from './components/ui/NModal.vue';
@@ -69,11 +72,11 @@ const Nexor = {
      * Модули собираются отдельно от панели и берут Vue и роутер отсюда: две копии
      * Vue на одной странице не видят реактивность и хранилища друг друга.
      */
-    vendor: { vue: Vue, vueRouter: VueRouter },
+    vendor: { vue: Vue, vueRouter: VueRouter, draggable: Draggable },
 
     /** UI-кит панели — чтобы страницы модулей выглядели как родные. */
     ui: {
-        NBadge, NButton, NCard, NEmpty, NField, NIcon, NInput,
+        NBadge, NButton, NCard, NEditor, NEmpty, NField, NHtmlInput, NIcon, NInput,
         NModal, NPageHeader, NPagination, NSelect, NTable, NTabs, NToggle,
     },
 
@@ -82,6 +85,7 @@ const Nexor = {
     registerPage: registry.registerPage,
     registerMenuItem: registry.registerMenuItem,
     registerColumn: registry.registerColumn,
+    registerFormField: registry.registerFormField,
     on: registry.on,
     emit: registry.emit,
     stores: { useSession, useUi },

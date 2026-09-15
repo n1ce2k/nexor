@@ -17,7 +17,7 @@ import PropertyField from '../../components/fields/PropertyField.vue';
 import { api, toFormData } from '../../api';
 import { propertyText, useFieldPrefs } from '../../composables/useFieldPrefs';
 import { slugify, useForm } from '../../composables/useForm';
-import { emit as emitHook } from '../../registry';
+import { emit as emitHook, resolveFormField } from '../../registry';
 import { useSession } from '../../stores/session';
 import { useUi } from '../../stores/ui';
 
@@ -38,6 +38,9 @@ const ui = useUi();
 
 const schema = ref(null);
 const values = ref({});
+
+/** Значения полей модулей: { 'pagebuilder.content': … }. */
+const moduleValues = ref({});
 const codeTouched = ref(false);
 const ready = ref(false);
 
@@ -255,6 +258,17 @@ function propertyOf(key) {
     return key.startsWith('prop:') ? propertyByCode.value[key.slice(5)] : null;
 }
 
+const MODULE_PREFIX = 'module:';
+
+/** Поле модуля на вкладке: `module:pagebuilder.content` → `pagebuilder.content`. */
+function moduleFieldOf(key) {
+    return key.startsWith(MODULE_PREFIX) ? key.slice(MODULE_PREFIX.length) : null;
+}
+
+function moduleFieldLabel(key) {
+    return fieldCatalogue.value.find((field) => field.key === key)?.label ?? '';
+}
+
 /** Fields the infoblock does not use are dropped rather than rendered empty. */
 function isVisible(key) {
     if (key === 'section_id') {
@@ -277,6 +291,11 @@ function isVisible(key) {
         return Boolean(info.value?.has_commerce) && !usesOffers.value;
     }
 
+    // Поле модуля видно, только если модуль принёс в панель свой компонент.
+    if (moduleFieldOf(key)) {
+        return Boolean(resolveFormField(moduleFieldOf(key)));
+    }
+
     return key.startsWith('prop:') ? Boolean(propertyOf(key)) : true;
 }
 
@@ -288,12 +307,20 @@ function visibleFields(tab) {
 function errorOf(key) {
     const property = propertyOf(key);
 
+    if (moduleFieldOf(key)) {
+        return form.error(`modules.${moduleFieldOf(key)}`);
+    }
+
     return property ? form.error(`properties.${property.code}`) : form.error(key);
 }
 
 /** Text-ish and multiple editors get the full width of the grid. */
 function wide(key) {
     const property = propertyOf(key);
+
+    if (moduleFieldOf(key)) {
+        return true;
+    }
 
     if (property) {
         return property.is_multiple || ['text', 'html', 'json', 'file', 'image'].includes(property.type);
@@ -392,6 +419,20 @@ function buildPayload() {
     if (parentId.value && info.value?.product_iblock_id) {
         body.append('parent_element_id', parentId.value);
     }
+
+    // Поля модулей: объект уходит JSON-строкой — многоуровневые данные вроде
+    // блоков конструктора FormData иначе разложил бы с потерей типов.
+    Object.entries(moduleValues.value).forEach(([path, value]) => {
+        const [module, field] = path.split('.');
+
+        if (value === undefined) {
+            return;
+        }
+
+        body.append(`modules[${module}][${field}]`, value !== null && typeof value === 'object'
+            ? JSON.stringify(value)
+            : (value ?? ''));
+    });
 
     properties.value.forEach((property) => {
         const value = values.value[property.code];
@@ -492,6 +533,7 @@ function resetState() {
         },
     });
     codeTouched.value = false;
+    moduleValues.value = {};
     parentId.value = null;
     offers.value = [];
     offersIblock.value = null;
@@ -563,6 +605,15 @@ async function load() {
                     : (stored ?? blanks[property.code]);
             });
 
+            const modules = {};
+
+            Object.entries(data.modules ?? {}).forEach(([module, fields]) => {
+                Object.entries(fields ?? {}).forEach(([field, value]) => {
+                    modules[`${module}.${field}`] = value;
+                });
+            });
+
+            moduleValues.value = modules;
             codeTouched.value = true;
         }
 
@@ -628,7 +679,11 @@ watch(() => [props.iblock, props.element], (next, previous) => {
                 <div v-if="currentTab" class="grid gap-5 p-5 sm:grid-cols-2">
                     <template v-for="key in visibleFields(currentTab)" :key="key">
                         <div :class="wide(key) && 'sm:col-span-2'">
-                            <PropertyField v-if="propertyOf(key)" :property="propertyOf(key)"
+                            <component :is="resolveFormField(moduleFieldOf(key))" v-if="moduleFieldOf(key)"
+                                       v-model="moduleValues[moduleFieldOf(key)]" :iblock="info"
+                                       :element="element" :label="moduleFieldLabel(key)" :error="errorOf(key)" />
+
+                            <PropertyField v-else-if="propertyOf(key)" :property="propertyOf(key)"
                                            :options="schema.options?.[propertyOf(key).code] ?? []"
                                            :error="errorOf(key)"
                                            v-model="values[propertyOf(key).code]" />

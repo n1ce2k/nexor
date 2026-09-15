@@ -14,6 +14,7 @@ export default defineConfig({
                 'packages/nexor-cms/resources/js/admin.js',
                 'packages/nexor-cms/resources/js/panel/main.js',
                 'packages/nexor-shop/resources/js/panel.js',
+                'packages/nexor-pagebuilder/resources/js/panel.js',
             ],
             refresh: true,
             fonts: [

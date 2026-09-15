@@ -16,8 +16,25 @@ export const registry = shallowReactive({
     pages: [],
     menuItems: [],
     columns: {},
+    formFields: {},
     hooks: {},
 });
+
+/**
+ * Поле формы элемента от модуля: `registerFormField('pagebuilder.content', BuilderField)`.
+ *
+ * Сервер кладёт его в раскладку как `module:pagebuilder.content`. Компонент
+ * получает `modelValue`, `iblock` (схема инфоблока), `element` (id или null),
+ * `label`, `error` и отдаёт `update:modelValue`. Значение-объект уходит на
+ * сервер JSON-строкой в `modules[pagebuilder][content]`.
+ */
+export function registerFormField(key, component) {
+    registry.formFields[key] = markRaw(component);
+}
+
+export function resolveFormField(key) {
+    return registry.formFields[key] ?? null;
+}
 
 /**
  * Map a property type onto the component that edits it.

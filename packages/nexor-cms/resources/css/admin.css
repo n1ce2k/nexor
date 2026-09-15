@@ -13,6 +13,7 @@
  * Рядом с ядром пакет лежит и в монорепо (packages/), и в vendor/n1ce2k/.
  */
 @source '../../../nexor-shop/resources/js';
+@source '../../../nexor-pagebuilder/resources/js';
 
 @custom-variant dark (&:where(.dark, .dark *));
 

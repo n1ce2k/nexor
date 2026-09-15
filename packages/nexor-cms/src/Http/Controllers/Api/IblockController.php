@@ -10,6 +10,7 @@ use Nexor\Cms\Http\Resources\IblockResource;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Support\ActivityLogger;
 use Nexor\Cms\Support\CatalogManager;
+use Nexor\Cms\Support\Modules\ModuleFields;
 use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\PageGenerator;
 use Nexor\Cms\Support\Uploads;
@@ -46,7 +47,8 @@ class IblockController extends ApiController
 
     public function store(IblockRequest $request): JsonResponse
     {
-        $iblock = new Iblock($request->safe()->except(['picture', 'picture_remove']));
+        $iblock = new Iblock($request->safe()->except(['picture', 'picture_remove', 'module_settings']));
+        ModuleFields::applyIblockSettings($iblock, (array) $request->validated('module_settings', []));
         $iblock->picture = Uploads::handle($request, 'picture', null, Nexor::directory('iblocks'));
         $iblock->save();
 
@@ -63,7 +65,8 @@ class IblockController extends ApiController
 
     public function update(IblockRequest $request, Iblock $iblock): JsonResponse
     {
-        $iblock->fill($request->safe()->except(['picture', 'picture_remove']));
+        $iblock->fill($request->safe()->except(['picture', 'picture_remove', 'module_settings']));
+        ModuleFields::applyIblockSettings($iblock, (array) $request->validated('module_settings', []));
         $iblock->picture = Uploads::handle($request, 'picture', $iblock->picture, Nexor::directory('iblocks'));
         $iblock->save();
 

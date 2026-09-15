@@ -6,6 +6,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Nexor\Cms\Enums\ElementUrl;
 use Nexor\Cms\Enums\PaginationTemplate;
+use Nexor\Cms\Support\Modules\ModuleFields;
 
 class IblockRequest extends FormRequest
 {
@@ -19,7 +20,7 @@ class IblockRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        return ModuleFields::iblockSettingRules() + [
             'iblock_type_id' => ['required', 'integer', Rule::exists('iblock_types', 'id')],
             'code' => [
                 'required', 'string', 'max:190', 'regex:/^[a-z0-9_-]+$/',

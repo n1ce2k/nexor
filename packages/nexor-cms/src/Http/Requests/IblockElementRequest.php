@@ -9,6 +9,7 @@ use Nexor\Cms\Enums\Currency;
 use Nexor\Cms\Enums\ProductType;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\IblockProperty;
+use Nexor\Cms\Support\Modules\ModuleFields;
 use Nexor\Cms\Support\PropertyValues;
 
 class IblockElementRequest extends FormRequest
@@ -83,6 +84,9 @@ class IblockElementRequest extends FormRequest
                     ->whereNull('deleted_at'),
             ];
         }
+
+        // Поля модулей: `modules.pagebuilder.content` и т. п.
+        $base += ModuleFields::elementRules($iblock);
 
         return array_merge($base, PropertyValues::rules($this->properties()));
     }

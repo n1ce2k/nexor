@@ -29,15 +29,19 @@ php artisan nexor-pagebuilder:install
 | `quote` | Цитата | `text`, `showAuthor`, `author`, `role`, `avatar` |
 | `text_image` | Текст + Фото | `text`, `image`, `imagePosition` (left/right — `pb-text-image--right`) |
 | `photo` | Фото / Галерея | `images [{path, alt, title}]`, `layoutMode` (preset/custom), `presetId` (1, 2, 3, 4, 4_grid, 3_asym), `asymmetricDir`, `customCols`, `customVisible`, `showOverlay` («+N») |
+| `slider` | Слайдер | `images [{path, alt, title}]`, `slidesPerView` (1–6), `gap`, `autoplay`, `arrows`, `dots` |
 | `video` | Видео | `sourceType` (link/file), `url` или `file` + `poster`, `layout` (full/caption/split), `reverse`, `text`, `settings {autoplay, loop, muted, controls}` |
 | `accordion` | Аккордеон | `items [{title, content}]`, `openFirst`; разметка schema.org FAQPage |
+| `tabs` | Табы | `items [{id, title, content}]`, `activeTabId` — какая вкладка открыта |
 | `table` | Таблица | `rows [[ячейка, …]]`, `header` (первый ряд из `<th>`), `showTitle`, `title`, `titleTag` |
+| `catalog_list` | Каталог | `title`, `description`, `cardTemplate`, `source {iblockId, selectionMode (section/all/manual), sectionId, manualItems [{id, name}], sortBy (sort/active_from/name), limit}`, `view {slidesPerView, gap, arrows, dots}` |
+| `link_cards` | Ссылки / Файлы | `description`, `variant` (apps — текст и картинка, docs — документы), `cols` (1–4), `items [{text, link, file, image, isDownload}]` |
 
 У каждого блока есть `cssClass` — дополнительный класс секции. У всей раскладки — боковое меню `pb-aside` со ссылками на блоки (`settings.showSidebar`, `settings.sidebarItems`).
 
-Файлы (`image`, `avatar`, `file`, `poster`, `images[]`) хранятся путём в хранилище; шаблон получает `{ src, alt, title }`.
+Файлы (`image`, `avatar`, `file`, `poster`, `images[]`, файлы и картинки карточек) хранятся путём в хранилище; шаблон получает `{ src, alt, title }`.
 
-HTML из визуального редактора чистится при сохранении по белому списку: без скриптов, стилей, обработчиков и `javascript:`-ссылок. Видео встраивается только по адресу плеера, собранному из распознанной ссылки. Файлы загружает тот, у кого есть право менять элементы инфоблока: картинки jpg, png, webp, gif и видео mp4, webm.
+HTML из визуального редактора чистится при сохранении по белому списку: без скриптов, стилей, обработчиков и `javascript:`-ссылок. Видео встраивается только по адресу плеера, собранному из распознанной ссылки. Файлы загружает тот, у кого есть право менять элементы инфоблока: картинки jpg, png, webp, gif, видео mp4, webm и документы (pdf, doc(x), xls(x), ppt(x), odt, ods, rtf, txt, csv, zip, rar, 7z) — тип документа проверяется по содержимому.
 
 ## Стили и скрипт на сайте
 
@@ -45,7 +49,19 @@ HTML из визуального редактора чистится при со
 
 - оформление классов `pb-*` и `nw-*`; цвета берутся из переменных темы сайта (`--color-blue-600` и т. п.), без них — запасные;
 - аккордеон (`data-accordion`), табы (`data-tabs`), плавная прокрутка оглавления;
-- Fancybox для фото (`data-fancybox`) и Swiper для слайдеров — если сайт их подключил.
+- Fancybox для фото (`data-fancybox`) и Swiper для «Слайдера» и «Каталога» — если сайт их подключил.
+
+**Swiper модуль не везёт — его подключает сайт** (в макете, до конца `<body>`). Скрипт модуля находит `window.Swiper` и оживляет все `.js-pb-slider`; сборка без модулей может передать их через `window.SwiperModules`. Без Swiper карусели показываются обычной сеткой.
+
+**Карточка в «Каталоге»** задаётся полем «Шаблон карточки» — именем шаблона компонента после `nexor::components.`. Пусто — стандартная `catalog.card.default`: с ценой, а кнопка «В корзину» стоит внутри `@feature('shop')` и появляется, только если модуль «Магазин» установлен и включён.
+
+Своя карточка:
+
+1. `php artisan nexor:component catalog.card mini` — появится `resources/views/vendor/nexor/components/catalog/card/mini.blade.php` (внутри доступна `$element`);
+2. сверстать его;
+3. в блоке вписать `catalog.card.mini`.
+
+Имя проверяется при сохранении (такой шаблон должен существовать); если шаблон потом удалили — на сайте стандартная карточка. Поле подсказывает уже созданные шаблоны из `components/*/card/`. Показываются только опубликованные элементы активного инфоблока; раздел берётся вместе с подразделами, ручной выбор сохраняет порядок.
 
 Свои стили вместо модульных — `NEXOR_PAGEBUILDER_ASSETS=false` или `PageBuilder::render($element, ['assets' => false])`. Тогда обёртка получает `data-pb-standalone="false"`, и скрипт модуля её не трогает.
 
@@ -122,6 +138,6 @@ window.Nexor.pageBuilder.registerEditor('promo', PromoEditor);
 3. **Блоки-витрины**, привязанные к инфоблокам: «Товары из раздела», «Новости», «Баннеры», «Преимущества», «Отзывы», «Бренды» — через `InfoBlockService`, с выбором инфоблока, раздела, количества и шаблона карточки.
 4. **Шаблоны секций**: несколько вариантов вёрстки одного блока (как «типы» блоков в Аспро) и превью варианта в палитре.
 5. **Предпросмотр страницы** в панели до публикации и черновики.
-6. **Блоки второй очереди** для детальной страницы: слайдер, табы, ссылки и файлы, «Товары из каталога» (стили и скрипт для слайдера и табов уже есть).
+6. **Блоки второй очереди** готовы: слайдер, табы, ссылки/файлы, каталог. Дальше — фильтр каталога по свойствам и «Товары из текущего раздела» для детальной страницы.
 7. **Поиск**: подключить `pagebuilder_layouts.search_text` к поиску ядра (нужна точка расширения в `InfoBlockService::searchElements`).
 8. **Уборка файлов**: удалять загруженные картинки, на которые больше не ссылается ни одна раскладка.

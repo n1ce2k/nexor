@@ -23,7 +23,17 @@ const ui = useUi();
 const input = ref(null);
 const uploading = ref(false);
 
-const accept = props.kind === 'video' ? 'video/mp4,video/webm,video/ogg' : 'image/jpeg,image/png,image/webp,image/gif';
+const accept = {
+    video: 'video/mp4,video/webm,video/ogg',
+    document: '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.rtf,.txt,.csv,.zip,.rar,.7z',
+}[props.kind] ?? 'image/jpeg,image/png,image/webp,image/gif';
+
+const pickLabel = { video: 'Выбрать видео', document: 'Выбрать файл' }[props.kind] ?? 'Выбрать фото';
+
+/** Имя загруженного документа — картинки у него нет. */
+function fileName(path) {
+    return String(path ?? '').split('/').pop();
+}
 
 async function onPick(event) {
     const [file] = event.target.files;
@@ -64,9 +74,10 @@ function update(key, value) {
                 :disabled="uploading" @click="input.click()">
             <template v-if="modelValue?.src">
                 <video v-if="kind === 'video'" :src="modelValue.src" class="size-full object-cover" muted></video>
+                <span v-else-if="kind === 'document'" class="px-1 font-mono text-[10px] break-all">{{ fileName(modelValue.path) }}</span>
                 <img v-else :src="modelValue.src" alt="" class="size-full object-cover">
             </template>
-            <span v-else class="px-1">{{ uploading ? 'Загрузка…' : (kind === 'video' ? 'Выбрать видео' : 'Выбрать фото') }}</span>
+            <span v-else class="px-1">{{ uploading ? 'Загрузка…' : pickLabel }}</span>
         </button>
 
         <div class="min-w-0 flex-1 space-y-2">

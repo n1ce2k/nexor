@@ -1,6 +1,8 @@
 /**
  * Поведение блоков конструктора на сайте.
  *
+ * Swiper для слайдеров модуль не везёт — сайт подключает его сам.
+ *
  * Работает, только если обёртка вывелась со стилями модуля
  * (data-pb-standalone="true"): сайт со своими скриптами для pb-* его не
  * получает вовсе. Без зависимостей; Fancybox и Swiper подхватываются, если
@@ -196,7 +198,11 @@
 
             const slides = parseInt(slider.dataset.slides || '3', 10);
 
+            // Сборка Swiper без модулей (ESM) передаёт их через window.SwiperModules.
+            const modules = window.NwSwiperModules ?? window.SwiperModules;
+
             new Swiper(slider, {
+                ...(modules ? { modules: [modules.Navigation, modules.Pagination, modules.Autoplay].filter(Boolean) } : {}),
                 slidesPerView: 1,
                 spaceBetween: parseInt(slider.dataset.gap || '20', 10),
                 speed: 800,

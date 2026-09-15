@@ -10,6 +10,7 @@ use Nexor\Cms\Http\Resources\IblockResource;
 use Nexor\Cms\Http\Resources\UserResource;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\Setting;
+use Nexor\Cms\Support\Modules\ModuleFields;
 use Nexor\Cms\Support\Nexor;
 
 /**
@@ -58,6 +59,8 @@ class BootstrapController extends ApiController
             ],
             // «Код функции или модуля → доступно»: по нему панель прячет меню и страницы.
             'features' => Nexor::modules()->allowed(),
+            // Переключатели, которые включённые модули добавляют в форму инфоблока.
+            'iblock_settings' => ModuleFields::iblockSettings(),
             'routes' => [
                 'home' => url('/'),
                 'logout' => route('admin.logout'),

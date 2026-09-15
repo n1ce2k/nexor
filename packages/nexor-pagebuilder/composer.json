@@ -1,0 +1,38 @@
+{
+    "name": "n1ce2k/nexor-pagebuilder",
+    "description": "Модуль «Конструктор страниц» для NEXOR CMS: детальная страница элемента из блоков.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["laravel", "cms", "page-builder", "blocks", "nexor"],
+    "authors": [
+        {
+            "name": "Андрей Айнагоз",
+            "email": "a.aynagoz@nastart-web.ru"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "ext-dom": "*",
+        "n1ce2k/nexor-cms": "^0.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Nexor\\PageBuilder\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Nexor\\PageBuilder\\PageBuilderServiceProvider"
+            ]
+        },
+        "branch-alias": {
+            "dev-main": "0.2.x-dev"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

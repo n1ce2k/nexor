@@ -23,6 +23,7 @@ use Nexor\Cms\Models\IblockProperty;
 use Nexor\Cms\Models\IblockSection;
 use Nexor\Cms\Support\ActivityLogger;
 use Nexor\Cms\Support\ElementFormLayout;
+use Nexor\Cms\Support\Modules\ModuleFields;
 use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\PropertyValues;
 use Nexor\Cms\Support\Uploads;
@@ -69,7 +70,10 @@ class IblockElementController extends ApiController
 
         return IblockElementResource::make(
             $element->load(['section', 'sections', 'creator', 'editor', 'values.property', 'values.enum', 'catalog']),
-        );
+        )->additional([
+            // Значения полей модулей для формы: `modules.pagebuilder.content`.
+            'modules' => ModuleFields::elementValues($element->setRelation('iblock', $iblock)),
+        ]);
     }
 
     public function store(IblockElementRequest $request, Iblock $iblock): JsonResponse
@@ -84,6 +88,7 @@ class IblockElementController extends ApiController
         $element->sections()->sync($request->input('sections', []));
         PropertyValues::save($element, $request->properties(), $request);
         $this->saveCatalog($request, $iblock, $element);
+        ModuleFields::saveElement($iblock, $element, $request->validated());
 
         ActivityLogger::created($element, "Элемент «{$element->name}» инфоблока «{$iblock->name}»");
 
@@ -105,6 +110,7 @@ class IblockElementController extends ApiController
         $element->sections()->sync($request->input('sections', []));
         PropertyValues::save($element, $request->properties(), $request);
         $this->saveCatalog($request, $iblock, $element);
+        ModuleFields::saveElement($iblock, $element, $request->validated());
 
         ActivityLogger::updated($element, "Элемент «{$element->name}» инфоблока «{$iblock->name}»");
 

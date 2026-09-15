@@ -16,6 +16,8 @@ export const useSession = defineStore('session', {
         paginationTemplates: [],
         license: { value: 'lite', label: 'Lite' },
         features: {},
+        /** Переключатели модулей для формы инфоблока. */
+        iblockSettings: [],
         routes: {},
         ready: false,
         error: null,
@@ -59,6 +61,7 @@ export const useSession = defineStore('session', {
                 this.paginationTemplates = data.pagination_templates ?? [];
                 this.license = data.license ?? this.license;
                 this.features = data.features ?? {};
+                this.iblockSettings = data.iblock_settings ?? [];
                 this.routes = data.routes;
                 this.ready = true;
             } catch (error) {
@@ -84,6 +87,7 @@ export const useSession = defineStore('session', {
             const data = await api.get('bootstrap');
 
             this.features = data.features ?? {};
+            this.iblockSettings = data.iblock_settings ?? [];
             this.license = data.license ?? this.license;
             this.permissions = data.permissions ?? [];
         },

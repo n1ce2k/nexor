@@ -37,3 +37,6 @@ _ide_helper_models.php
 /resources/views/*
 !/resources/views/errors/
 !/resources/views/site/
+
+# Образец конструктора из Битрикса — только для справки, в репозиторий не идёт.
+/nw.pagebuilder/

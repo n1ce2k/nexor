@@ -2,12 +2,13 @@
 
 CMS на Laravel: админ-панель с инфоблоками в стиле Битрикса, свойствами произвольных типов и собственной системой ролей. Без Filament, Orchid и сторонних пакетов прав.
 
-Репозиторий содержит два слоя:
+Репозиторий содержит несколько слоёв:
 
 | | |
 |---|---|
 | `packages/nexor-cms` | Ядро CMS — composer-пакет `n1ce2k/nexor-cms`, namespace `Nexor\Cms` |
 | `packages/nexor-shop` | Модуль «Магазин» — composer-пакет `n1ce2k/nexor-shop`, namespace `Nexor\Shop` |
+| `packages/nexor-pagebuilder` | Модуль «Конструктор страниц» — composer-пакет `n1ce2k/nexor-pagebuilder`, namespace `Nexor\PageBuilder` |
 | остальное | Хост-приложение: модель пользователя, публичная часть сайта, демо-контент |
 
 Приложение подключает пакет path-репозиторием и исполняет его из `vendor/n1ce2k/nexor-cms`. Документация ядра — в [packages/nexor-cms/README.md](packages/nexor-cms/README.md).
@@ -302,6 +303,19 @@ php artisan nexor-shop:component cart-page --force  # перезаписать �
 
 Шаблоны меняются копией в `resources/views/vendor/nexor-shop/`, макет страниц — `NEXOR_SHOP_LAYOUT`.
 
+## Модуль «Конструктор страниц»
+
+`packages/nexor-pagebuilder`, доступен на всех лицензиях. Детальная страница элемента собирается из блоков вместо подробного текста.
+
+- Включается у инфоблока: «Параметры» → **«Использовать конструктор детальной страницы»**. У элементов появляется вкладка **«Конструктор»**: палитра блоков слева, страница справа, перетаскивание, дублирование, сворачивание.
+- Блоки первой версии: заголовок, текст (1–2 колонки), цитата, текст + фото, фото / галерея (раскладки, «+N»), видео (ссылка или файл, три вида), аккордеон (с разметкой FAQ), таблица; у страницы — боковое меню со ссылками на блоки.
+- Вёрстка блоков — классы `pb-*` / `nw-*`, как в исходном конструкторе; стили и скрипт модуля подключаются сами, свои — `NEXOR_PAGEBUILDER_ASSETS=false`.
+- HTML чистится при сохранении, картинки загружает только тот, кто вправе менять элементы инфоблока.
+- На сайте блоки выводятся в шаблонах `catalog.element`, `news.detail` и `site/page` внутри `@feature('pagebuilder')`; нет блоков — показывается подробный текст.
+- Свой шаблон блока: `php artisan nexor-pagebuilder:component text`, все сразу — `all`.
+
+Модуль встраивается через точки расширения ядра — `Module::iblockSettings()` (переключатели инфоблока) и `Module::elementFields()` / `elementRules()` / `elementValues()` / `saveElement()` (поля формы элемента), в панели — `Nexor.registerFormField()`. Подробности, свои блоки и план конструктора страниц сайта — в [packages/nexor-pagebuilder/README.md](packages/nexor-pagebuilder/README.md).
+
 ## Установка на чистый Laravel
 
 ```bash
@@ -319,6 +333,13 @@ php artisan nexor:install
 ```bash
 composer require n1ce2k/nexor-shop
 php artisan nexor-shop:install --layout=site.layout
+```
+
+И конструктор страниц:
+
+```bash
+composer require n1ce2k/nexor-pagebuilder
+php artisan nexor-pagebuilder:install
 ```
 
 Стили сайта собирает сам сайт: `npm install && npm run build`. Пароль администратора задаётся отдельно:
@@ -349,24 +370,35 @@ vendor/bin/pint --dirty             # форматирование
 npm run dev                         # стили и скрипты сайта
 ```
 
-Панель по умолчанию грузится из готовой сборки `dist/`. Чтобы править Vue-страницы с горячей перезагрузкой, переключите её на исходники:
+### Правки панели (`.vue`, `resources/js`, `admin.css`)
+
+Панель по умолчанию грузится из готовой сборки `packages/*/dist`, поэтому правка `.vue` сама по себе в браузере не видна. Для работы переключите панель на исходники — это касается ядра, магазина и конструктора разом:
 
 ```dotenv
 NEXOR_PANEL_ASSETS=vite
 ```
 
-После правок панели пересоберите сборки пакетов — они коммитятся вместе с кодом:
+После смены `.env` перезапустите `php artisan serve`, затем держите запущенным `npm run dev`: правки видны сразу. Без `npm run dev` панель в этом режиме открывается пустой.
 
-```bash
-npm run build:packages
-```
+> **Перед каждым коммитом с правками панели — `npm run build:packages`** и закоммитить `packages/*/dist` вместе с кодом. Сайты, которые ставят пакеты через Composer, получают только `dist/`: без сборки у вас всё работает (режим `vite`), а у них — старая панель.
+
+Порядок перед коммитом:
+
+1. Остановить `npm run dev` (на Windows он держит файлы в `resources/views`, и тесты шаблонов не могут вернуть их на место).
+2. `npm run build:packages`.
+3. `php artisan test --compact` и `vendor/bin/pint --dirty`.
+4. Перед выпуском версии — открыть админку в режиме `dist` (`NEXOR_PANEL_ASSETS=dist` или без строки, перезапуск `php artisan serve`) и убедиться, что собранная панель работает.
+
+Без сборки применяются сразу: PHP, Blade-шаблоны и `packages/nexor-pagebuilder/resources/assets/pagebuilder.{css,js}` (стили и скрипт блоков на сайте). Стили самого сайта (`resources/css/app.css`) собирает `npm run build` / `npm run dev`.
+
+На боевом сервере `NEXOR_PANEL_ASSETS=vite` не ставить.
 
 ## Выпуск версии
 
-Код правится **только здесь**, в `n1ce2k/nexor`. Репозитории `n1ce2k/nexor-cms` и `n1ce2k/nexor-shop` — копии только для чтения: их заполняет Action, ручные правки там затрутся следующим пуском.
+Код правится **только здесь**, в `n1ce2k/nexor`. Репозитории `n1ce2k/nexor-cms`, `n1ce2k/nexor-shop` и `n1ce2k/nexor-pagebuilder` — копии только для чтения: их заполняет Action, ручные правки там затрутся следующим пуском.
 
 ```
-n1ce2k/nexor ──(split.yml)──► n1ce2k/nexor-cms, n1ce2k/nexor-shop ──► Packagist ──► composer update на сайтах
+n1ce2k/nexor ──(split.yml)──► n1ce2k/nexor-cms, nexor-shop, nexor-pagebuilder ──► Packagist ──► composer update на сайтах
 ```
 
 1. Если менялась панель (`.vue`, `resources/js`, `admin.css`) — `npm run build:packages`, собранный `packages/*/dist` коммитится вместе с кодом.
@@ -379,7 +411,7 @@ n1ce2k/nexor ──(split.yml)──► n1ce2k/nexor-cms, n1ce2k/nexor-shop ─�
    git push origin main --tags
    ```
 
-5. GitHub Action [split.yml](.github/workflows/split.yml) переносит `packages/nexor-cms` и `packages/nexor-shop` в отдельные репозитории вместе с тегом. Проверить: вкладка **Actions** в `n1ce2k/nexor` — два зелёных прогона (ветка `main` и тег), а в обоих репозиториях появился тег.
+5. GitHub Action [split.yml](.github/workflows/split.yml) переносит `packages/nexor-cms`, `packages/nexor-shop` и `packages/nexor-pagebuilder` в отдельные репозитории вместе с тегом. Проверить: вкладка **Actions** в `n1ce2k/nexor` — зелёные прогоны по ветке `main` и по тегу, а во всех репозиториях появился тег.
 6. Packagist подхватывает версию сам, если в его настройках подключён GitHub. Иначе — кнопка **Update** на страницах пакетов.
 
 **Если прогон по тегу не запустился** (так было с первым тегом, пришедшим в одном пуше с новым workflow) — отправить тот же тег заново:
@@ -389,7 +421,7 @@ git push origin :refs/tags/vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-**Для работы нужно:** секрет `ACCESS_TOKEN` в `n1ce2k/nexor` → Settings → Secrets and variables → Actions — fine-grained токен GitHub с правом *Contents: Read and write* на `nexor-cms` и `nexor-shop`. У токена есть срок: когда истечёт, Action упадёт с ошибкой доступа — выпустить новый и заменить секрет.
+**Для работы нужно:** секрет `ACCESS_TOKEN` в `n1ce2k/nexor` → Settings → Secrets and variables → Actions — fine-grained токен GitHub с правом *Contents: Read and write* на `nexor-cms`, `nexor-shop` и `nexor-pagebuilder`. Новый пакет — новый пустой репозиторий, доступ к нему в токене и регистрация на Packagist. У токена есть срок: когда истечёт, Action упадёт с ошибкой доступа — выпустить новый и заменить секрет.
 
 При смене минорной версии (0.2 → 0.3) поправьте `branch-alias` в `composer.json` обоих пакетов и требование `n1ce2k/nexor-cms` у магазина.
 

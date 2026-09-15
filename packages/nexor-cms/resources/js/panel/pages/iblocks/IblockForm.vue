@@ -43,7 +43,23 @@ const form = useForm({
     per_page: 20,
     has_load_more: false,
     load_more_size: 12,
+    // Переключатели модулей: { pagebuilder: { detail: true } }.
+    module_settings: {},
 });
+
+/** Переключатели, которые добавили включённые модули, — как их пришлёт сервер. */
+const moduleSettings = computed(() => session.iblockSettings ?? []);
+
+function moduleValue(setting) {
+    return Boolean(form.fields.module_settings?.[setting.module]?.[setting.key] ?? setting.default);
+}
+
+function setModuleValue(setting, value) {
+    form.fields.module_settings = {
+        ...form.fields.module_settings,
+        [setting.module]: { ...(form.fields.module_settings?.[setting.module] ?? {}), [setting.key]: value },
+    };
+}
 
 const isEdit = computed(() => Boolean(props.iblock));
 
@@ -138,6 +154,7 @@ onMounted(async () => {
                 per_page: data.data.per_page ?? 20,
                 has_load_more: data.data.has_load_more,
                 load_more_size: data.data.load_more_size ?? 12,
+                module_settings: data.data.module_settings ?? {},
             });
 
             pagePath.value = data.data.page_path;
@@ -329,6 +346,10 @@ onMounted(async () => {
                                 «Цена», «Остатки», «Скидки» и «Предложения».
                             </template>
                         </p>
+
+                        <NToggle v-for="setting in moduleSettings" :key="`${setting.module}.${setting.key}`"
+                                 :model-value="moduleValue(setting)" :label="setting.label" :hint="setting.hint"
+                                 @update:model-value="setModuleValue(setting, $event)" />
                     </div>
                 </NCard>
 

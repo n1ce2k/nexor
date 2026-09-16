@@ -109,12 +109,33 @@ class ComponentTest extends TestCase
         Blade::render('<x-nexor::catalog.section iblock="katalog" template="no-such" />');
     }
 
-    public function test_an_unknown_infoblock_fails_loudly(): void
+    public function test_an_unknown_infoblock_shows_a_placeholder_instead_of_breaking_the_page(): void
     {
-        $this->expectException(ViewException::class);
-        $this->expectExceptionMessage('«net-takogo» не найден');
+        config(['app.debug' => true]);
 
-        Blade::render('<x-nexor::catalog.section iblock="net-takogo" />');
+        $html = Blade::render('<x-nexor::catalog.section iblock="net-takogo" />');
+
+        $this->assertStringContainsString('Инфоблок недоступен', $html);
+        // В отладке заглушка подсказывает, что именно не нашлось.
+        $this->assertStringContainsString('«net-takogo» не найден или отключён — компонент catalog.section', $html);
+
+        config(['app.debug' => false]);
+
+        $this->assertStringNotContainsString('net-takogo', Blade::render('<x-nexor::catalog.section iblock="net-takogo" />'));
+    }
+
+    public function test_every_iblock_component_falls_back_to_the_placeholder(): void
+    {
+        foreach ([
+            '<x-nexor::catalog.section-list iblock="net-takogo" />',
+            '<x-nexor::catalog.filter iblock="net-takogo" />',
+            '<x-nexor::news.list iblock="net-takogo" />',
+            '<x-nexor::menu iblock="net-takogo" />',
+            '<x-nexor::news.detail iblock="net-takogo" :id="1" />',
+            '<x-nexor::catalog.element iblock="net-takogo" code="stul" />',
+        ] as $tag) {
+            $this->assertStringContainsString('Инфоблок недоступен', Blade::render($tag), $tag);
+        }
     }
 
     public function test_the_card_can_be_replaced_without_copying_the_listing(): void

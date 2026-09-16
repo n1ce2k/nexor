@@ -3,6 +3,12 @@
 
     Приходит: $element, $block, $values, $showProperties.
 
+    Подключение:
+        <x-nexor::news.detail :element="$element" />           на странице новости
+        <x-nexor::news.detail iblock="news" :id="5" />         в любом месте, по id
+        <x-nexor::news.detail iblock="news" code="otkrytie" /> или по символьному коду
+    Скрытая или удалённая новость — компонент ничего не выводит.
+
     Свой шаблон: php artisan nexor:component news.detail my_template
 --}}
 

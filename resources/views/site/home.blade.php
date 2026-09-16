@@ -32,8 +32,8 @@
             </div>
         </div>
     </section>
-lorem
 
+    <x-nexor::news.detail iblock="news" id="13" template="news1" />
 {{--    <section class="border-t border-slate-200 bg-slate-50">--}}
 {{--        <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">--}}
 {{--            <h2 class="mb-2 text-2xl font-semibold text-slate-900">Структура данных</h2>--}}

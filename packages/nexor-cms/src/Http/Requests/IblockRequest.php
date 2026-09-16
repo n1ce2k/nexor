@@ -24,6 +24,8 @@ class IblockRequest extends FormRequest
             'iblock_type_id' => ['required', 'integer', Rule::exists('iblock_types', 'id')],
             'code' => [
                 'required', 'string', 'max:190', 'regex:/^[a-z0-9_-]+$/',
+                // Код из одних цифр неотличим от id: в компонентах iblock="5" — это id.
+                'not_regex:/^[0-9]+$/',
                 Rule::unique('iblocks', 'code')->ignore($this->route('iblock')?->id)->withoutTrashed(),
             ],
             'name' => ['required', 'string', 'max:255'],
@@ -54,6 +56,7 @@ class IblockRequest extends FormRequest
     {
         return [
             'code.regex' => 'Символьный код может содержать только латиницу в нижнем регистре, цифры, дефис и подчёркивание.',
+            'code.not_regex' => 'Символьный код не может состоять из одних цифр — так в компонентах пишется id инфоблока.',
         ];
     }
 

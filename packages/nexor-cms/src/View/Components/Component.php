@@ -2,8 +2,10 @@
 
 namespace Nexor\Cms\View\Components;
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\Component as BaseComponent;
 use Illuminate\View\View;
+use Nexor\Cms\Exceptions\IblockUnavailable;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\IblockSection;
 use Nexor\Cms\Services\InfoBlockService;
@@ -32,12 +34,38 @@ abstract class Component extends BaseComponent
     }
 
     /**
-     * Опечатка в коде инфоблока должна быть видна сразу, а не в виде пустого блока.
+     * Инфоблок компонента. Нет такого или он отключён — вместо компонента
+     * выводится заглушка «Инфоблок недоступен» (см. resolveView).
      */
-    protected function requireIblock(string $code): Iblock
+    protected function requireIblock(string|int $code): Iblock
     {
         return $this->iblocks()->getInfoBlockByCode($code)
-            ?? throw new RuntimeException("Инфоблок «{$code}» не найден или отключён.");
+            ?? throw new IblockUnavailable((string) $code);
+    }
+
+    /**
+     * Отключённый в админке инфоблок не должен ронять страницу: компонент
+     * выводит заглушку, а в лог уходит предупреждение. В режиме отладки
+     * заглушка говорит, какой инфоблок не нашёлся.
+     */
+    public function resolveView()
+    {
+        try {
+            return parent::resolveView();
+        } catch (IblockUnavailable $exception) {
+            return $this->unavailable($exception);
+        }
+    }
+
+    protected function unavailable(IblockUnavailable $exception): View
+    {
+        Log::warning("Компонент {$this->component()}: {$exception->getMessage()}");
+
+        return view('nexor::components.unavailable.default', [
+            'iblock' => $exception->iblock,
+            'component' => $this->component(),
+            'debug' => (bool) config('app.debug'),
+        ]);
     }
 
     /**

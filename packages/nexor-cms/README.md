@@ -42,16 +42,9 @@ NEXOR_USER_MODEL="Domain\Users\Models\Account"
 
 ### Стили и скрипты
 
-Точки входа лежат в пакете. Добавьте их в `vite.config.js` приложения:
+Админка приходит уже собранной (`dist/`) и отдаётся адресом `/admin/nexor-assets/...` — Node для неё не нужен. `nexor:install` дописывает в `resources/css/app.css` строки `@source` на шаблоны компонентов, чтобы Tailwind сайта видел их классы.
 
-```js
-laravel({
-    input: [
-        'vendor/n1ce2k/nexor-cms/resources/css/admin.css',
-        'vendor/n1ce2k/nexor-cms/resources/js/admin.js',
-    ],
-})
-```
+Для разработки самой панели — `NEXOR_PANEL_ASSETS=vite`: исходники пакета собирает Vite сайта.
 
 ## Конфигурация
 
@@ -98,6 +91,51 @@ $page = Site::element('pages', 'about');
 
 $page->property('SUBTITLE');
 ```
+
+## Компоненты сайта
+
+Страницы собираются из Blade-компонентов, как `IncludeComponent` в Битриксе: класс отвечает за выборку, проп `template` — за вёрстку.
+
+```blade
+<x-nexor::catalog.section iblock="katalog" template="tiles" />
+<x-nexor::news.list iblock="news" />
+<x-nexor::menu code="main" />
+```
+
+Инфоблок указывается кодом или id: `iblock="news"` и `iblock="1"` — одно и то же (поэтому код инфоблока не может состоять из одних цифр). id видны первой колонкой в списках админки.
+
+Свой шаблон — копия в `resources/views/vendor/nexor/components`, обновление пакета её не трогает:
+
+```bash
+php artisan nexor:component catalog.section blog
+```
+
+**Список одного раздела — `section_id`.** `catalog.section` и `news.list` выводят элементы только указанного раздела (вместе с подразделами; без них — `:recursive="false"`):
+
+```blade
+<x-nexor::catalog.section iblock="katalog" :section_id="3" />
+<x-nexor::news.list iblock="news" :section_id="4" :per-page="3" />
+```
+
+Такой раздел закреплён: адрес страницы его не меняет. Раздел удалили или он из другого инфоблока — список пустой, а не весь инфоблок. Без `section_id` раздел, как и раньше, берётся из пропа `section` (код) или из адреса страницы.
+
+### Детальная элемента в любом месте
+
+`news.detail` и `catalog.element` выводят элемент и вне его страницы — например, новость на главной. Элемент передаётся готовым или ищется по инфоблоку и id либо символьному коду:
+
+```blade
+<x-nexor::news.detail :element="$element" />
+<x-nexor::news.detail iblock="news" :id="5" />
+<x-nexor::news.detail iblock="news" code="otkrytie-magazina" />
+<x-nexor::news.detail :iblock="1" :id="5" />
+<x-nexor::catalog.element iblock="katalog" :id="15" template="home" />
+```
+
+- Ищется только опубликованный элемент этого инфоблока (активен и в сроке показа).
+- Удалили, скрыли, id от другого инфоблока — компонент ничего не выводит, страница не падает.
+- Нет ни `id`, ни `code` или `id` не число — исключение с понятным текстом.
+- Инфоблок не найден или отключён — вместо компонента заглушка «Инфоблок недоступен» (с подробностями при `APP_DEBUG=true`), предупреждение в лог. Так ведут себя все компоненты с `iblock`. Своя вёрстка заглушки — `php artisan nexor:component unavailable`.
+- Другая вёрстка для такого места — свой шаблон: `php artisan nexor:component news.detail home` и `template="home"`.
 
 ## Права
 

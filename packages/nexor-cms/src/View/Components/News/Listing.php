@@ -10,6 +10,7 @@ use Nexor\Cms\View\Components\Catalog\Section;
  * ```blade
  * <x-nexor::news.list iblock="news" />
  * <x-nexor::news.list iblock="news" :per-page="5" template="compact" />
+ * <x-nexor::news.list iblock="news" :section_id="4" />
  * ```
  *
  * Логика та же, что у `catalog.section`: под ними один InfoBlockService над
@@ -32,6 +33,7 @@ class Listing extends Section
         bool $recursive = true,
         bool $paginate = true,
         ?int $limit = null,
+        int|string|null $sectionId = null,
     ) {
         parent::__construct(
             iblock: $iblock,
@@ -44,6 +46,7 @@ class Listing extends Section
             recursive: $recursive,
             paginate: $paginate,
             limit: $limit,
+            sectionId: $sectionId,
         );
     }
 

@@ -2,11 +2,13 @@
 
 namespace Nexor\Cms\View\Components\Catalog;
 
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
-use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\IblockProperty;
+use Nexor\Cms\Models\IblockSection;
 use Nexor\Cms\View\Components\Component;
+use RuntimeException;
 
 /**
  * Список элементов инфоблока — то же, чем в Битриксе заняты `catalog.section`
@@ -15,10 +17,13 @@ use Nexor\Cms\View\Components\Component;
  * ```blade
  * <x-nexor::catalog.section iblock="katalog" template="tiles" />
  * <x-nexor::catalog.section iblock="news" :order="['created_at' => 'desc']" :per-page="5" />
+ * <x-nexor::catalog.section iblock="katalog" :section_id="3" />
  * ```
  *
  * Раздел и фильтр компонент берёт из адресной строки, поэтому `catalog.filter`
  * и меню разделов ничего не знают про список — связь идёт через URL.
+ * `section_id` закрепляет раздел жёстко: адрес страницы его не меняет, а
+ * удалённый раздел даёт пустой список, а не весь инфоблок.
  */
 class Section extends Component
 {
@@ -26,6 +31,7 @@ class Section extends Component
      * @param  string  $iblock  Символьный код инфоблока
      * @param  string  $template  Имя шаблона вёрстки
      * @param  string|null  $section  Код раздела; по умолчанию берётся из адреса страницы
+     * @param  int|string|null  $sectionId  Id раздела — важнее кода и адреса страницы (`:section_id="3"`)
      * @param  array<string, mixed>  $filter  Дополнительный фильтр поверх адресной строки
      * @param  array<string, string>  $order  Сортировка
      * @param  int|null  $perPage  Размер страницы; по умолчанию — настройка инфоблока
@@ -45,6 +51,7 @@ class Section extends Component
         public bool $recursive = true,
         public bool $paginate = true,
         public ?int $limit = null,
+        public int|string|null $sectionId = null,
     ) {}
 
     public function render(): View
@@ -52,12 +59,17 @@ class Section extends Component
         $iblocks = $this->iblocks();
         $block = $this->requireIblock($this->iblock);
 
-        $section = $this->currentSection($block, $this->section);
-
         $filter = array_merge(['is_active' => true], $this->fromRequest(), $this->filter);
         $perPage = $this->paginate ? ($this->perPage ?? $block->pageSize()) : null;
 
+        $pinned = $this->sectionId !== null && $this->sectionId !== '';
+        $section = $pinned ? $this->pinnedSection() : $this->currentSection($block, $this->section);
+
         $elements = match (true) {
+            // Закреплённый раздел пропал — пустой список, а не весь инфоблок.
+            $pinned && ! $section => $perPage === null
+                ? collect()
+                : new LengthAwarePaginator([], 0, $perPage, LengthAwarePaginator::resolveCurrentPage()),
             $section && $this->recursive => $iblocks->getElementsBySectionRecursive(
                 $this->iblock, $section->id, $filter, $this->order, $perPage,
             ),
@@ -87,6 +99,18 @@ class Section extends Component
     protected function component(): string
     {
         return 'catalog.section';
+    }
+
+    /**
+     * Раздел из `section_id` — только из этого инфоблока.
+     */
+    protected function pinnedSection(): ?IblockSection
+    {
+        if (! ctype_digit((string) $this->sectionId)) {
+            throw new RuntimeException("Компоненту {$this->component()} передан section_id «{$this->sectionId}» — нужно число.");
+        }
+
+        return $this->iblocks()->getSectionById($this->iblock, (int) $this->sectionId);
     }
 
     /**

@@ -34,6 +34,7 @@ const info = computed(() => session.iblock(props.iblock));
 const abilities = computed(() => info.value?.abilities ?? {});
 
 const columns = [
+    { key: 'id', label: 'ID', width: '4.5rem', muted: true },
     { key: 'sort', label: 'Сорт.', width: '5rem', muted: true },
     { key: 'name', label: 'Название' },
     { key: 'elements_count', label: 'Элементов', align: 'center', width: '8rem', muted: true },
@@ -126,6 +127,10 @@ onMounted(load);
             </NEmpty>
 
             <NTable v-else :columns="columns" :rows="rows" :loading="loading">
+                <template #cell-id="{ row }">
+                    <span class="font-mono text-xs">{{ row.id }}</span>
+                </template>
+
                 <template #cell-sort="{ row }">
                     <span class="font-mono text-xs">{{ row.sort }}</span>
                 </template>

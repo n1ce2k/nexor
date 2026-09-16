@@ -11,6 +11,7 @@ use Nexor\Cms\View\Components\Catalog\Element;
  * ```blade
  * <x-nexor::news.detail :element="$element" />
  * <x-nexor::news.detail iblock="news" code="otkrytie-magazina" />
+ * <x-nexor::news.detail iblock="news" :id="5" />
  * ```
  *
  * От `catalog.element` отличается вёрсткой: дата публикации в шапке, таблица
@@ -24,6 +25,7 @@ class Detail extends Element
         ?string $code = null,
         string $template = 'default',
         bool $properties = false,
+        int|string|null $id = null,
     ) {
         parent::__construct(
             element: $element,
@@ -31,6 +33,7 @@ class Detail extends Element
             code: $code,
             template: $template,
             properties: $properties,
+            id: $id,
         );
     }
 

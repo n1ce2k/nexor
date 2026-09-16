@@ -31,7 +31,7 @@ use Nexor\Cms\Support\Uploads;
 class IblockElementController extends ApiController
 {
     /** @var array<int, string> */
-    protected const SORTABLE = ['name', 'code', 'sort', 'created_at', 'updated_at'];
+    protected const SORTABLE = ['id', 'name', 'code', 'sort', 'created_at', 'updated_at'];
 
     public function index(Request $request, Iblock $iblock): AnonymousResourceCollection
     {

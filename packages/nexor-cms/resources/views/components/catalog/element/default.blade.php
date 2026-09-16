@@ -6,6 +6,12 @@
     $offersByProperties — как товар выводит предложения (галочка «Выводить через
     свойства» на вкладке «Предложения» в админке).
 
+    Подключение:
+        <x-nexor::catalog.element :element="$element" :offer="$offer" />   на странице товара
+        <x-nexor::catalog.element iblock="katalog" :id="15" />             в любом месте, по id
+        <x-nexor::catalog.element iblock="katalog" code="stul" />          или по символьному коду
+    Скрытый или удалённый элемент — компонент ничего не выводит.
+
     Свой шаблон: php artisan nexor:component catalog.element
 
     ─── Два вида предложений ──────────────────────────────────────────────────

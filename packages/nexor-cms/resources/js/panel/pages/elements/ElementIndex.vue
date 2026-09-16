@@ -307,6 +307,7 @@ const tableRows = computed(() => (nested.value
 
 const columns = computed(() => {
     const base = [
+        { key: 'id', label: 'ID', width: '4.5rem', muted: true, sortable: !nested.value },
         { key: 'sort', label: 'Сорт.', width: '5rem', muted: true, sortable: !nested.value },
         { key: 'name', label: 'Название', sortable: !nested.value },
     ];
@@ -558,6 +559,13 @@ onMounted(boot);
                 <template v-else>
                     <NTable :columns="columns" :rows="tableRows" row-key="uid" :sort="query.sort"
                             :direction="query.direction" :loading="loading" @sort="sort">
+                        <template #cell-id="{ row }">
+                            <span v-if="row.kind === 'element'" class="font-mono text-xs">{{ row.element.id }}</span>
+                            <span v-else-if="row.kind === 'section' && !row.loose" class="font-mono text-xs">
+                                {{ row.section.id }}
+                            </span>
+                        </template>
+
                         <template #cell-sort="{ row }">
                             <span v-if="row.kind === 'element'" class="font-mono text-xs">{{ row.element.sort }}</span>
                             <span v-else-if="row.kind === 'section' && !row.loose" class="font-mono text-xs">

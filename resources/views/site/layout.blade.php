@@ -25,7 +25,12 @@
     @if ($favicon = Setting::get('site.favicon'))
         <link rel="icon" href="{{ Storage::disk('public')->url($favicon) }}">
     @endif
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/swiper@12/swiper-bundle.min.css"
+    />
 
+    <script src="https://cdn.jsdelivr.net/npm/swiper@12/swiper-bundle.min.js"></script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="flex min-h-full flex-col font-sans">

@@ -57,23 +57,34 @@ class InfoBlockService
     protected array $blocks = [];
 
     /**
-     * Инфоблок по символьному коду. Неактивные не отдаются.
+     * Инфоблок по символьному коду или id. Неактивные не отдаются.
+     *
+     * Везде, где сервис и компоненты принимают код инфоблока, можно написать
+     * и его id: `iblock="news"` и `iblock="1"` — одно и то же. Код из одних
+     * цифр запрещён при сохранении инфоблока; если такой остался со старых
+     * времён и id не совпал — ищется по коду.
      */
-    public function getInfoBlockByCode(string $code): ?Iblock
+    public function getInfoBlockByCode(string|int $code): ?Iblock
     {
         $this->checkInfoBlocksModule();
 
-        return $this->blocks[$code] ??= Iblock::query()
-            ->active()
-            ->where('code', $code)
-            ->with('properties.enums')
-            ->first();
+        $key = trim((string) $code);
+
+        if (array_key_exists($key, $this->blocks)) {
+            return $this->blocks[$key];
+        }
+
+        $query = fn () => Iblock::query()->active()->with('properties.enums');
+
+        $iblock = ctype_digit($key) ? $query()->whereKey((int) $key)->first() : null;
+
+        return $this->blocks[$key] = $iblock ?? $query()->where('code', $key)->first();
     }
 
     /**
      * Есть ли такой инфоблок на сайте.
      */
-    public function infoBlockExists(string $code): bool
+    public function infoBlockExists(string|int $code): bool
     {
         return $this->getInfoBlockByCode($code) !== null;
     }
@@ -845,7 +856,7 @@ class InfoBlockService
         };
     }
 
-    protected function requireInfoBlock(string $code): Iblock
+    protected function requireInfoBlock(string|int $code): Iblock
     {
         return $this->getInfoBlockByCode($code)
             ?? throw new RuntimeException("Инфоблок «{$code}» не найден или отключён.");
@@ -854,7 +865,7 @@ class InfoBlockService
     /**
      * Инфоблок, у которого включены разделы.
      */
-    protected function requireSectionedInfoBlock(string $code): Iblock
+    protected function requireSectionedInfoBlock(string|int $code): Iblock
     {
         $iblock = $this->requireInfoBlock($code);
 

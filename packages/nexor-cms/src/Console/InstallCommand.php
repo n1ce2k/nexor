@@ -5,6 +5,7 @@ namespace Nexor\Cms\Console;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Nexor\Cms\Database\Seeders\IblockSeeder;
 use Nexor\Cms\Database\Seeders\MenuSeeder;
@@ -14,6 +15,7 @@ use Nexor\Cms\Models\Role;
 use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\Permissions;
 use Nexor\Cms\Support\TailwindSources;
+use Nexor\Cms\Support\UserModelSetup;
 
 class InstallCommand extends Command
 {
@@ -54,6 +56,8 @@ class InstallCommand extends Command
 
             return true;
         });
+
+        $this->prepareUserModel();
 
         $this->createAdministrator();
 
@@ -97,6 +101,61 @@ class InstallCommand extends Command
         Artisan::call('db:seed', ['--class' => $class, '--force' => true]);
 
         return true;
+    }
+
+    /**
+     * Дописывает модель пользователя приложения: контракт, трейты и колонки CMS.
+     *
+     * Без этого панель не знает ни про роли, ни про свои поля, а установка
+     * падала на первой же учётной записи.
+     */
+    protected function prepareUserModel(): void
+    {
+        $missing = UserModelSetup::missing();
+
+        if ($missing === []) {
+            $this->components->task('Модель пользователя', fn () => true);
+
+            return;
+        }
+
+        if ($missing === ['class']) {
+            $this->components->error('Модель пользователя '.Nexor::userModel().' не найдена — проверьте config/nexor.php.');
+
+            return;
+        }
+
+        $file = UserModelSetup::file();
+
+        if ($file === null) {
+            $this->explainUserModel('Модель пользователя недоступна для записи.');
+
+            return;
+        }
+
+        $relative = str_replace(base_path().DIRECTORY_SEPARATOR, '', $file);
+
+        if (! $this->option('force') && ! $this->components->confirm("Дописать модель {$relative} для работы с панелью?", true)) {
+            $this->explainUserModel('Модель оставлена как есть.');
+
+            return;
+        }
+
+        if (! UserModelSetup::patch($file) || UserModelSetup::missing() !== []) {
+            $this->explainUserModel('Разметка модели непривычная — дописать её автоматически не вышло.');
+
+            return;
+        }
+
+        $this->components->task('Модель пользователя: '.$relative, fn () => true);
+    }
+
+    protected function explainUserModel(string $reason): void
+    {
+        $this->components->warn($reason.' Допишите её сами, иначе панель не заработает:');
+        $this->newLine();
+        $this->line('<fg=cyan>'.UserModelSetup::snippet().'</>');
+        $this->newLine();
     }
 
     /**
@@ -155,8 +214,13 @@ class InstallCommand extends Command
 
         $user->save();
 
-        if ($role = Role::query()->where('code', Role::SUPER_ADMIN)->first()) {
+        $role = Role::query()->where('code', Role::SUPER_ADMIN)->first();
+
+        if ($role && method_exists($user, 'roles')) {
             $user->roles()->syncWithoutDetaching([$role->id]);
+        } elseif ($role) {
+            // Трейт HasRoles ещё не подключён — связываем напрямую.
+            DB::table('role_user')->updateOrInsert(['user_id' => $user->getKey(), 'role_id' => $role->id]);
         }
 
         $this->components->info("Учётная запись {$email} готова, логин: {$user->login}.");

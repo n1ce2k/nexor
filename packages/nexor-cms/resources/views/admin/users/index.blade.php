@@ -49,7 +49,7 @@
 
                                 <div class="min-w-0">
                                     <p class="truncate font-medium text-[var(--text-strong)]">{{ $user->name }}</p>
-                                    <p class="truncate text-xs text-[var(--text-muted)]">{{ $user->email }}</p>
+                                    <p class="truncate text-xs text-[var(--text-muted)]">{{ $user->login }} · {{ $user->email }}</p>
                                 </div>
                             </div>
                         </x-nexor::admin.table.cell>

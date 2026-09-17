@@ -8,6 +8,7 @@ import NIcon from '../../components/ui/NIcon.vue';
 import NInput from '../../components/ui/NInput.vue';
 import NPageHeader from '../../components/ui/NPageHeader.vue';
 import NToggle from '../../components/ui/NToggle.vue';
+import PropertyField from '../../components/fields/PropertyField.vue';
 import { api, toFormData } from '../../api';
 import { useForm } from '../../composables/useForm';
 import { useSession } from '../../stores/session';
@@ -25,8 +26,36 @@ const avatarRemoved = ref(false);
 const existingAvatar = ref(null);
 const ready = ref(false);
 
+/** Свои поля пользователя, заведённые в разделе «Поля пользователей». */
+const fields = ref([]);
+const fieldValues = ref({});
+
+const isFileField = (field) => field.type === 'file' || field.type === 'image';
+
+/** Пустое значение поля: у файлов своя форма с уже загруженными и добавленными. */
+function emptyValue(field) {
+    if (isFileField(field)) {
+        return { stored: [], remove: [], added: [] };
+    }
+
+    return field.is_multiple ? [] : (field.type === 'boolean' ? false : null);
+}
+
+function fillFieldValues(saved = {}) {
+    fieldValues.value = Object.fromEntries(fields.value.map((field) => {
+        const value = saved[field.code];
+
+        if (isFileField(field)) {
+            return [field.code, { stored: value ?? [], remove: [], added: [] }];
+        }
+
+        return [field.code, value ?? emptyValue(field)];
+    }));
+}
+
 const form = useForm({
     name: '',
+    login: '',
     email: '',
     phone: '',
     password: '',
@@ -40,8 +69,42 @@ const isEdit = computed(() => Boolean(props.user));
 /** Editing yourself must not be able to remove your own access. */
 const isSelf = computed(() => isEdit.value && String(props.user) === String(session.user?.id));
 
+/** Значения своих полей — теми же именами, что ждёт сервер. */
+function appendFields(payload) {
+    fields.value.forEach((field) => {
+        const value = fieldValues.value[field.code];
+
+        if (isFileField(field)) {
+            (value?.remove ?? []).forEach((id) => payload.append(`field_remove[${field.code}][]`, id));
+            (value?.added ?? []).forEach((file) => {
+                payload.append(`field_files[${field.code}]${field.is_multiple ? '[]' : ''}`, file);
+            });
+
+            return;
+        }
+
+        if (field.is_multiple) {
+            const rows = (Array.isArray(value) ? value : []).filter((item) => item !== null && item !== '');
+
+            if (rows.length === 0) {
+                payload.append(`fields[${field.code}][]`, '');
+            }
+
+            rows.forEach((item) => payload.append(`fields[${field.code}][]`, item));
+
+            return;
+        }
+
+        const scalar = field.type === 'boolean' ? (value ? '1' : '0') : value;
+
+        payload.append(`fields[${field.code}]`, scalar ?? '');
+    });
+}
+
 async function save() {
     const payload = toFormData({ ...form.fields });
+
+    appendFields(payload);
 
     if (avatar.value) {
         payload.append('avatar', avatar.value);
@@ -72,15 +135,21 @@ function pickAvatar(event) {
 
 onMounted(async () => {
     try {
-        const roleList = await api.get('roles', { per_page: 200 });
+        const [roleList, schema] = await Promise.all([
+            api.get('roles', { per_page: 200 }),
+            api.get('users/schema'),
+        ]);
 
         roles.value = roleList.data;
+        fields.value = schema.fields;
+        fillFieldValues();
 
         if (isEdit.value) {
             const data = await api.get(`users/${props.user}`);
 
             form.fill({
                 name: data.data.name,
+                login: data.data.login ?? '',
                 email: data.data.email,
                 phone: data.data.phone ?? '',
                 password: '',
@@ -89,6 +158,7 @@ onMounted(async () => {
                 roles: data.data.role_ids ?? [],
             });
 
+            fillFieldValues(data.data.fields ?? {});
             existingAvatar.value = data.data.avatar_url;
         }
     } catch (error) {
@@ -117,6 +187,12 @@ onMounted(async () => {
                                 <NInput v-model="form.fields.name" :invalid="Boolean(form.error('name'))" />
                             </NField>
                         </div>
+
+                        <NField label="Логин" required hint="Им можно входить вместо e-mail"
+                                :error="form.error('login')">
+                            <NInput v-model="form.fields.login" class="font-mono"
+                                    :invalid="Boolean(form.error('login'))" />
+                        </NField>
 
                         <NField label="E-mail" required :error="form.error('email')">
                             <NInput v-model="form.fields.email" type="email"
@@ -191,6 +267,16 @@ onMounted(async () => {
                                 @click="avatar = null; avatarRemoved = true">
                             убрать
                         </button>
+                    </div>
+                </NCard>
+
+                <NCard v-if="fields.length" title="Дополнительно"
+                       description="Свои поля пользователей — настраиваются в разделе «Поля пользователей».">
+                    <div class="grid gap-5">
+                        <PropertyField v-for="field in fields" :key="field.id" :property="field"
+                                       :model-value="fieldValues[field.code]"
+                                       :error="form.error(`fields.${field.code}`) || form.error(`field_files.${field.code}`)"
+                                       @update:model-value="fieldValues[field.code] = $event" />
                     </div>
                 </NCard>
 

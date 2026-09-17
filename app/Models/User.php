@@ -13,13 +13,14 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 use Nexor\Cms\Contracts\NexorUser;
 use Nexor\Cms\Models\Concerns\HasRoles;
+use Nexor\Cms\Models\Concerns\HasUserFields;
 
-#[Fillable(['name', 'email', 'password', 'avatar', 'phone', 'is_active', 'is_super_admin'])]
+#[Fillable(['name', 'login', 'email', 'password', 'avatar', 'phone', 'is_active', 'is_super_admin'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements NexorUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable, SoftDeletes;
+    use HasFactory, HasRoles, HasUserFields, Notifiable, SoftDeletes;
 
     /**
      * Get the attributes that should be cast.

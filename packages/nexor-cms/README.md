@@ -28,10 +28,11 @@ php artisan nexor:password admin@example.com
 ```php
 use Nexor\Cms\Contracts\NexorUser;
 use Nexor\Cms\Models\Concerns\HasRoles;
+use Nexor\Cms\Models\Concerns\HasUserFields;
 
 class User extends Authenticatable implements NexorUser
 {
-    use HasRoles;
+    use HasRoles, HasUserFields;
 }
 ```
 
@@ -137,6 +138,19 @@ php artisan nexor:component catalog.section blog
 - Нет ни `id`, ни `code` или `id` не число — исключение с понятным текстом.
 - Инфоблок не найден или отключён — вместо компонента заглушка «Инфоблок недоступен» (с подробностями при `APP_DEBUG=true`), предупреждение в лог. Так ведут себя все компоненты с `iblock`. Своя вёрстка заглушки — `php artisan nexor:component unavailable`.
 - Другая вёрстка для такого места — свой шаблон: `php artisan nexor:component news.detail home` и `template="home"`.
+
+## Пользователи
+
+Логин и e-mail обязательны и уникальны; на входе одно поле «Логин или e-mail».
+
+Свои поля пользователей заводятся в админке («Пользователи» → «Поля»), значения лежат в EAV-таблице `user_field_values` с индексами по типам. В коде:
+
+```php
+$user->field('city');
+$user->fields();
+```
+
+Право на набор полей — `user_fields.manage`. Для значений модели пользователя нужен трейт `HasUserFields` (см. «Модель пользователя»).
 
 ## Формы обратной связи
 

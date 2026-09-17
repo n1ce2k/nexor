@@ -3,6 +3,7 @@
 namespace Nexor\Cms\Console;
 
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Nexor\Cms\Database\Seeders\IblockSeeder;
@@ -105,6 +106,21 @@ class InstallCommand extends Command
      * operator sets it themselves through `nexor:install` prompts or the app's
      * own tooling, so it never ends up in shell history or logs.
      */
+    /**
+     * Логин из адреса почты; занятый дополняется числом.
+     */
+    protected function loginFor(string $email, Builder $query): string
+    {
+        $base = str($email)->before('@')->lower()->replaceMatches('/[^a-z0-9._-]+/', '')->limit(90, '')->value() ?: 'admin';
+        $login = $base;
+
+        for ($index = 2; $query->clone()->where('login', $login)->exists(); $index++) {
+            $login = $base.$index;
+        }
+
+        return $login;
+    }
+
     protected function createAdministrator(): void
     {
         $query = Nexor::newUser()->newQuery();
@@ -129,6 +145,7 @@ class InstallCommand extends Command
 
         $user = $query->clone()->firstOrNew(['email' => $email]);
         $user->name = $user->name ?: 'Администратор';
+        $user->login = $user->login ?: $this->loginFor($email, $query);
         $user->is_active = true;
         $user->is_super_admin = true;
 
@@ -142,7 +159,7 @@ class InstallCommand extends Command
             $user->roles()->syncWithoutDetaching([$role->id]);
         }
 
-        $this->components->info("Учётная запись {$email} готова.");
+        $this->components->info("Учётная запись {$email} готова, логин: {$user->login}.");
         $this->components->warn('Пароль сгенерирован случайным. Задайте свой командой:');
         $this->line('  php artisan nexor:password '.$email);
     }

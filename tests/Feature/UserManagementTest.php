@@ -38,6 +38,7 @@ class UserManagementTest extends TestCase
 
         $this->actingAs($admin)->post(route('admin.users.store'), [
             'name' => 'Новый Редактор',
+            'login' => 'editor',
             'email' => 'editor@example.test',
             'password' => 'secret123',
             'password_confirmation' => 'secret123',
@@ -53,6 +54,29 @@ class UserManagementTest extends TestCase
         $this->assertDatabaseHas('activity_logs', ['action' => 'created', 'subject_id' => $created->id]);
     }
 
+    public function test_the_login_must_be_unique_and_a_plain_word(): void
+    {
+        $admin = $this->adminWith(['users.create']);
+        $existing = User::factory()->create(['login' => 'editor']);
+
+        $this->actingAs($admin)->post(route('admin.users.store'), [
+            'name' => 'Дубль',
+            'login' => 'editor',
+            'email' => 'unique@example.test',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123',
+        ])->assertSessionHasErrors('login');
+
+        // С «собакой» логин принять нельзя: иначе он спорит с почтой на входе.
+        $this->actingAs($admin)->post(route('admin.users.store'), [
+            'name' => 'Почта',
+            'login' => 'someone@example.test',
+            'email' => 'unique@example.test',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123',
+        ])->assertSessionHasErrors('login');
+    }
+
     public function test_creating_a_user_requires_a_unique_email(): void
     {
         $admin = $this->adminWith(['users.create']);
@@ -60,6 +84,7 @@ class UserManagementTest extends TestCase
 
         $this->actingAs($admin)->post(route('admin.users.store'), [
             'name' => 'Дубль',
+            'login' => 'duble',
             'email' => $existing->email,
             'password' => 'secret123',
             'password_confirmation' => 'secret123',
@@ -74,6 +99,7 @@ class UserManagementTest extends TestCase
 
         $this->actingAs($admin)->put(route('admin.users.update', $user), [
             'name' => 'Переименован',
+            'login' => $user->login,
             'email' => $user->email,
             'password' => '',
             'password_confirmation' => '',
@@ -93,6 +119,7 @@ class UserManagementTest extends TestCase
 
         $this->actingAs($admin)->put(route('admin.users.update', $admin), [
             'name' => $admin->name,
+            'login' => $admin->login,
             'email' => $admin->email,
             'is_active' => '0',
             'roles' => [$otherRole->id],

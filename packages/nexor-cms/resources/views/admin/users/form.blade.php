@@ -30,6 +30,10 @@
                         <x-nexor::admin.input name="name" :value="old('name', $user->name)" required />
                     </x-nexor::admin.field>
 
+                    <x-nexor::admin.field label="Логин" name="login" required hint="Им можно входить вместо e-mail">
+                        <x-nexor::admin.input name="login" :value="old('login', $user->login)" required />
+                    </x-nexor::admin.field>
+
                     <x-nexor::admin.field label="E-mail" name="email" required>
                         <x-nexor::admin.input name="email" type="email" :value="old('email', $user->email)"
                                        autocomplete="off" required />

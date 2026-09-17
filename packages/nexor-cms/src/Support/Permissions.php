@@ -38,6 +38,7 @@ class Permissions
                     'users.create' => 'Создание пользователей',
                     'users.update' => 'Изменение пользователей',
                     'users.delete' => 'Удаление пользователей',
+                    'user_fields.manage' => 'Настройка полей пользователей',
                 ],
             ],
             'roles' => [

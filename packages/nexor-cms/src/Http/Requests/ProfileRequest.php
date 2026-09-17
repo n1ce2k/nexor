@@ -19,6 +19,10 @@ class ProfileRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'login' => [
+                'required', 'string', 'min:3', 'max:100', 'regex:/^[a-zA-Z0-9._-]+$/',
+                Rule::unique('users', 'login')->ignore($this->user()->id)->withoutTrashed(),
+            ],
             'email' => [
                 'required', 'string', 'email', 'max:255',
                 Rule::unique('users', 'email')->ignore($this->user()->id)->withoutTrashed(),
@@ -32,10 +36,21 @@ class ProfileRequest extends FormRequest
     /**
      * @return array<string, string>
      */
+    public function messages(): array
+    {
+        return [
+            'login.regex' => 'Логин — латиница, цифры, точка, дефис и подчёркивание.',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
     public function attributes(): array
     {
         return [
             'name' => 'имя',
+            'login' => 'логин',
             'email' => 'e-mail',
             'phone' => 'телефон',
             'avatar' => 'аватар',

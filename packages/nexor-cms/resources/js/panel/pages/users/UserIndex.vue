@@ -6,6 +6,7 @@ import NCard from '../../components/ui/NCard.vue';
 import NEmpty from '../../components/ui/NEmpty.vue';
 import NFilters from '../../components/ui/NFilters.vue';
 import NIcon from '../../components/ui/NIcon.vue';
+import NInput from '../../components/ui/NInput.vue';
 import NPageHeader from '../../components/ui/NPageHeader.vue';
 import NPagination from '../../components/ui/NPagination.vue';
 import NSelect from '../../components/ui/NSelect.vue';
@@ -21,17 +22,25 @@ const rows = ref([]);
 const meta = ref(null);
 const roles = ref([]);
 const loading = ref(true);
-const query = reactive({ search: '', role: null, status: null, page: 1, sort: 'created_at', direction: 'desc' });
+const query = reactive({ search: '', role: null, status: null, fields: {}, page: 1, sort: 'created_at', direction: 'desc' });
 
-const columns = [
+/** Свои поля: колонки списка и поля фильтра берутся из их настроек. */
+const fields = ref([]);
+
+const listFields = computed(() => fields.value.filter((field) => field.is_shown_in_list));
+const filterFields = computed(() => fields.value.filter((field) => field.is_filterable));
+
+const columns = computed(() => [
     { key: 'name', label: 'Пользователь', sortable: true },
+    ...listFields.value.map((field) => ({ key: `field:${field.code}`, label: field.name })),
     { key: 'roles', label: 'Роли' },
     { key: 'is_active', label: 'Статус', align: 'center', width: '9rem' },
     { key: 'last_login_at', label: 'Последний вход', sortable: true, width: '11rem', muted: true },
     { key: 'actions', label: 'Действия', align: 'right', width: '7rem' },
-];
+]);
 
-const dirty = computed(() => Boolean(query.search || query.role || query.status));
+const dirty = computed(() => Boolean(query.search || query.role || query.status)
+    || Object.values(query.fields).some((value) => value !== '' && value !== null));
 
 async function load() {
     loading.value = true;
@@ -105,9 +114,18 @@ function formatDate(iso) {
     return iso ? new Date(iso).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) : 'ни разу';
 }
 
+async function loadFields() {
+    try {
+        fields.value = (await api.get('users/schema')).fields;
+    } catch {
+        // Схема не критична: список работает и без своих колонок.
+    }
+}
+
 onMounted(() => {
     load();
     loadRoles();
+    loadFields();
 });
 </script>
 
@@ -115,6 +133,8 @@ onMounted(() => {
     <div>
         <NPageHeader title="Пользователи" description="Учётные записи с доступом в панель управления.">
             <template #actions>
+                <NButton v-if="session.can('user_fields.manage')" variant="secondary" icon="list-tree"
+                         :to="{ name: 'users.fields' }">Поля</NButton>
                 <NButton v-if="session.can('users.create')" icon="plus" :to="{ name: 'users.create' }">
                     Добавить пользователя
                 </NButton>
@@ -123,11 +143,22 @@ onMounted(() => {
 
         <NCard :padding="false">
             <div class="border-b border-[var(--surface-border)] p-4">
-                <NFilters v-model="query.search" placeholder="Имя или e-mail..." :dirty="dirty"
+                <NFilters v-model="query.search" placeholder="Имя, логин или e-mail..." :dirty="dirty"
                           @apply="apply" @reset="reset">
                     <NSelect v-model="query.role" :options="roles" placeholder="Все роли" class="w-auto" />
                     <NSelect v-model="query.status" class="w-auto" placeholder="Любой статус"
                              :options="[{ value: 'active', label: 'Активные' }, { value: 'blocked', label: 'Заблокированные' }]" />
+
+                    <template v-for="field in filterFields" :key="field.id">
+                        <NSelect v-if="field.type === 'select'" v-model="query.fields[field.code]" class="w-auto"
+                                 :placeholder="field.name"
+                                 :options="field.enums.map((item) => ({ value: item.id, label: item.value }))" />
+                        <NSelect v-else-if="field.type === 'boolean'" v-model="query.fields[field.code]" class="w-auto"
+                                 :placeholder="field.name"
+                                 :options="[{ value: '1', label: 'Да' }, { value: '0', label: 'Нет' }]" />
+                        <NInput v-else v-model="query.fields[field.code]" class="w-auto" :placeholder="field.name"
+                                :type="['integer', 'decimal'].includes(field.type) ? 'number' : (field.type === 'date' ? 'date' : 'text')" />
+                    </template>
                 </NFilters>
             </div>
 
@@ -137,6 +168,10 @@ onMounted(() => {
             <template v-else>
                 <NTable :columns="columns" :rows="rows" :sort="query.sort" :direction="query.direction"
                         :loading="loading" @sort="sort">
+                    <template v-for="field in listFields" #[`cell-field:${field.code}`]="{ row }" :key="field.id">
+                        <span class="text-xs text-[var(--text-muted)]">{{ row.list_fields?.[field.code] || '—' }}</span>
+                    </template>
+
                     <template #cell-name="{ row }">
                         <div class="flex items-center gap-3">
                             <img v-if="row.avatar_url" :src="row.avatar_url" alt=""
@@ -147,7 +182,9 @@ onMounted(() => {
 
                             <div class="min-w-0">
                                 <p class="truncate font-medium text-[var(--text-strong)]">{{ row.name }}</p>
-                                <p class="truncate text-xs text-[var(--text-muted)]">{{ row.email }}</p>
+                                <p class="truncate text-xs text-[var(--text-muted)]">
+                                    <span class="font-mono">{{ row.login }}</span> · {{ row.email }}
+                                </p>
                             </div>
                         </div>
                     </template>

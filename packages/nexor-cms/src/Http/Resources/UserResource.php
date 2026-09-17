@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use DateTimeInterface;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\Uploads;
 use Nexor\Cms\Support\UserFields;
 
@@ -28,7 +29,7 @@ class UserResource extends JsonResource
             'phone' => $this->phone,
             'avatar' => $this->avatar,
             'avatar_url' => $this->avatar ? Uploads::url($this->avatar) : null,
-            'initials' => $this->initials,
+            'initials' => Nexor::initials($this->name),
             'is_active' => (bool) $this->is_active,
             'is_super_admin' => (bool) $this->is_super_admin,
             'last_login_at' => self::moment($this->last_login_at),

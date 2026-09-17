@@ -22,7 +22,7 @@ class Nexor
      * The release is the git tag; this constant is what the running code can
      * print — in the panel, in a bug report, in an upgrade check.
      */
-    public const VERSION = '0.2.10';
+    public const VERSION = '0.2.11';
 
     /**
      * @return class-string<Model&NexorUser>
@@ -71,6 +71,20 @@ class Nexor
     public static function directory(string $key): string
     {
         return config("nexor.storage.directories.{$key}", $key);
+    }
+
+    /**
+     * Инициалы для кружка аватара.
+     *
+     * Считает их пакет, а не модель пользователя: она живёт в приложении, и
+     * такого аксессора там может не быть.
+     */
+    public static function initials(?string $name): string
+    {
+        $words = preg_split('/\s+/u', trim((string) $name)) ?: [];
+        $letters = array_map(static fn (string $word): string => mb_substr($word, 0, 1), array_slice($words, 0, 2));
+
+        return mb_strtoupper(implode('', $letters)) ?: '?';
     }
 
     public static function brand(string $key = 'name'): string

@@ -5,9 +5,13 @@ import { useSession } from './stores/session';
 import Dashboard from './pages/Dashboard.vue';
 import LogsIndex from './pages/LogsIndex.vue';
 import NotFound from './pages/NotFound.vue';
+import AgreementForm from './pages/agreements/AgreementForm.vue';
+import AgreementIndex from './pages/agreements/AgreementIndex.vue';
 import ElementForm from './pages/elements/ElementForm.vue';
 import ElementIndex from './pages/elements/ElementIndex.vue';
 import TypeIndex from './pages/iblock-types/TypeIndex.vue';
+import FormForm from './pages/forms/FormForm.vue';
+import FormIndex from './pages/forms/FormIndex.vue';
 import IblockForm from './pages/iblocks/IblockForm.vue';
 import IblockIndex from './pages/iblocks/IblockIndex.vue';
 import MailSmtp from './pages/mail/MailSmtp.vue';
@@ -47,6 +51,14 @@ const routes = [
     { path: '/iblocks/:iblock/properties/:property/edit', name: 'properties.edit', component: PropertyForm, props: true, meta: { permission: 'iblocks.update' } },
     { path: '/iblock-types', name: 'iblock-types.index', component: TypeIndex, meta: { permission: 'iblock_types.view' } },
     { path: '/menus', name: 'menus.index', component: MenuIndex, meta: { permission: 'menus.view' } },
+
+    // Формы
+    { path: '/forms', name: 'forms.index', component: FormIndex, meta: { permission: 'forms.view' } },
+    { path: '/forms/create', name: 'forms.create', component: FormForm, meta: { permission: 'forms.create' } },
+    { path: '/forms/:form/edit', name: 'forms.edit', component: FormForm, props: true, meta: { permission: 'forms.view' } },
+    { path: '/agreements', name: 'agreements.index', component: AgreementIndex, meta: { permission: 'agreements.view' } },
+    { path: '/agreements/create', name: 'agreements.create', component: AgreementForm, meta: { permission: 'agreements.create' } },
+    { path: '/agreements/:agreement/edit', name: 'agreements.edit', component: AgreementForm, props: true, meta: { permission: 'agreements.update' } },
 
     // Администрирование
     { path: '/users', name: 'users.index', component: UserIndex, meta: { permission: 'users.view' } },

@@ -19,7 +19,7 @@ export function useNavigation() {
         const extras = (group) => custom.filter((item) => item.group === group);
 
         // Группы, которые принесли модули («Магазин»), встают после «Структуры».
-        const known = ['Контент', 'Структура', 'Настройки', 'Администрирование'];
+        const known = ['Контент', 'Структура', 'Формы', 'Настройки', 'Администрирование'];
         const moduleGroups = [...new Set(custom.map((item) => item.group).filter((group) => group && !known.includes(group)))];
 
         groups.push({
@@ -63,6 +63,19 @@ export function useNavigation() {
         }
 
         groups.push({ label: 'Структура', items: [...structure, ...extras('Структура')] });
+
+        // Формы
+        const forms = [];
+
+        if (session.can('forms.view')) {
+            forms.push({ label: 'Формы ОС', icon: 'document', to: { name: 'forms.index' } });
+        }
+
+        if (session.can('agreements.view')) {
+            forms.push({ label: 'Соглашения', icon: 'check', to: { name: 'agreements.index' } });
+        }
+
+        groups.push({ label: 'Формы', items: [...forms, ...extras('Формы')] });
 
         moduleGroups.forEach((label) => groups.push({ label, items: extras(label) }));
 

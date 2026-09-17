@@ -3,8 +3,11 @@
 use Illuminate\Routing\PendingResourceRegistration;
 use Illuminate\Support\Facades\Route;
 use Nexor\Cms\Http\Controllers\Api\ActivityLogController;
+use Nexor\Cms\Http\Controllers\Api\AgreementController;
 use Nexor\Cms\Http\Controllers\Api\BootstrapController;
 use Nexor\Cms\Http\Controllers\Api\DashboardController;
+use Nexor\Cms\Http\Controllers\Api\FeedbackFormController;
+use Nexor\Cms\Http\Controllers\Api\FeedbackSubmissionController;
 use Nexor\Cms\Http\Controllers\Api\IblockController;
 use Nexor\Cms\Http\Controllers\Api\IblockElementController;
 use Nexor\Cms\Http\Controllers\Api\IblockPropertyController;
@@ -127,6 +130,36 @@ Route::apiResource('mail-templates', MailTemplateController::class)
 Route::post('mail-templates/{template}/send', [MailTemplateController::class, 'send'])
     ->name('mail-templates.send')
     ->middleware('nexor.permission:mail.update');
+
+/*
+ * Формы обратной связи и соглашения к ним.
+ */
+Route::get('form-meta', [FeedbackFormController::class, 'meta'])
+    ->name('forms.meta')
+    ->middleware('nexor.permission:forms.view');
+
+// Право (создание или изменение формы) проверяет сам контроллер.
+Route::post('forms/telegram-test', [FeedbackFormController::class, 'testTelegram'])
+    ->name('forms.telegram-test')
+    ->middleware(['nexor.permission:forms.view', 'throttle:10,1']);
+
+$guard(Route::apiResource('forms', FeedbackFormController::class), 'nexor.permission', 'forms.');
+
+Route::prefix('forms/{form}/submissions')->name('forms.submissions.')->scopeBindings()->group(function (): void {
+    Route::middleware('nexor.permission:forms.submissions.view')->group(function (): void {
+        Route::get('/', [FeedbackSubmissionController::class, 'index'])->name('index');
+        Route::get('{submission}', [FeedbackSubmissionController::class, 'show'])->name('show');
+        Route::get('{submission}/files/{field}', [FeedbackSubmissionController::class, 'file'])
+            ->where('field', '[a-z][a-z0-9_]*')
+            ->name('file');
+    });
+
+    Route::delete('{submission}', [FeedbackSubmissionController::class, 'destroy'])
+        ->name('destroy')
+        ->middleware('nexor.permission:forms.submissions.delete');
+});
+
+$guard(Route::apiResource('agreements', AgreementController::class), 'nexor.permission', 'agreements.');
 
 /*
  * Developer console. Authorisation is enforced inside the controller — super

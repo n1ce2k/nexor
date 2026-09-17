@@ -6,6 +6,7 @@
 
 - PHP 8.3+
 - Laravel 12 или 13
+- Livewire 4 — ставится вместе с пакетом, нужен формам с отправкой без перезагрузки
 
 ## Установка
 
@@ -136,6 +137,25 @@ php artisan nexor:component catalog.section blog
 - Нет ни `id`, ни `code` или `id` не число — исключение с понятным текстом.
 - Инфоблок не найден или отключён — вместо компонента заглушка «Инфоблок недоступен» (с подробностями при `APP_DEBUG=true`), предупреждение в лог. Так ведут себя все компоненты с `iblock`. Своя вёрстка заглушки — `php artisan nexor:component unavailable`.
 - Другая вёрстка для такого места — свой шаблон: `php artisan nexor:component news.detail home` и `template="home"`.
+
+## Формы обратной связи
+
+В админке — «Формы ОС» (поля, почтовый шаблон, соглашение, записи) и «Соглашения». На сайте:
+
+```blade
+<x-nexor::form :id="1" />
+<x-nexor::form form="callback" />
+```
+
+- Типы полей: строка, textarea, телефон, e-mail, файл. Файлы — на закрытом диске (`NEXOR_FORMS_DISK`, по умолчанию `local`), во вложениях письма и в записях.
+- Подстановки письма: `#<КОД ПОЛЯ>#`, `#FORM_NAME#`, `#FORM_ID#`, `#FORM_CODE#`, `#SUBMISSION_ID#`, `#SUBMISSION_URL#`, `#PAGE_URL#`, `#DATE#`, `#ALL_FIELDS#`.
+- «Сделать отправку без перезагрузки» — Livewire-компонент `nexor::feedback-form`, шаблон `<имя>-livewire.blade.php`. `php artisan nexor:component form my` копирует пару.
+- Вкладка «Telegram»: заявка сообщением от бота во все указанные чаты, файлы — документами.
+- Вкладка «Защита»: Yandex SmartCaptcha, Google reCAPTCHA (v2/v3) или своя Nexor Captcha (картинка, нужен `ext-gd`, без него — упрощённая SVG). Секреты — зашифрованы.
+- Соглашение открывается во всплывающем окне (CSS `:target`, без JS) или страницей `/agreement/<код>`.
+- Старый вариант без админки — `<x-nexor::form :fields="['name', 'phone']" />` — работает как раньше.
+
+Права: `forms.view|create|update|delete`, `forms.submissions.view|delete`, `agreements.view|create|update|delete`.
 
 ## Права
 

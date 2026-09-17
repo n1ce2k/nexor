@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
 use Nexor\Cms\Console\InstallCommand;
 use Nexor\Cms\Console\LoginLinkCommand;
 use Nexor\Cms\Console\PublishComponentCommand;
@@ -241,6 +242,10 @@ class NexorServiceProvider extends ServiceProvider
         // `list` — зарезервированное слово PHP, класса `News\List` не бывает.
         // А имя `news.list` привычное, поэтому тег связан с классом псевдонимом.
         Blade::component(NewsListing::class, 'nexor::news.list');
+
+        // Форма обратной связи без перезагрузки: <livewire:nexor::feedback-form :form-id="3" />
+        // (обычно её подключает сам <x-nexor::form :id="3" />).
+        Livewire::addNamespace('nexor', classNamespace: 'Nexor\\Cms\\Livewire');
     }
 
     protected function registerPublishing(): void

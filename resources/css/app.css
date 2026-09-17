@@ -2,6 +2,8 @@
 
 @source '../views';
 @source '../../packages/nexor-shop/resources/views';
+@source '../../packages/nexor-cms/resources/views/components';
+@source '../../packages/nexor-cms/resources/views/site';
 @source '../../app/Http/Controllers/Site';
 @source '../../app/Support';
 

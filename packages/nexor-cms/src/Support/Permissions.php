@@ -80,6 +80,28 @@ class Permissions
                     'menus.delete' => 'Удаление меню',
                 ],
             ],
+            'forms' => [
+                'label' => 'Формы обратной связи',
+                'sort' => 560,
+                'items' => [
+                    'forms.view' => 'Просмотр форм',
+                    'forms.create' => 'Создание форм',
+                    'forms.update' => 'Изменение форм и их полей',
+                    'forms.delete' => 'Удаление форм',
+                    'forms.submissions.view' => 'Просмотр записей форм',
+                    'forms.submissions.delete' => 'Удаление записей форм',
+                ],
+            ],
+            'agreements' => [
+                'label' => 'Соглашения',
+                'sort' => 570,
+                'items' => [
+                    'agreements.view' => 'Просмотр соглашений',
+                    'agreements.create' => 'Создание соглашений',
+                    'agreements.update' => 'Изменение соглашений',
+                    'agreements.delete' => 'Удаление соглашений',
+                ],
+            ],
             'settings' => [
                 'label' => 'Настройки',
                 'sort' => 600,

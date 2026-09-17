@@ -34,13 +34,32 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+        ];
+    }
 }
 PHP;
     }
 
+    /** Тот же образец, но с гарантированными переводами строк LF. */
+    protected function lines(): string
+    {
+        return str_replace("\r\n", "\n", $this->stockModel());
+    }
+
     public function test_the_stock_model_gets_the_contract_traits_and_columns(): void
     {
-        $patched = UserModelSetup::apply($this->stockModel());
+        $patched = UserModelSetup::apply($this->lines());
+
+        $this->assertStringNotContainsString("\r", $patched);
 
         $this->assertStringContainsString('use Nexor\Cms\Contracts\NexorUser;', $patched);
         $this->assertStringContainsString('use Nexor\Cms\Models\Concerns\HasRoles;', $patched);
@@ -51,6 +70,12 @@ PHP;
             "#[Fillable(['name', 'email', 'password', 'login', 'phone', 'avatar', 'is_active', 'is_super_admin'])]",
             $patched,
         );
+
+        // Без приведений типов панель получала бы дату строкой и падала.
+        $this->assertStringContainsString("'is_active' => 'boolean',", $patched);
+        $this->assertStringContainsString("'is_super_admin' => 'boolean',", $patched);
+        $this->assertStringContainsString("'last_login_at' => 'datetime',", $patched);
+        $this->assertStringContainsString("'password' => 'hashed',", $patched);
     }
 
     public function test_patching_twice_changes_nothing(): void
@@ -87,6 +112,19 @@ PHP;
         $this->assertStringContainsString('implements Something, NexorUser', $patched);
         $this->assertStringContainsString('use HasRoles, HasUserFields, Notifiable;', $patched);
         $this->assertStringContainsString("protected \$fillable = ['name', 'email', 'password', 'login',", $patched);
+    }
+
+    public function test_a_windows_model_with_crlf_is_patched_too(): void
+    {
+        // На Windows модель обычно лежит с CRLF — на них разбор и спотыкался.
+        $crlf = str_replace("\n", "\r\n", $this->lines());
+        $patched = UserModelSetup::apply($crlf);
+
+        $this->assertNotNull($patched);
+        $this->assertStringContainsString("use Nexor\Cms\Contracts\NexorUser;\r\n", $patched);
+        $this->assertStringContainsString('implements NexorUser', $patched);
+        $this->assertStringContainsString("'last_login_at' => 'datetime',\r\n", $patched);
+        $this->assertStringNotContainsString("\r\r", $patched);
     }
 
     public function test_an_unusual_model_is_left_alone(): void

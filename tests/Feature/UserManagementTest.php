@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Nexor\Cms\Models\Role;
+use Nexor\Cms\Support\Nexor;
 use Tests\Concerns\CreatesAdminUsers;
 use Tests\TestCase;
 
@@ -52,6 +53,20 @@ class UserManagementTest extends TestCase
         $this->assertTrue(Hash::check('secret123', $created->password));
         $this->assertTrue($created->roles->contains($role));
         $this->assertDatabaseHas('activity_logs', ['action' => 'created', 'subject_id' => $created->id]);
+    }
+
+    public function test_initials_do_not_depend_on_the_application_model(): void
+    {
+        // Аксессора `initials` в свежей модели пользователя нет — считает пакет.
+        $user = User::factory()->create(['name' => 'Андрей Айнагоз']);
+
+        $this->assertSame('АА', Nexor::initials($user->name));
+        $this->assertSame('?', Nexor::initials(''));
+
+        $this->actingAs($this->adminWith(['users.view']))
+            ->getJson('/admin/api/users')
+            ->assertOk()
+            ->assertJsonFragment(['initials' => 'АА']);
     }
 
     public function test_the_login_must_be_unique_and_a_plain_word(): void

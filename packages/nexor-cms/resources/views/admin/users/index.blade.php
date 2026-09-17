@@ -43,7 +43,7 @@
                                     <img src="{{ $user->avatar_url }}" alt="" class="size-9 rounded-full object-cover">
                                 @else
                                     <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--surface-muted)] text-xs font-semibold text-[var(--text-muted)]">
-                                        {{ $user->initials }}
+                                        {{ \Nexor\Cms\Support\Nexor::initials($user->name) }}
                                     </span>
                                 @endif
 

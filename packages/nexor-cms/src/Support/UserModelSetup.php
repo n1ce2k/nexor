@@ -11,16 +11,24 @@ use ReflectionClass;
  * Подготовка модели пользователя приложения к работе с CMS.
  *
  * Модель остаётся в приложении, но панели нужны от неё контракт, трейты ролей
- * и своих полей, а также колонки CMS в списке заполняемых. `nexor:install`
- * дописывает это сам: иначе установка падала на первой же учётной записи.
+ * и своих полей, колонки CMS в списке заполняемых и их приведения типов.
+ * `nexor:install` дописывает это сам: иначе установка падала на первой же
+ * учётной записи, а панель получала дату строкой.
  */
 class UserModelSetup
 {
     /** Колонки, которые CMS добавляет пользователю и заполняет из своих форм. */
     public const COLUMNS = ['login', 'phone', 'avatar', 'is_active', 'is_super_admin'];
 
+    /** Приведения типов для колонок CMS: без них панель получает строки. */
+    public const CASTS = [
+        'is_active' => 'boolean',
+        'is_super_admin' => 'boolean',
+        'last_login_at' => 'datetime',
+    ];
+
     /**
-     * Чего модели не хватает: contract, roles, fields и колонки списка fillable.
+     * Чего модели не хватает: contract, roles, fields, колонки и приведения.
      *
      * @return array<int, string>
      */
@@ -51,6 +59,12 @@ class UserModelSetup
         foreach (self::COLUMNS as $column) {
             if (! $model->isFillable($column)) {
                 $missing[] = 'fillable:'.$column;
+            }
+        }
+
+        foreach (array_keys(self::CASTS) as $attribute) {
+            if (! $model->hasCast($attribute)) {
+                $missing[] = 'cast:'.$attribute;
             }
         }
 
@@ -96,8 +110,18 @@ class UserModelSetup
         $result = self::addImports($source);
         $result = self::addContract($result);
         $result = self::addTraits($result);
+        $result = self::addFillable($result);
 
-        return self::addFillable($result);
+        return self::addCasts($result);
+    }
+
+    /**
+     * Перевод строки файла: на Windows модель часто лежит с CRLF, и дописанные
+     * строки должны быть такими же, иначе разметка поедет.
+     */
+    protected static function eol(string $source): string
+    {
+        return str_contains($source, "\r\n") ? "\r\n" : "\n";
     }
 
     protected static function addImports(?string $source): ?string
@@ -112,13 +136,14 @@ class UserModelSetup
             'use '.HasUserFields::class.';',
         ];
 
-        preg_match_all('/^use .+;$/m', $source, $existing);
+        preg_match_all('/^use .+;\r?$/m', $source, $existing);
 
         if ($existing[0] === []) {
             return null;
         }
 
-        $lines = array_merge($existing[0], array_filter($imports, fn (string $line) => ! str_contains($source, $line)));
+        $lines = array_map(fn (string $line) => rtrim($line, "\r"), $existing[0]);
+        $lines = array_merge($lines, array_filter($imports, fn (string $line) => ! str_contains($source, $line)));
         sort($lines);
 
         // Блок use-строк заменяется целиком, чтобы они остались по алфавиту.
@@ -127,16 +152,16 @@ class UserModelSetup
         $start = strpos($source, $first);
         $end = strrpos($source, $last) + strlen($last);
 
-        return substr($source, 0, $start).implode("\n", $lines).substr($source, $end);
+        return substr($source, 0, $start).implode(self::eol($source), $lines).substr($source, $end);
     }
 
     protected static function addContract(?string $source): ?string
     {
-        if ($source === null || preg_match('/implements[^{\n]*NexorUser/', $source) === 1) {
+        if ($source === null || preg_match('/implements[^{\r\n]*NexorUser/', $source) === 1) {
             return $source;
         }
 
-        if (preg_match('/^class\s+\w+\s+extends\s+[\w\\\\]+(\s+implements\s+[^{\n]+)?/m', $source, $match) !== 1) {
+        if (preg_match('/^class\s+\w+\s+extends\s+[\w\\\\]+(\s+implements\s+[^{\r\n]+)?/m', $source, $match) !== 1) {
             return null;
         }
 
@@ -160,7 +185,7 @@ class UserModelSetup
 
         $body = $class[0][1] + strlen($class[0][0]);
 
-        if (preg_match('/\n(\s*)use ([A-Za-z0-9_][A-Za-z0-9_, ]*);/', $source, $match, PREG_OFFSET_CAPTURE, $body) !== 1) {
+        if (preg_match('/\n([ \t]*)use ([A-Za-z0-9_][A-Za-z0-9_, ]*);/', $source, $match, PREG_OFFSET_CAPTURE, $body) !== 1) {
             return null;
         }
 
@@ -207,6 +232,43 @@ class UserModelSetup
     }
 
     /**
+     * Приведения типов дописываются в метод `casts()` или в свойство `$casts`.
+     */
+    protected static function addCasts(?string $source): ?string
+    {
+        if ($source === null) {
+            return null;
+        }
+
+        $patterns = [
+            '/(function casts\(\)[^{]*\{\s*return \[)(.*?)(\];)/s',
+            '/(protected \$casts = \[)(.*?)(\];)/s',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $source, $match) !== 1) {
+                continue;
+            }
+
+            $eol = self::eol($source);
+            $added = '';
+
+            foreach (self::CASTS as $attribute => $cast) {
+                if (! str_contains($match[2], "'".$attribute."'")) {
+                    $added .= $eol."            '".$attribute."' => '".$cast."',";
+                }
+            }
+
+            return $added === ''
+                ? $source
+                : str_replace($match[0], $match[1].rtrim($match[2], " \r\n").$added.$eol.'        '.$match[3], $source);
+        }
+
+        // Метода casts() нет — дописывать его в чужую разметку не станем.
+        return $source;
+    }
+
+    /**
      * Что дописать руками, если разметка модели непривычная.
      */
     public static function snippet(): string
@@ -220,8 +282,11 @@ class User extends Authenticatable implements NexorUser
 {
     use HasRoles, HasUserFields;
 
-    // и колонки CMS в списке заполняемых:
+    // колонки CMS в списке заполняемых:
     // 'login', 'phone', 'avatar', 'is_active', 'is_super_admin'
+
+    // и их приведения типов в casts():
+    // 'is_active' => 'boolean', 'is_super_admin' => 'boolean', 'last_login_at' => 'datetime'
 }
 PHP;
     }

@@ -2,6 +2,8 @@
 
 namespace Nexor\Cms\Http\Resources;
 
+use Carbon\Carbon;
+use DateTimeInterface;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Nexor\Cms\Support\Uploads;
@@ -29,13 +31,28 @@ class UserResource extends JsonResource
             'initials' => $this->initials,
             'is_active' => (bool) $this->is_active,
             'is_super_admin' => (bool) $this->is_super_admin,
-            'last_login_at' => $this->last_login_at?->toIso8601String(),
+            'last_login_at' => self::moment($this->last_login_at),
             'last_login_ip' => $this->last_login_ip,
-            'created_at' => $this->created_at?->toIso8601String(),
+            'created_at' => self::moment($this->created_at),
             'fields' => $this->whenLoaded('fieldValues', fn () => UserFields::forForm($this->resource)),
             'list_fields' => $this->whenLoaded('fieldValues', fn () => UserFields::forList($this->resource)),
             'roles' => RoleResource::collection($this->whenLoaded('roles')),
             'role_ids' => $this->whenLoaded('roles', fn () => $this->roles->pluck('id')),
         ];
+    }
+
+    /**
+     * Дата в ISO. Модель пользователя живёт в приложении, и приведения типов
+     * там может не быть — тогда из базы приходит обычная строка.
+     */
+    protected static function moment(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return $value instanceof DateTimeInterface
+            ? Carbon::instance($value)->toIso8601String()
+            : Carbon::parse((string) $value)->toIso8601String();
     }
 }

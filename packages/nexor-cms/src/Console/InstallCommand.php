@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rules\Password;
 use Nexor\Cms\Database\Seeders\IblockSeeder;
 use Nexor\Cms\Database\Seeders\MenuSeeder;
 use Nexor\Cms\Database\Seeders\RoleSeeder;
@@ -159,13 +161,6 @@ class InstallCommand extends Command
     }
 
     /**
-     * Creates the first super administrator when the site has none.
-     *
-     * The password is never taken from arguments or generated silently — the
-     * operator sets it themselves through `nexor:install` prompts or the app's
-     * own tooling, so it never ends up in shell history or logs.
-     */
-    /**
      * Логин из адреса почты; занятый дополняется числом.
      */
     protected function loginFor(string $email, Builder $query): string
@@ -180,6 +175,12 @@ class InstallCommand extends Command
         return $login;
     }
 
+    /**
+     * Первый супер-администратор, если его ещё нет.
+     *
+     * Пароль не приходит аргументом и не придумывается молча: его вводит сам
+     * оператор скрытым вводом, поэтому он не оседает ни в истории команд, ни в логах.
+     */
     protected function createAdministrator(): void
     {
         $query = Nexor::newUser()->newQuery();
@@ -208,7 +209,13 @@ class InstallCommand extends Command
         $user->is_active = true;
         $user->is_super_admin = true;
 
-        if (! $user->exists) {
+        $password = $user->exists ? null : $this->askPassword();
+
+        if ($password !== null) {
+            $user->password = $password;
+        } elseif (! $user->exists) {
+            // Пароль не задали (например, `--force`): вход будет невозможен,
+            // пока его не поставят командой nexor:password.
             $user->password = str()->random(32);
         }
 
@@ -224,7 +231,46 @@ class InstallCommand extends Command
         }
 
         $this->components->info("Учётная запись {$email} готова, логин: {$user->login}.");
-        $this->components->warn('Пароль сгенерирован случайным. Задайте свой командой:');
-        $this->line('  php artisan nexor:password '.$email);
+
+        if ($password === null) {
+            $this->components->warn('Пароль не задан. Поставьте свой командой:');
+            $this->line('  php artisan nexor:password '.$email);
+        }
+    }
+
+    /**
+     * Пароль задаёт оператор прямо здесь: ввод скрытый, значение никуда не
+     * пишется, кроме самой учётной записи. Пустой ответ — пропустить шаг.
+     */
+    protected function askPassword(): ?string
+    {
+        if ($this->option('force')) {
+            return null;
+        }
+
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            $password = (string) $this->secret('Пароль супер-администратора (Enter — задать позже)');
+
+            if ($password === '') {
+                return null;
+            }
+
+            $validator = Validator::make([
+                'password' => $password,
+                'password_confirmation' => (string) $this->secret('Повторите пароль'),
+            ], [
+                'password' => ['required', 'confirmed', Password::default()],
+            ], [], ['password' => 'пароль']);
+
+            if ($validator->passes()) {
+                return $password;
+            }
+
+            foreach ($validator->errors()->all() as $message) {
+                $this->components->error($message);
+            }
+        }
+
+        return null;
     }
 }

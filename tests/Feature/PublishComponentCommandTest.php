@@ -107,6 +107,24 @@ class PublishComponentCommandTest extends TestCase
         $this->assertSame($this->packaged('catalog/section/default.blade.php'), File::get($file));
     }
 
+    public function test_a_form_template_takes_its_livewire_variant_along(): void
+    {
+        $this->artisan('nexor:component', ['component' => 'form', 'template' => 'callback'])->assertSuccessful();
+
+        $this->assertFileExists($this->published.'/form/callback.blade.php');
+        $this->assertSame(
+            $this->packaged('form/default-livewire.blade.php'),
+            File::get($this->published.'/form/callback-livewire.blade.php'),
+        );
+    }
+
+    public function test_the_livewire_variant_is_not_listed_as_a_template(): void
+    {
+        $this->artisan('nexor:component')
+            ->doesntExpectOutputToContain('default-livewire')
+            ->assertSuccessful();
+    }
+
     public function test_a_named_template_can_be_based_on_another_one(): void
     {
         $this->artisan('nexor:component', [

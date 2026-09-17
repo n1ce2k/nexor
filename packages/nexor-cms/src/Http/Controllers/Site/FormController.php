@@ -3,15 +3,20 @@
 namespace Nexor\Cms\Http\Controllers\Site;
 
 use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 use Nexor\Cms\Mail\FormMessage;
+use Nexor\Cms\Models\FeedbackForm;
 use Nexor\Cms\Models\MailTemplate;
 use Nexor\Cms\Models\Setting;
+use Nexor\Cms\Support\FeedbackForms;
+use Nexor\Cms\Support\FormCaptcha;
 use Nexor\Cms\View\Components\Form;
 
 /**
@@ -25,13 +30,18 @@ use Nexor\Cms\View\Components\Form;
  */
 class FormController extends Controller
 {
-    public function __invoke(Request $request): RedirectResponse
+    public function __invoke(Request $request): RedirectResponse|JsonResponse
     {
         $config = $this->config($request);
 
         // Honeypot: поле спрятано от людей, боты его заполняют.
         if (filled($request->input('website'))) {
-            return back()->with('nexor.form.sent', $config['name']);
+            return $this->done($request, $config['name']);
+        }
+
+        // Форма из админки («Формы ОС»): поля, письмо и запись — из её настроек.
+        if (isset($config['form_id'])) {
+            return $this->submitEntity($request, $config);
         }
 
         $data = $request->validate($this->rules($config));
@@ -46,7 +56,53 @@ class FormController extends Controller
     }
 
     /**
-     * @return array{name: string, to: string|null, template: string|null, fields: array<int, string>, consent: bool}
+     * @param  array{name: string, form_id: int}  $config
+     */
+    protected function submitEntity(Request $request, array $config): RedirectResponse|JsonResponse
+    {
+        $form = FeedbackForm::findForSite($config['form_id'])
+            ?? abort(404, 'Форма отключена или удалена.');
+
+        $data = $request->validate(
+            FeedbackForms::rules($form),
+            FeedbackForms::messages(),
+            FeedbackForms::attributes($form),
+        );
+
+        // Капча — после полей: ошибка в поле не должна сжигать пройденную проверку.
+        $captchaError = FormCaptcha::verify($form, [
+            'token' => $request->input('captcha_token'),
+            'id' => $request->input('captcha_id'),
+            'answer' => $request->input('captcha_answer'),
+        ], $request->ip());
+
+        if ($captchaError !== null) {
+            throw ValidationException::withMessages([FormCaptcha::ERROR_KEY => $captchaError]);
+        }
+
+        $submission = FeedbackForms::submit($form, $data['fields'] ?? [], [
+            'page_url' => url()->previous(),
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'user_id' => $request->user()?->getAuthIdentifier(),
+        ]);
+
+        return $this->done($request, $config['name'], $form->success_text, $submission?->id);
+    }
+
+    protected function done(Request $request, string $name, ?string $message = null, ?int $submissionId = null): RedirectResponse|JsonResponse
+    {
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message ?? 'Сообщение отправлено.', 'id' => $submissionId]);
+        }
+
+        return back()
+            ->with('nexor.form.sent', $name)
+            ->with('status', 'Сообщение отправлено.');
+    }
+
+    /**
+     * @return array{name: string, to?: string|null, template?: string|null, fields?: array<int, string>, consent?: bool, form_id?: int}
      */
     protected function config(Request $request): array
     {
@@ -56,7 +112,7 @@ class FormController extends Controller
             abort(422, 'Форма повреждена — обновите страницу.');
         }
 
-        abort_unless(is_array($config) && isset($config['fields']), 422);
+        abort_unless(is_array($config) && (isset($config['fields']) || isset($config['form_id'])), 422);
 
         return $config;
     }

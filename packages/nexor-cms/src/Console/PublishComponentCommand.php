@@ -34,6 +34,9 @@ class PublishComponentCommand extends Command
     /** Части шаблона, которые копируются вместе с ним. */
     protected const PARTIALS = ['partials'];
 
+    /** Суффикс Livewire-варианта шаблона: сам по себе шаблоном не считается. */
+    protected const LIVEWIRE = '-livewire';
+
     /** Имя шаблона становится именем файла, поэтому набор символов узкий. */
     protected const NAME = '/^[A-Za-z0-9_-]+$/';
 
@@ -106,6 +109,14 @@ class PublishComponentCommand extends Command
 
         File::ensureDirectoryExists(dirname($target));
         File::copy($source, $target);
+
+        // Пара для отправки без перезагрузки (формы): default-livewire → blog-livewire.
+        $livewire = $from.'/'.$this->option('from').self::LIVEWIRE.'.blade.php';
+
+        if (File::exists($livewire)) {
+            File::copy($livewire, dirname($target).'/'.$template.self::LIVEWIRE.'.blade.php');
+            $this->components->info('И его вариант без перезагрузки: '.$template.self::LIVEWIRE.'.blade.php');
+        }
 
         $this->components->info('Шаблон создан: resources/views/vendor/nexor/components/'.$relative.'/'.$template.'.blade.php');
         $this->newLine();
@@ -300,6 +311,7 @@ class PublishComponentCommand extends Command
         return collect(File::files($directory))
             ->filter(fn (SplFileInfo $file) => str_ends_with($file->getFilename(), '.blade.php'))
             ->map(fn (SplFileInfo $file) => Str::before($file->getFilename(), '.blade.php'))
+            ->reject(fn (string $name) => str_ends_with($name, self::LIVEWIRE))
             ->sort()
             ->values()
             ->all();

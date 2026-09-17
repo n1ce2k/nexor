@@ -13,8 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Admin routes, middleware aliases and gates come from NexorServiceProvider.
-        $middleware->redirectGuestsTo(fn () => route('admin.login'));
+        // Маршруты панели, алиасы middleware и gates приходят из NexorServiceProvider.
+        // Гостя разворачивает сам пакет, поэтому redirectGuestsTo здесь не нужен:
+        // приложение должно работать так же, как свежая установка.
         $middleware->redirectUsersTo(fn () => Nexor::home());
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -34,7 +34,7 @@ Route::middleware('guest')->group(function (): void {
     Route::post('login', [LoginController::class, 'store'])->name('login.store')->middleware('throttle:10,1');
 });
 
-Route::post('logout', [LoginController::class, 'destroy'])->name('logout')->middleware('auth');
+Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
 
 /*
  * Signed one-time sign-in, for local development only. The controller refuses
@@ -56,7 +56,7 @@ $vueIsDefault = config('nexor.panel.default', 'vue') === 'vue';
 $bladePrefix = $vueIsDefault ? trim(config('nexor.panel.classic_path', 'classic'), '/') : '';
 $vuePrefix = $vueIsDefault ? '' : trim(config('nexor.panel.path', 'vue'), '/');
 
-Route::middleware(['auth', 'nexor.admin'])->group(function () use ($guard, $bladePrefix, $vuePrefix): void {
+Route::middleware('nexor.admin')->group(function () use ($guard, $bladePrefix, $vuePrefix): void {
     Route::prefix($bladePrefix)->group(function () use ($guard): void {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 

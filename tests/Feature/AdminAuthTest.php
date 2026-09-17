@@ -25,6 +25,25 @@ class AdminAuthTest extends TestCase
         $this->get(route('admin.dashboard'))->assertRedirect(route('admin.login'));
     }
 
+    /**
+     * В чистом Laravel маршрута `login` нет, а стандартный middleware `auth`
+     * ведёт именно на него — установка падала с «Route [login] not defined».
+     */
+    public function test_the_panel_sends_guests_to_its_own_login_without_a_login_route(): void
+    {
+        $this->assertFalse(app('router')->has('login'));
+
+        $this->get(Nexor::home())->assertRedirect(route('admin.login'));
+        $this->get(route('admin.dashboard'))->assertRedirect(route('admin.login'));
+        $this->get('/admin/users')->assertRedirect(route('admin.login'));
+        $this->getJson('/admin/api/bootstrap')->assertUnauthorized();
+    }
+
+    public function test_signing_out_works_even_for_a_guest(): void
+    {
+        $this->post(route('admin.logout'))->assertRedirect(route('admin.login'));
+    }
+
     public function test_a_user_with_panel_access_can_sign_in(): void
     {
         $user = $this->adminWith();

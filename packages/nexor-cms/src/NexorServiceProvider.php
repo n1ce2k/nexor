@@ -153,7 +153,9 @@ class NexorServiceProvider extends ServiceProvider
         Route::group([
             'prefix' => Nexor::routePrefix().'/api',
             'as' => 'admin.api.',
-            'middleware' => [...$middleware, 'auth', 'nexor.admin'],
+            // Без 'auth': гостя разворачивает сам nexor.admin. Стандартный
+            // auth ведёт на маршрут login, которого в чистом Laravel нет.
+            'middleware' => [...$middleware, 'nexor.admin'],
         ], function (): void {
             $this->loadRoutesFrom($this->path('routes/api.php'));
 

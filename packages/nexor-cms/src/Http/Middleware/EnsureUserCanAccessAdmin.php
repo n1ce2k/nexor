@@ -18,7 +18,10 @@ class EnsureUserCanAccessAdmin
         $user = $request->user();
 
         if (! $user) {
-            return redirect()->guest(route('admin.login'));
+            // Панель ходит в API фоном: ей нужен ответ, а не страница входа.
+            return $request->expectsJson()
+                ? response()->json(['message' => 'Сессия закончилась — войдите в панель заново.'], 401)
+                : redirect()->guest(route('admin.login'));
         }
 
         if (! $user->is_active) {
@@ -27,7 +30,7 @@ class EnsureUserCanAccessAdmin
             $request->session()->regenerateToken();
 
             return redirect()->route('admin.login')
-                ->withErrors(['email' => 'Учётная запись заблокирована.']);
+                ->withErrors(['login' => 'Учётная запись заблокирована.']);
         }
 
         if (! $user->hasPermission(Permissions::ACCESS_ADMIN)) {

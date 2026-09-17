@@ -30,7 +30,7 @@ class AdminAuthTest extends TestCase
         $user = $this->adminWith();
 
         $this->post(route('admin.login'), [
-            'email' => $user->email,
+            'login' => $user->email,
             'password' => 'password',
         ])->assertRedirect(Nexor::home());
 
@@ -39,14 +39,39 @@ class AdminAuthTest extends TestCase
         $this->assertDatabaseHas('activity_logs', ['action' => 'login', 'user_id' => $user->id]);
     }
 
+    public function test_a_user_can_sign_in_with_the_login_instead_of_the_email(): void
+    {
+        $user = $this->adminWith();
+        $user->update(['login' => 'andrey']);
+
+        $this->post(route('admin.login'), [
+            'login' => 'andrey',
+            'password' => 'password',
+        ])->assertRedirect(Nexor::home());
+
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_an_unknown_login_is_rejected(): void
+    {
+        $this->adminWith();
+
+        $this->post(route('admin.login'), [
+            'login' => 'nobody',
+            'password' => 'password',
+        ])->assertSessionHasErrors('login');
+
+        $this->assertGuest();
+    }
+
     public function test_wrong_credentials_are_rejected_and_logged(): void
     {
         $user = $this->adminWith();
 
         $this->post(route('admin.login'), [
-            'email' => $user->email,
+            'login' => $user->email,
             'password' => 'not-the-password',
-        ])->assertSessionHasErrors('email');
+        ])->assertSessionHasErrors('login');
 
         $this->assertGuest();
         $this->assertSame(1, ActivityLog::query()->where('action', 'login_failed')->count());
@@ -58,9 +83,9 @@ class AdminAuthTest extends TestCase
         $user->update(['is_active' => false]);
 
         $this->post(route('admin.login'), [
-            'email' => $user->email,
+            'login' => $user->email,
             'password' => 'password',
-        ])->assertSessionHasErrors('email');
+        ])->assertSessionHasErrors('login');
 
         $this->assertGuest();
     }
@@ -70,9 +95,9 @@ class AdminAuthTest extends TestCase
         $user = User::factory()->create(['is_active' => true]);
 
         $this->post(route('admin.login'), [
-            'email' => $user->email,
+            'login' => $user->email,
             'password' => 'password',
-        ])->assertSessionHasErrors('email');
+        ])->assertSessionHasErrors('login');
 
         $this->assertGuest();
     }

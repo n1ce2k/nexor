@@ -7,16 +7,16 @@
         <form method="POST" action="{{ route('admin.login') }}" class="space-y-5">
             @csrf
 
-            @if ($errors->has('email'))
+            @if ($errors->has('login'))
                 <div class="flex items-start gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">
                     <x-nexor::admin.icon name="alert" class="mt-0.5 size-4 shrink-0" />
-                    <span>{{ $errors->first('email') }}</span>
+                    <span>{{ $errors->first('login') }}</span>
                 </div>
             @endif
 
-            <x-nexor::admin.field label="E-mail" name="email" required>
-                <x-nexor::admin.input name="email" type="email" :value="old('email')"
-                               autocomplete="username" autofocus required placeholder="admin@example.com" />
+            <x-nexor::admin.field label="Логин или e-mail" name="login" required>
+                <x-nexor::admin.input name="login" type="text" :value="old('login')"
+                               autocomplete="username" autofocus required placeholder="admin" />
             </x-nexor::admin.field>
 
             <x-nexor::admin.field label="Пароль" name="password" required>

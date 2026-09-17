@@ -28,6 +28,7 @@ import SectionIndex from './pages/sections/SectionIndex.vue';
 import SiteSettings from './pages/settings/SiteSettings.vue';
 import PhpConsole from './pages/tools/PhpConsole.vue';
 import SqlConsole from './pages/tools/SqlConsole.vue';
+import FieldIndex from './pages/users/FieldIndex.vue';
 import UserForm from './pages/users/UserForm.vue';
 import UserIndex from './pages/users/UserIndex.vue';
 
@@ -62,6 +63,7 @@ const routes = [
 
     // Администрирование
     { path: '/users', name: 'users.index', component: UserIndex, meta: { permission: 'users.view' } },
+    { path: '/users/fields', name: 'users.fields', component: FieldIndex, meta: { permission: 'user_fields.manage' } },
     { path: '/users/create', name: 'users.create', component: UserForm, meta: { permission: 'users.create' } },
     { path: '/users/:user/edit', name: 'users.edit', component: UserForm, props: true, meta: { permission: 'users.update' } },
     { path: '/roles', name: 'roles.index', component: RoleIndex, meta: { permission: 'roles.view' } },

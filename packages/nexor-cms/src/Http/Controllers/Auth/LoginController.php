@@ -22,18 +22,27 @@ class LoginController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $credentials = $request->validate([
-            'email' => ['required', 'string', 'email'],
+            'login' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
         ], [], [
-            'email' => 'e-mail',
+            'login' => 'логин или e-mail',
             'password' => 'пароль',
         ]);
 
-        if (! Auth::attempt($credentials + ['is_active' => true], $request->boolean('remember'))) {
-            ActivityLogger::log('login_failed', description: $credentials['email']);
+        // Одно поле на логин и почту: с «собакой» — это почта, иначе логин.
+        $field = filter_var($credentials['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'login';
+
+        $attempt = [
+            $field => $credentials['login'],
+            'password' => $credentials['password'],
+            'is_active' => true,
+        ];
+
+        if (! Auth::attempt($attempt, $request->boolean('remember'))) {
+            ActivityLogger::log('login_failed', description: $credentials['login']);
 
             throw ValidationException::withMessages([
-                'email' => 'Неверный e-mail или пароль, либо учётная запись заблокирована.',
+                'login' => 'Неверный логин, e-mail или пароль, либо учётная запись заблокирована.',
             ]);
         }
 
@@ -45,7 +54,7 @@ class LoginController extends Controller
             $request->session()->regenerateToken();
 
             throw ValidationException::withMessages([
-                'email' => 'У этой учётной записи нет доступа в панель управления.',
+                'login' => 'У этой учётной записи нет доступа в панель управления.',
             ]);
         }
 

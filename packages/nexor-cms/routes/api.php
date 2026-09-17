@@ -21,6 +21,7 @@ use Nexor\Cms\Http\Controllers\Api\RoleController;
 use Nexor\Cms\Http\Controllers\Api\SettingController;
 use Nexor\Cms\Http\Controllers\Api\ToolsController;
 use Nexor\Cms\Http\Controllers\Api\UserController;
+use Nexor\Cms\Http\Controllers\Api\UserFieldController;
 
 /**
  * JSON API behind the Vue panel. Session-authenticated like the rest of the
@@ -44,6 +45,19 @@ Route::get('modules', [ModuleController::class, 'index'])
 Route::put('modules/{code}', [ModuleController::class, 'update'])
     ->name('modules.update')
     ->middleware('nexor.permission:modules.update');
+
+// Свои поля пользователей: набор — отдельным правом, сама схема нужна карточке.
+Route::get('users/schema', [UserController::class, 'schema'])
+    ->name('users.schema')
+    ->middleware('nexor.permission:users.view');
+
+Route::get('user-field-types', [UserFieldController::class, 'types'])
+    ->name('user-fields.types')
+    ->middleware('nexor.permission:user_fields.manage');
+
+Route::apiResource('user-fields', UserFieldController::class)
+    ->parameters(['user-fields' => 'field'])
+    ->middleware('nexor.permission:user_fields.manage');
 
 $guard(Route::apiResource('users', UserController::class), 'nexor.permission', 'users.');
 $guard(Route::apiResource('roles', RoleController::class), 'nexor.permission', 'roles.');

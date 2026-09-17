@@ -45,8 +45,8 @@ jobs:
           repository_organization: n1ce2k
           repository_name: ${{ matrix.package.repository }}
           branch: main
-          user_name: n1ce2k
-          user_email: a.aynagoz@nastart-web.ru
+          user_name: n1ce
+          user_email: andrew.n1ce2k@gmail.com
 
       - name: Split ${{ matrix.package.repository }} (tag)
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
@@ -59,5 +59,5 @@ jobs:
           repository_organization: n1ce2k
           repository_name: ${{ matrix.package.repository }}
           branch: main
-          user_name: n1ce2k
-          user_email: a.aynagoz@nastart-web.ru
+          user_name: n1ce
+          user_email: andrew.n1ce2k@gmail.com

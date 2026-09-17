@@ -58,15 +58,15 @@ class UserManagementTest extends TestCase
     public function test_initials_do_not_depend_on_the_application_model(): void
     {
         // Аксессора `initials` в свежей модели пользователя нет — считает пакет.
-        $user = User::factory()->create(['name' => 'Андрей Айнагоз']);
+        $user = User::factory()->create(['name' => 'Пётр Тестов']);
 
-        $this->assertSame('АА', Nexor::initials($user->name));
+        $this->assertSame('ПТ', Nexor::initials($user->name));
         $this->assertSame('?', Nexor::initials(''));
 
         $this->actingAs($this->adminWith(['users.view']))
             ->getJson('/admin/api/users')
             ->assertOk()
-            ->assertJsonFragment(['initials' => 'АА']);
+            ->assertJsonFragment(['initials' => 'ПТ']);
     }
 
     public function test_the_login_must_be_unique_and_a_plain_word(): void

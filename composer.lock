@@ -2214,7 +2214,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/nexor-cms",
-                "reference": "12f4aec67a685f9087ec26e3f3a918e0cf62ba1f"
+                "reference": "15220bafecf501ff909a562423d77bc7c42326b9"
             },
             "require": {
                 "illuminate/auth": "^12.0|^13.0",
@@ -2254,8 +2254,8 @@
             ],
             "authors": [
                 {
-                    "name": "Андрей Айнагоз",
-                    "email": "a.aynagoz@nastart-web.ru"
+                    "name": "n1ce",
+                    "email": "andrew.n1ce2k@gmail.com"
                 }
             ],
             "description": "NEXOR CMS — админ-панель для Laravel с инфоблоками, свойствами произвольных типов и системой ролей.",
@@ -2277,7 +2277,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/nexor-pagebuilder",
-                "reference": "62e75dd9528c169b957b735111782a6b37e328bd"
+                "reference": "cb91a9cb8b805bbb9e2f8c973cd5a1686bde03da"
             },
             "require": {
                 "ext-dom": "*",
@@ -2305,8 +2305,8 @@
             ],
             "authors": [
                 {
-                    "name": "Андрей Айнагоз",
-                    "email": "a.aynagoz@nastart-web.ru"
+                    "name": "n1ce",
+                    "email": "andrew.n1ce2k@gmail.com"
                 }
             ],
             "description": "Модуль «Конструктор страниц» для NEXOR CMS: детальная страница элемента из блоков.",
@@ -2328,7 +2328,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/nexor-shop",
-                "reference": "1672165fbd3bb9eeb821cab6acf065e73550457c"
+                "reference": "24034c21f8785dae63a441c7ea922ead5d1cc066"
             },
             "require": {
                 "livewire/livewire": "^4.4",
@@ -2357,8 +2357,8 @@
             ],
             "authors": [
                 {
-                    "name": "Андрей Айнагоз",
-                    "email": "a.aynagoz@nastart-web.ru"
+                    "name": "n1ce",
+                    "email": "andrew.n1ce2k@gmail.com"
                 }
             ],
             "description": "Модуль «Магазин» для NEXOR CMS: корзина Basic и Ultimate, промокоды, оформление и заказы.",

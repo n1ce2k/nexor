@@ -6,6 +6,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Nexor\Cms\Enums\License;
 use Nexor\Cms\Models\ModuleState;
+use Nexor\Cms\Support\Licensing;
 
 /**
  * Лицензия сайта, установленные модули и доступные функции.
@@ -53,19 +54,14 @@ class ModuleManager
     }
 
     /**
-     * Уровень лицензии из `NEXOR_LICENSE`.
+     * Уровень лицензии: его задаёт ключ сайта.
      *
-     * Непонятное значение даёт младший уровень, а не старший: опечатка в .env
-     * не должна открывать платные функции.
+     * Всё, что про разбор ключа и запасной уровень, живёт в Licensing —
+     * здесь остаётся только вопрос «что нам доступно».
      */
     public function license(): License
     {
-        $value = strtolower(trim((string) config('nexor.license', 'pro')));
-
-        // Прежнее написание уровня — чтобы переименование не уронило сайт на Lite.
-        $value = $value === 'standard' ? License::Standart->value : $value;
-
-        return License::tryFrom($value) ?? License::Lite;
+        return Licensing::edition();
     }
 
     /**

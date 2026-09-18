@@ -29,6 +29,7 @@ import SiteSettings from './pages/settings/SiteSettings.vue';
 import PhpConsole from './pages/tools/PhpConsole.vue';
 import SqlConsole from './pages/tools/SqlConsole.vue';
 import FieldIndex from './pages/users/FieldIndex.vue';
+import UpdatesIndex from './pages/updates/UpdatesIndex.vue';
 import UserForm from './pages/users/UserForm.vue';
 import UserIndex from './pages/users/UserIndex.vue';
 
@@ -72,6 +73,7 @@ const routes = [
     { path: '/site-settings', name: 'settings', component: SiteSettings, meta: { permission: 'settings.view' } },
     { path: '/logs', name: 'logs', component: LogsIndex, meta: { permission: 'logs.view' } },
     { path: '/modules', name: 'modules.index', component: ModuleIndex, meta: { permission: 'modules.view' } },
+    { path: '/updates', name: 'updates.index', component: UpdatesIndex, meta: { permission: 'updates.manage' } },
 
     // Настройки
     { path: '/settings/mail/smtp', name: 'mail.smtp', component: MailSmtp, meta: { permission: 'mail.view' } },

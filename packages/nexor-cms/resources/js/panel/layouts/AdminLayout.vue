@@ -172,6 +172,14 @@ function isOpen(label) {
 
             <main class="flex-1 px-4 py-6 sm:px-6 lg:px-8">
                 <div class="mx-auto w-full transition-[max-width]" :class="ui.wideContent ? 'max-w-[112rem]' : 'max-w-7xl'">
+                    <!-- Лицензия: плашка видна, пока ключ не введён или не в порядке. -->
+                    <div v-if="session.license?.message"
+                         class="mb-5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+                        <span class="font-medium">Лицензия</span>
+                        <span>{{ session.license.message }}</span>
+                        <code class="font-mono text-xs opacity-80">php artisan nexor:license nxr-...</code>
+                    </div>
+
                     <router-view v-slot="{ Component }">
                         <component :is="Component" />
                     </router-view>

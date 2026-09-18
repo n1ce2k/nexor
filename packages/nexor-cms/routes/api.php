@@ -20,6 +20,7 @@ use Nexor\Cms\Http\Controllers\Api\ModuleController;
 use Nexor\Cms\Http\Controllers\Api\RoleController;
 use Nexor\Cms\Http\Controllers\Api\SettingController;
 use Nexor\Cms\Http\Controllers\Api\ToolsController;
+use Nexor\Cms\Http\Controllers\Api\UpdateController;
 use Nexor\Cms\Http\Controllers\Api\UserController;
 use Nexor\Cms\Http\Controllers\Api\UserFieldController;
 
@@ -184,6 +185,17 @@ Route::prefix('tools')->name('tools.')->group(function (): void {
     Route::get('/', [ToolsController::class, 'state'])->name('state');
     Route::post('sql', [ToolsController::class, 'sql'])->name('sql');
     Route::post('php', [ToolsController::class, 'php'])->name('php');
+});
+
+/*
+ * Обновления и установка модулей: composer запускается на сервере, поэтому
+ * право отдельное, а список пакетов — закрытый.
+ */
+Route::middleware('nexor.permission:updates.manage')->name('updates.')->prefix('updates')->group(function (): void {
+    Route::get('/', [UpdateController::class, 'index'])->name('index');
+    Route::post('update', [UpdateController::class, 'update'])->name('update');
+    Route::post('install', [UpdateController::class, 'install'])->name('install');
+    Route::get('status/{id?}', [UpdateController::class, 'status'])->name('status');
 });
 
 Route::get('logs', ActivityLogController::class)

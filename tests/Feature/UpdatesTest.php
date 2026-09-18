@@ -143,6 +143,46 @@ class UpdatesTest extends TestCase
         $this->assertSame('Laravel 13', ComposerRunner::plain("Laravel \e[32m13\e[39m"));
     }
 
+    public function test_a_background_process_that_never_started_is_reported(): void
+    {
+        $id = 'not-started';
+
+        ComposerRunner::state($id, [
+            'id' => $id,
+            'title' => 'Установка модуля',
+            'state' => ComposerRunner::RUNNING,
+            'steps' => [],
+            'started_at' => now()->subSeconds(ComposerRunner::STARTUP + 10)->toIso8601String(),
+            'finished_at' => null,
+            'exit_code' => null,
+        ]);
+        ComposerRunner::append($id, 'Установка модуля');
+
+        $status = ComposerRunner::status($id);
+
+        // Ни одного шага в логе — значит, фоновый процесс не поднялся.
+        $this->assertSame(ComposerRunner::FAILED, $status['state']);
+        $this->assertStringContainsString('Фоновый процесс не запустился', $status['output']);
+    }
+
+    public function test_a_task_that_only_started_is_still_running(): void
+    {
+        $id = 'just-started';
+
+        ComposerRunner::state($id, [
+            'id' => $id,
+            'title' => 'Установка модуля',
+            'state' => ComposerRunner::RUNNING,
+            'steps' => [],
+            'started_at' => now()->toIso8601String(),
+            'finished_at' => null,
+            'exit_code' => null,
+        ]);
+        ComposerRunner::append($id, 'Установка модуля');
+
+        $this->assertSame(ComposerRunner::RUNNING, ComposerRunner::status($id)['state']);
+    }
+
     public function test_a_task_that_hangs_is_closed_by_time(): void
     {
         $id = 'stuck-task';
@@ -156,6 +196,7 @@ class UpdatesTest extends TestCase
             'finished_at' => null,
             'exit_code' => null,
         ]);
+        ComposerRunner::append($id, PHP_EOL.'$ composer update'.PHP_EOL);
 
         $this->assertSame(ComposerRunner::FAILED, ComposerRunner::status($id)['state']);
     }

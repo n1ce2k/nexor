@@ -31,6 +31,9 @@ class ComposerRunner
     /** Задача, зависшая дольше этого срока, считается брошенной. */
     public const TIMEOUT = 1800;
 
+    /** За сколько фоновый процесс обязан дойти до первого шага. */
+    public const STARTUP = 60;
+
     /**
      * Можно ли вообще запускать процессы на этом хостинге.
      *
@@ -38,8 +41,10 @@ class ComposerRunner
      */
     public static function availability(): array
     {
-        if (! function_exists('proc_open') || in_array('proc_open', self::disabledFunctions(), true)) {
-            return ['ok' => false, 'composer' => null, 'reason' => 'На сервере отключена функция proc_open — запускать composer из панели нельзя.'];
+        foreach (['proc_open', self::isWindows() ? 'popen' : 'exec'] as $function) {
+            if (! function_exists($function) || in_array($function, self::disabledFunctions(), true)) {
+                return ['ok' => false, 'composer' => null, 'reason' => "На сервере отключена функция {$function} — запускать composer из панели нельзя."];
+            }
         }
 
         $composer = self::composer();
@@ -118,15 +123,30 @@ class ComposerRunner
         /** @var array<string, mixed> $state */
         $state = json_decode((string) File::get(self::path($id.'.json')), true) ?: [];
 
-        // Процесс мог умереть молча — тогда задача закрывается по времени.
-        if (($state['state'] ?? null) === self::RUNNING && strtotime((string) $state['started_at']) < time() - self::TIMEOUT) {
-            $state['state'] = self::FAILED;
-            $state['finished_at'] = now()->toIso8601String();
-            $state['exit_code'] = -1;
-            self::state($id, $state);
+        $log = self::plain(is_file(self::path($id.'.log')) ? (string) File::get(self::path($id.'.log')) : '');
+
+        if (($state['state'] ?? null) === self::RUNNING) {
+            $age = time() - strtotime((string) $state['started_at']);
+
+            // Ни одного шага за минуту — фоновый процесс не поднялся. Ждать
+            // полчаса и показывать «выполняется» в этом случае нечестно.
+            if (! str_contains($log, '$ ') && $age > self::STARTUP) {
+                $state['state'] = self::FAILED;
+                $state['exit_code'] = -1;
+                $state['finished_at'] = now()->toIso8601String();
+                self::state($id, $state);
+
+                $log .= PHP_EOL.'Фоновый процесс не запустился. Проверьте, что PHP разрешено запускать процессы, '
+                    .'и выполните обновление из консоли.'.PHP_EOL;
+            } elseif ($age > self::TIMEOUT) {
+                $state['state'] = self::FAILED;
+                $state['exit_code'] = -1;
+                $state['finished_at'] = now()->toIso8601String();
+                self::state($id, $state);
+            }
         }
 
-        $state['output'] = self::plain(is_file(self::path($id.'.log')) ? (string) File::get(self::path($id.'.log')) : '');
+        $state['output'] = $log;
 
         return $state;
     }
@@ -197,20 +217,31 @@ class ComposerRunner
 
     /**
      * Запускает фоновый процесс так, чтобы он пережил конец веб-запроса.
+     *
+     * Symfony Process здесь не годится: в своём деструкторе — то есть в конце
+     * запроса — он гасит запущенное дерево процессов (`taskkill /T` на Windows),
+     * и composer умирает, не начав работу. Поэтому процесс отпускается вручную.
      */
     protected static function launch(string $id): void
     {
         $php = (new PhpExecutableFinder)->find() ?: 'php';
-        $command = [$php, base_path('artisan'), 'nexor:updates:run', $id];
-        $line = implode(' ', array_map(fn (string $part) => escapeshellarg($part), $command));
+        $command = implode(' ', array_map(
+            fn (string $part) => escapeshellarg($part),
+            [$php, base_path('artisan'), 'nexor:updates:run', $id],
+        ));
 
-        $shell = self::isWindows()
-            ? 'start /B "" '.$line
-            : 'nohup '.$line.' > /dev/null 2>&1 &';
+        if (self::isWindows()) {
+            // Пустые кавычки — это заголовок окна, иначе start примет им путь к php.
+            $handle = popen('start /B "" '.$command, 'r');
 
-        Process::fromShellCommandline($shell, base_path(), self::environment())
-            ->setTimeout(null)
-            ->start();
+            if (is_resource($handle)) {
+                pclose($handle);
+            }
+
+            return;
+        }
+
+        exec($command.' > /dev/null 2>&1 &');
     }
 
     /**

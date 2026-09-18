@@ -2214,7 +2214,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/nexor-cms",
-                "reference": "15220bafecf501ff909a562423d77bc7c42326b9"
+                "reference": "6ffe7629d17d8ff43a71f9e40d6ca890e8bbe16f"
             },
             "require": {
                 "illuminate/auth": "^12.0|^13.0",
@@ -2239,7 +2239,7 @@
                     ]
                 },
                 "branch-alias": {
-                    "dev-main": "0.2.x-dev"
+                    "dev-main": "0.3.x-dev"
                 }
             },
             "autoload": {
@@ -2277,11 +2277,11 @@
             "dist": {
                 "type": "path",
                 "url": "packages/nexor-pagebuilder",
-                "reference": "cb91a9cb8b805bbb9e2f8c973cd5a1686bde03da"
+                "reference": "f2c22c86232cbb52035c4998ef046436cd0097cc"
             },
             "require": {
                 "ext-dom": "*",
-                "n1ce2k/nexor-cms": "^0.2",
+                "n1ce2k/nexor-cms": "^0.3",
                 "php": "^8.3"
             },
             "type": "library",
@@ -2292,7 +2292,7 @@
                     ]
                 },
                 "branch-alias": {
-                    "dev-main": "0.2.x-dev"
+                    "dev-main": "0.3.x-dev"
                 }
             },
             "autoload": {
@@ -2328,11 +2328,11 @@
             "dist": {
                 "type": "path",
                 "url": "packages/nexor-shop",
-                "reference": "24034c21f8785dae63a441c7ea922ead5d1cc066"
+                "reference": "c04cfbb4237a6686dffaa5f1b419a74e77f56aa4"
             },
             "require": {
                 "livewire/livewire": "^4.4",
-                "n1ce2k/nexor-cms": "^0.2",
+                "n1ce2k/nexor-cms": "^0.3",
                 "php": "^8.3"
             },
             "type": "library",
@@ -2343,7 +2343,7 @@
                     ]
                 },
                 "branch-alias": {
-                    "dev-main": "0.2.x-dev"
+                    "dev-main": "0.3.x-dev"
                 }
             },
             "autoload": {

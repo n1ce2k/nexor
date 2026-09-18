@@ -4,17 +4,24 @@ import NBadge from '../../components/ui/NBadge.vue';
 import NCard from '../../components/ui/NCard.vue';
 import NEmpty from '../../components/ui/NEmpty.vue';
 import NIcon from '../../components/ui/NIcon.vue';
+import NButton from '../../components/ui/NButton.vue';
 import NPageHeader from '../../components/ui/NPageHeader.vue';
+import NTabs from '../../components/ui/NTabs.vue';
 import NToggle from '../../components/ui/NToggle.vue';
+import TaskOutput from '../../components/TaskOutput.vue';
 import { api } from '../../api';
+import { useComposerTask } from '../../composables/useComposerTask';
+import { useRoute } from 'vue-router';
 import { useSession } from '../../stores/session';
 import { useUi } from '../../stores/ui';
 
 /**
  * Лицензия сайта, что входит в каждый уровень и установленные модули.
  */
+const route = useRoute();
 const session = useSession();
 const ui = useUi();
+const { task, starting, running, start, adopt } = useComposerTask();
 
 const loading = ref(true);
 const license = ref(null);
@@ -23,7 +30,20 @@ const features = ref([]);
 const modules = ref([]);
 const busy = ref(null);
 
+/** Каталог пакетов из раздела «Обновления»: он знает, что ещё не установлено. */
+const catalog = ref([]);
+const updates = ref(null);
+const tab = ref(route.query.tab === 'available' ? 'available' : 'installed');
+
 const canUpdate = computed(() => session.can('modules.update'));
+const canInstall = computed(() => session.can('updates.manage'));
+
+const available = computed(() => catalog.value.filter((item) => item.module && ! item.installed));
+
+const tabs = computed(() => [
+    { key: 'installed', label: `Установленные (${modules.value.length})` },
+    ...(canInstall.value ? [{ key: 'available', label: `Доступные модули (${available.value.length})` }] : []),
+]);
 
 const rankOf = (value) => licenses.value.find((item) => item.value === value)?.rank ?? 0;
 
@@ -41,6 +61,27 @@ const featureGroups = computed(() => {
 
     return groups.filter((group) => group.items.length);
 });
+
+async function loadCatalog() {
+    if (! canInstall.value) {
+        return;
+    }
+
+    try {
+        updates.value = await api.get('updates');
+        catalog.value = updates.value.packages;
+        adopt(updates.value.current);
+    } catch {
+        // Раздел обновлений может быть выключен — тогда просто нет вкладки.
+        catalog.value = [];
+    }
+}
+
+function install(item) {
+    start('updates/install', { package: item.code }, async () => {
+        await Promise.all([load(), loadCatalog(), session.refreshFeatures()]);
+    });
+}
 
 async function load() {
     loading.value = true;
@@ -74,15 +115,20 @@ async function toggle(module, enabled) {
     }
 }
 
-onMounted(load);
+onMounted(() => {
+    load();
+    loadCatalog();
+});
 </script>
 
 <template>
     <div class="space-y-6">
         <NPageHeader title="Модули" description="Лицензия сайта, функции по уровням и установленные модули." />
 
+        <NTabs v-if="tabs.length > 1" v-model="tab" :tabs="tabs" />
+
         <template v-if="!loading && license">
-            <div>
+            <div v-show="tab === 'installed'">
                 Лицензия: {{ license.label }}
             </div>
 <!--            <NCard title="Лицензия">-->
@@ -90,7 +136,7 @@ onMounted(load);
 
 <!--            </NCard>-->
 
-            <NCard title="Установленные модули" :padding="false">
+            <NCard v-show="tab === 'installed'" title="Установленные модули" :padding="false">
                 <NEmpty v-if="!modules.length" icon="puzzle" title="Модулей пока нет"
                         description="Модуль подключается composer-пакетом и появится здесь сам." />
 
@@ -124,6 +170,46 @@ onMounted(load);
                     </li>
                 </ul>
             </NCard>
+
+            <template v-if="tab === 'available'">
+                <NCard title="Доступные модули" :padding="false"
+                       description="Ставятся composer'ом с сервера пакетов NEXOR.">
+                    <NEmpty v-if="!available.length" icon="puzzle" title="Все модули уже установлены"
+                            description="Новые появятся здесь после выхода." />
+
+                    <ul v-else class="divide-y divide-[var(--surface-border)]">
+                        <li v-for="item in available" :key="item.code" class="flex flex-wrap items-center gap-4 px-5 py-4">
+                            <div class="min-w-0 flex-1">
+                                <p class="flex flex-wrap items-center gap-2 font-medium text-[var(--text-strong)]">
+                                    {{ item.name }}
+                                    <code class="rounded bg-[var(--surface-muted)] px-1.5 py-0.5 font-mono text-xs font-normal text-[var(--text-muted)]">
+                                        {{ item.package }}
+                                    </code>
+                                    <NBadge v-if="item.latest" color="gray">{{ item.latest }}</NBadge>
+                                </p>
+                                <p class="mt-1 text-sm text-[var(--text-muted)]">{{ item.description }}</p>
+                                <p v-if="!item.allowed" class="mt-1 flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                                    <NIcon name="lock" size="size-3.5" />
+                                    Входит в редакцию {{ item.license_label }} и выше.
+                                </p>
+                            </div>
+
+                            <NButton size="sm" icon="plus"
+                                     :disabled="!item.allowed || !updates?.enabled || !updates?.availability?.ok || starting || running"
+                                     @click="install(item)">
+                                Установить
+                            </NButton>
+                        </li>
+                    </ul>
+                </NCard>
+
+                <div v-if="updates && !updates.availability.ok"
+                     class="surface rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+                    {{ updates.availability.reason }}
+                </div>
+
+                <TaskOutput :task="task" />
+            </template>
 
             <NCard title="Что входит в уровни (шпаргалка)" :padding="false" style="display:none;">
                 <div class="overflow-x-auto">

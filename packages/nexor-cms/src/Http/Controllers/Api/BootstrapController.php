@@ -10,6 +10,7 @@ use Nexor\Cms\Http\Resources\IblockResource;
 use Nexor\Cms\Http\Resources\UserResource;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\Setting;
+use Nexor\Cms\Support\Licensing;
 use Nexor\Cms\Support\Modules\ModuleFields;
 use Nexor\Cms\Support\Nexor;
 
@@ -22,6 +23,7 @@ class BootstrapController extends ApiController
     public function __invoke(Request $request): JsonResponse
     {
         $user = $request->user();
+        $state = Licensing::state();
 
         $iblocks = Iblock::query()
             ->active()
@@ -56,6 +58,11 @@ class BootstrapController extends ApiController
             'license' => [
                 'value' => Nexor::license()->value,
                 'label' => Nexor::license()->label(),
+                // Состояние ключа: панель показывает плашку, если он не в порядке.
+                'status' => $state['status'],
+                'number' => $state['number'],
+                'expires_at' => $state['expires_at'],
+                'message' => $state['message'],
             ],
             // «Код функции или модуля → доступно»: по нему панель прячет меню и страницы.
             'features' => Nexor::modules()->allowed(),

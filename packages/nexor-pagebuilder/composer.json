@@ -13,7 +13,7 @@
     "require": {
         "php": "^8.3",
         "ext-dom": "*",
-        "n1ce2k/nexor-cms": "^0.2"
+        "n1ce2k/nexor-cms": "^0.3"
     },
     "autoload": {
         "psr-4": {
@@ -27,7 +27,7 @@
             ]
         },
         "branch-alias": {
-            "dev-main": "0.2.x-dev"
+            "dev-main": "0.3.x-dev"
         }
     },
     "config": {

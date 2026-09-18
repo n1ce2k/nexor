@@ -125,6 +125,10 @@ export function useNavigation() {
             settings.push({ label: 'Модули', icon: 'puzzle', to: { name: 'modules.index' } });
         }
 
+        if (session.can('updates.manage')) {
+            settings.push({ label: 'Обновления', icon: 'upload', to: { name: 'updates.index' } });
+        }
+
         // if (session.can('logs.view')) {
         //     settings.push({ label: 'Журнал действий', icon: 'clock', to: { name: 'logs' } });
         // }

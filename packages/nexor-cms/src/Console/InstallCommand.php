@@ -14,6 +14,9 @@ use Nexor\Cms\Database\Seeders\MenuSeeder;
 use Nexor\Cms\Database\Seeders\RoleSeeder;
 use Nexor\Cms\Database\Seeders\SettingSeeder;
 use Nexor\Cms\Models\Role;
+use Nexor\Cms\Support\EnvFile;
+use Nexor\Cms\Support\License\LicenseKey;
+use Nexor\Cms\Support\Licensing;
 use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\Permissions;
 use Nexor\Cms\Support\TailwindSources;
@@ -25,7 +28,8 @@ class InstallCommand extends Command
                             {--force : Run without asking anything}
                             {--no-migrate : Skip running migrations}
                             {--no-seed : Skip seeding roles, settings and infoblock types}
-                            {--admin-email= : E-mail of the super administrator to create}';
+                            {--admin-email= : E-mail of the super administrator to create}
+                            {--license-key= : Лицензионный ключ вида nxr-...}';
 
     protected $description = 'Установить NEXOR CMS: миграции, роли, права и учётная запись администратора';
 
@@ -58,6 +62,8 @@ class InstallCommand extends Command
 
             return true;
         });
+
+        $this->askLicense();
 
         $this->prepareUserModel();
 
@@ -103,6 +109,56 @@ class InstallCommand extends Command
         Artisan::call('db:seed', ['--class' => $class, '--force' => true]);
 
         return true;
+    }
+
+    /**
+     * Лицензионный ключ сайта.
+     *
+     * Ключ проверяется на месте: в нём подписаны редакция и срок. Без ключа
+     * установка не прерывается — сайт просто остаётся в редакции Lite.
+     */
+    protected function askLicense(): void
+    {
+        if (Licensing::status() === Licensing::OK) {
+            $this->components->task('Лицензия: '.Licensing::edition()->label(), fn () => true);
+
+            return;
+        }
+
+        $key = (string) $this->option('license-key');
+
+        if ($key === '' && ! $this->option('force')) {
+            $key = (string) $this->components->ask('Лицензионный ключ (Enter — продолжить в редакции Lite)');
+        }
+
+        if (trim($key) === '') {
+            $this->components->warn('Ключ не введён — сайт работает в редакции Lite.');
+            $this->line('  Ввести позже: <fg=cyan>php artisan nexor:license nxr-...</>');
+
+            return;
+        }
+
+        $parsed = LicenseKey::parse($key, Licensing::publicKey());
+
+        if ($parsed === null || $parsed->isExpired()) {
+            $this->components->error($parsed === null
+                ? 'Ключ не прошёл проверку — сайт остаётся в редакции Lite.'
+                : 'Срок ключа истёк — сайт остаётся в редакции Lite.');
+
+            return;
+        }
+
+        if (! EnvFile::set('NEXOR_LICENSE_KEY', $parsed->key)) {
+            $this->components->warn('Ключ верный, но .env не записывается. Впишите строку сами:');
+            $this->line('  <fg=cyan>NEXOR_LICENSE_KEY='.$parsed->key.'</>');
+
+            return;
+        }
+
+        config(['nexor.license_key' => $parsed->key]);
+        Licensing::flush();
+
+        $this->components->task('Лицензия: '.$parsed->edition->label().', ключ '.$parsed->number(), fn () => true);
     }
 
     /**

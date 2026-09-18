@@ -39,6 +39,7 @@ class Permissions
                     'users.update' => 'Изменение пользователей',
                     'users.delete' => 'Удаление пользователей',
                     'user_fields.manage' => 'Настройка полей пользователей',
+                    'updates.manage' => 'Обновление CMS и установка модулей',
                 ],
             ],
             'roles' => [

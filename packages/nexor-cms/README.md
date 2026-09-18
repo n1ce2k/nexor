@@ -171,6 +171,25 @@ $user->fields();
 
 Права: `forms.view|create|update|delete`, `forms.submissions.view|delete`, `agreements.view|create|update|delete`.
 
+## Обновления
+
+Раздел «Обновления» и вкладка «Доступные модули» запускают composer на сервере: `composer update` с миграциями и сбросом кешей, `composer require` с установщиком модуля.
+
+- Право `updates.manage`, выключатель `NEXOR_UPDATES`, путь к composer — `NEXOR_COMPOSER`.
+- Список пакетов закрытый (`Support\Updates\PackageCatalog`), произвольное имя в команду не попадает.
+- Задача выполняется в фоне командой `nexor:updates:run`, вывод пишется в `storage/app/nexor/updates`.
+
+## Лицензия
+
+Редакцию задаёт ключ `nxr-...`: в нём подписаны редакция, срок и номер, проверка идёт офлайн публичным ключом из `config/nexor.php`.
+
+```bash
+php artisan nexor:license            # показать текущую
+php artisan nexor:license nxr-...    # ввести новую
+```
+
+Ключ хранится в `NEXOR_LICENSE_KEY`. Без него сайт работает в редакции Lite и показывает плашку в панели; публичная часть не блокируется. `NEXOR_LICENSE` действует только в окружениях `local` и `testing`.
+
 ## Права
 
 Каждый инфоблок при создании получает четыре собственных права: `iblock.{id}.view`, `.create`, `.update`, `.delete`. Ключ — идентификатор, а не символьный код, поэтому переименование инфоблока не отбирает права у ролей.

@@ -12,8 +12,10 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
 use Nexor\Cms\Console\InstallCommand;
+use Nexor\Cms\Console\LicenseCommand;
 use Nexor\Cms\Console\LoginLinkCommand;
 use Nexor\Cms\Console\PublishComponentCommand;
+use Nexor\Cms\Console\RunUpdateCommand;
 use Nexor\Cms\Console\SetPasswordCommand;
 use Nexor\Cms\Console\SyncPermissionsCommand;
 use Nexor\Cms\Contracts\NexorUser;
@@ -73,8 +75,10 @@ class NexorServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 InstallCommand::class,
+                LicenseCommand::class,
                 LoginLinkCommand::class,
                 PublishComponentCommand::class,
+                RunUpdateCommand::class,
                 SetPasswordCommand::class,
                 SyncPermissionsCommand::class,
             ]);

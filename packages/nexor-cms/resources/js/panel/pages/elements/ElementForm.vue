@@ -38,6 +38,8 @@ const ui = useUi();
 
 const schema = ref(null);
 const values = ref({});
+// Описания значений — отдельной картой, чтобы не менять форму самих значений.
+const descriptions = ref({});
 
 /** Значения полей модулей: { 'pagebuilder.content': … }. */
 const moduleValues = ref({});
@@ -370,9 +372,14 @@ function isFile(property) {
     return property.type === 'file' || property.type === 'image';
 }
 
+/** Описания значений: у обычных свойств по индексу, у файлов — внутри строк файлов. */
+function blankDescription(property) {
+    return property.is_multiple ? [] : '';
+}
+
 function blankValue(property) {
     if (isFile(property)) {
-        return { stored: [], remove: [], added: [] };
+        return { stored: [], remove: [], added: [], addedDescriptions: [] };
     }
 
     if (property.is_multiple) {
@@ -443,17 +450,41 @@ function buildPayload() {
                 body.append(`property_files[${property.code}]${property.is_multiple ? '[]' : ''}`, file);
             });
 
+            if (property.with_description) {
+                (value?.stored ?? []).forEach((file) => {
+                    body.append(`property_descriptions[${property.code}][saved][${file.id}]`, file.description ?? '');
+                });
+
+                (value?.added ?? []).forEach((_, index) => {
+                    body.append(
+                        `property_descriptions[${property.code}][added][]`,
+                        (value?.addedDescriptions ?? [])[index] ?? '',
+                    );
+                });
+            }
+
             return;
         }
 
+        const description = descriptions.value[property.code];
+
         if (property.is_multiple) {
-            const rows = (Array.isArray(value) ? value : []).filter((item) => item !== null && item !== '');
+            // Значение и его описание отправляются парой: сервер отсеет пустые строки вместе.
+            const raw = Array.isArray(value) ? value : [];
+            const rows = raw.map((item, index) => [item, Array.isArray(description) ? (description[index] ?? '') : ''])
+                .filter(([item]) => item !== null && item !== '');
 
             if (rows.length === 0) {
                 body.append(`properties[${property.code}][]`, '');
             }
 
-            rows.forEach((item) => body.append(`properties[${property.code}][]`, item));
+            rows.forEach(([item, text]) => {
+                body.append(`properties[${property.code}][]`, item);
+
+                if (property.with_description) {
+                    body.append(`property_descriptions[${property.code}][]`, text);
+                }
+            });
 
             return;
         }
@@ -461,6 +492,10 @@ function buildPayload() {
         const scalar = property.type === 'boolean' ? (value ? '1' : '0') : value;
 
         body.append(`properties[${property.code}]`, scalar ?? '');
+
+        if (property.with_description) {
+            body.append(`property_descriptions[${property.code}]`, typeof description === 'string' ? description : '');
+        }
     });
 
     return body;
@@ -554,8 +589,10 @@ async function load() {
         }
 
         const blanks = {};
+        const descriptionBlanks = {};
         properties.value.forEach((property) => {
             blanks[property.code] = blankValue(property);
+            descriptionBlanks[property.code] = blankDescription(property);
         });
 
         if (isEdit.value) {
@@ -601,8 +638,13 @@ async function load() {
                 const stored = element.properties?.[property.code];
 
                 blanks[property.code] = isFile(property)
-                    ? { stored: Array.isArray(stored) ? stored : [], remove: [], added: [] }
+                    ? { stored: Array.isArray(stored) ? stored : [], remove: [], added: [], addedDescriptions: [] }
                     : (stored ?? blanks[property.code]);
+
+                if (!isFile(property)) {
+                    descriptionBlanks[property.code] = element.property_descriptions?.[property.code]
+                        ?? blankDescription(property);
+                }
             });
 
             const modules = {};
@@ -618,6 +660,7 @@ async function load() {
         }
 
         values.value = blanks;
+        descriptions.value = descriptionBlanks;
 
         // `?tab=offers` — вернуться на ту вкладку, с которой уходили. Только после
         // загрузки элемента: до неё тип товара неизвестен и «Предложения» скрыты.
@@ -686,7 +729,8 @@ watch(() => [props.iblock, props.element], (next, previous) => {
                             <PropertyField v-else-if="propertyOf(key)" :property="propertyOf(key)"
                                            :options="schema.options?.[propertyOf(key).code] ?? []"
                                            :error="errorOf(key)"
-                                           v-model="values[propertyOf(key).code]" />
+                                           v-model="values[propertyOf(key).code]"
+                                           v-model:description="descriptions[propertyOf(key).code]" />
 
                             <NField v-else-if="key === 'name'" label="Название" required :error="form.error('name')">
                                 <NInput :model-value="form.fields.name" :invalid="Boolean(form.error('name'))"

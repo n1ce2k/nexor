@@ -184,6 +184,34 @@ class IblockElement extends Model
     }
 
     /**
+     * Описания значений — той же формы, что и сами значения: у множественного
+     * свойства коллекция, у обычного одна строка.
+     *
+     * @return Collection<string, mixed>
+     */
+    public function propertyDescriptions(): Collection
+    {
+        $this->loadMissing(['values.property', 'iblock.properties']);
+
+        return $this->iblock->properties->mapWithKeys(function (IblockProperty $property) {
+            $descriptions = $this->values
+                ->where('property_id', $property->id)
+                ->map(fn (IblockElementValue $value) => $value->description)
+                ->values();
+
+            return [$property->code => $property->is_multiple ? $descriptions : $descriptions->first()];
+        });
+    }
+
+    /**
+     * Описание значения свойства: подпись к файлу, текст ссылки, примечание.
+     */
+    public function propertyDescription(string $code): mixed
+    {
+        return $this->propertyDescriptions()->get($code);
+    }
+
+    /**
      * Short, printable rendering of one property's value, for list columns.
      */
     public function displayValue(IblockProperty $property): string

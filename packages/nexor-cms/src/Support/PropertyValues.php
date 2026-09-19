@@ -32,6 +32,10 @@ class PropertyValues
         foreach ($properties as $property) {
             $key = 'properties.'.$property->code;
 
+            if ($property->with_description) {
+                $rules += self::descriptionRules($property);
+            }
+
             if ($property->type->isFile()) {
                 $fileRules = [
                     'nullable',
@@ -59,6 +63,36 @@ class PropertyValues
         }
 
         return $rules;
+    }
+
+    /**
+     * Описания значений: у файлов они приходят двумя пачками — к сохранённым
+     * строкам по их id и к только что выбранным файлам по порядку.
+     *
+     * @return array<string, mixed>
+     */
+    protected static function descriptionRules(IblockProperty $property): array
+    {
+        $key = 'property_descriptions.'.$property->code;
+
+        if ($property->type->isFile()) {
+            return [
+                $key => ['nullable', 'array'],
+                $key.'.saved' => ['nullable', 'array'],
+                $key.'.saved.*' => ['nullable', 'string', 'max:500'],
+                $key.'.added' => ['nullable', 'array'],
+                $key.'.added.*' => ['nullable', 'string', 'max:500'],
+            ];
+        }
+
+        if ($property->is_multiple) {
+            return [
+                $key => ['nullable', 'array'],
+                $key.'.*' => ['nullable', 'string', 'max:500'],
+            ];
+        }
+
+        return [$key => ['nullable', 'string', 'max:500']];
     }
 
     /**
@@ -116,18 +150,35 @@ class PropertyValues
     protected static function saveScalarProperty(IblockElement $element, IblockProperty $property, Request $request): void
     {
         $input = $request->input('properties.'.$property->code);
-        $values = $property->is_multiple ? array_values(array_filter((array) $input, 'filled')) : [$input];
+        $descriptions = $property->with_description
+            ? $request->input('property_descriptions.'.$property->code)
+            : null;
+
+        // Значение и его описание идут парой: пустые значения отсеиваются
+        // вместе с описаниями, иначе подписи сползут на соседние строки.
+        $pairs = [];
+
+        if ($property->is_multiple) {
+            foreach ((array) $input as $index => $value) {
+                $pairs[] = [$value, is_array($descriptions) ? ($descriptions[$index] ?? null) : null];
+            }
+        } else {
+            $pairs[] = [$input, is_string($descriptions) ? $descriptions : null];
+        }
 
         $element->values()->where('property_id', $property->id)->delete();
 
-        foreach ($values as $index => $value) {
+        $sort = 0;
+
+        foreach ($pairs as [$value, $description]) {
             if (! filled($value) && $property->type !== PropertyType::Boolean) {
                 continue;
             }
 
             $element->values()->create([
                 'property_id' => $property->id,
-                'sort' => ($index + 1) * 100,
+                'sort' => ($sort += 100),
+                'description' => $property->with_description ? (filled($description) ? trim((string) $description) : null) : null,
                 $property->storageColumn() => self::cast($property, $value),
             ]);
         }
@@ -149,6 +200,10 @@ class PropertyValues
                 $value->delete();
             });
 
+        if ($property->with_description) {
+            self::saveFileDescriptions($element, $property, $request);
+        }
+
         $uploads = $request->file('property_files.'.$property->code);
         $uploads = $uploads instanceof UploadedFile ? [$uploads] : (array) $uploads;
         $uploads = array_filter($uploads, fn ($file) => $file instanceof UploadedFile);
@@ -167,14 +222,42 @@ class PropertyValues
         }
 
         $sort = ($element->values()->where('property_id', $property->id)->max('sort') ?? 0);
+        $added = $property->with_description
+            ? (array) $request->input('property_descriptions.'.$property->code.'.added', [])
+            : [];
 
-        foreach ($uploads as $file) {
+        foreach (array_values($uploads) as $index => $file) {
+            $description = $added[$index] ?? null;
+
             $element->values()->create([
                 'property_id' => $property->id,
                 'sort' => $sort += 100,
+                'description' => filled($description) ? trim((string) $description) : null,
                 'value_string' => $file->store('properties/'.$property->code, Uploads::disk()),
             ]);
         }
+    }
+
+    /**
+     * Подписи к уже загруженным файлам: строки на месте, меняется только текст.
+     */
+    protected static function saveFileDescriptions(IblockElement $element, IblockProperty $property, Request $request): void
+    {
+        $saved = (array) $request->input('property_descriptions.'.$property->code.'.saved', []);
+
+        if ($saved === []) {
+            return;
+        }
+
+        $element->values()
+            ->where('property_id', $property->id)
+            ->whereIn('id', array_keys($saved))
+            ->get()
+            ->each(function (IblockElementValue $value) use ($saved): void {
+                $description = $saved[$value->id] ?? null;
+
+                $value->update(['description' => filled($description) ? trim((string) $description) : null]);
+            });
     }
 
     protected static function cast(IblockProperty $property, mixed $value): mixed
@@ -213,12 +296,48 @@ class PropertyValues
                 $property = $values->first()->property;
 
                 $resolved = $property->type->isFile()
-                    ? $values->map(fn (IblockElementValue $value) => ['id' => $value->id, 'path' => $value->value_string])
+                    ? $values->map(fn (IblockElementValue $value) => [
+                        'id' => $value->id,
+                        'path' => $value->value_string,
+                        'description' => $value->description,
+                    ])
                     : $values->map(fn (IblockElementValue $value) => $value->raw());
 
                 return [$property->code => $property->is_multiple || $property->type->isFile()
                     ? $resolved->values()->all()
                     : $resolved->first()];
+            })
+            ->all();
+    }
+
+    /**
+     * Описания значений для формы: у файлов они уже лежат в строках файлов,
+     * поэтому здесь только свойства с обычными значениями.
+     *
+     * @return array<string, string|array<int, string|null>|null>
+     */
+    public static function descriptionsForForm(IblockElement $element): array
+    {
+        if (! $element->exists) {
+            return [];
+        }
+
+        $element->loadMissing('values.property');
+
+        return $element->values
+            ->groupBy('property_id')
+            ->mapWithKeys(function (Collection $values) {
+                $property = $values->first()->property;
+
+                if (! $property?->with_description || $property->type->isFile()) {
+                    return [];
+                }
+
+                $descriptions = $values->map(fn (IblockElementValue $value) => $value->description);
+
+                return [$property->code => $property->is_multiple
+                    ? $descriptions->values()->all()
+                    : $descriptions->first()];
             })
             ->all();
     }

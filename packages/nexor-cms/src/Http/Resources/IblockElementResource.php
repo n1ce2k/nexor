@@ -67,6 +67,11 @@ class IblockElementResource extends JsonResource
                 $this->relationLoaded('values'),
                 fn () => $this->formValues(),
             ),
+            // Подписи к значениям — у свойств с включённым описанием.
+            'property_descriptions' => $this->when(
+                $this->relationLoaded('values'),
+                fn () => PropertyValues::descriptionsForForm($this->resource),
+            ),
             'display' => $this->when(
                 $this->relationLoaded('values') && $this->resource->iblock?->relationLoaded('properties'),
                 fn () => $this->displayColumns(),

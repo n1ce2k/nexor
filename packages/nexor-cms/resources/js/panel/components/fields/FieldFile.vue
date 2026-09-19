@@ -24,7 +24,26 @@ const value = computed(() => ({
     stored: props.modelValue?.stored ?? [],
     remove: props.modelValue?.remove ?? [],
     added: props.modelValue?.added ?? [],
+    // Подписи к только что выбранным файлам — по порядку, как сами файлы.
+    addedDescriptions: props.modelValue?.addedDescriptions ?? [],
 }));
+
+const describes = computed(() => Boolean(props.property.with_description));
+
+/** Описание сохранённого файла живёт прямо в его строке. */
+function describeStored(id, text) {
+    emit('update:modelValue', {
+        ...value.value,
+        stored: value.value.stored.map((file) => (file.id === id ? { ...file, description: text } : file)),
+    });
+}
+
+function describeAdded(index, text) {
+    const next = [...value.value.addedDescriptions];
+    next[index] = text;
+
+    emit('update:modelValue', { ...value.value, addedDescriptions: next });
+}
 
 const isImage = computed(() => props.property.type === 'image');
 
@@ -61,7 +80,11 @@ function removeStored(id) {
 }
 
 function removeAdded(index) {
-    emit('update:modelValue', { ...value.value, added: value.value.added.filter((_, i) => i !== index) });
+    emit('update:modelValue', {
+        ...value.value,
+        added: value.value.added.filter((_, i) => i !== index),
+        addedDescriptions: value.value.addedDescriptions.filter((_, i) => i !== index),
+    });
 }
 
 function preview(file) {
@@ -78,10 +101,16 @@ function preview(file) {
                 <NIcon name="document" size="size-5" />
             </span>
 
-            <a :href="file.url" target="_blank" rel="noopener"
-               class="min-w-0 flex-1 truncate text-sm text-brand-600 hover:underline dark:text-brand-400">
-                {{ file.path.split('/').pop() }}
-            </a>
+            <div class="min-w-0 flex-1 space-y-1.5">
+                <a :href="file.url" target="_blank" rel="noopener"
+                   class="block truncate text-sm text-brand-600 hover:underline dark:text-brand-400">
+                    {{ file.path.split('/').pop() }}
+                </a>
+
+                <input v-if="describes" type="text" class="field-input" placeholder="Описание"
+                       :value="file.description ?? ''"
+                       @input="describeStored(file.id, $event.target.value)">
+            </div>
 
             <button type="button" class="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
                     @click="removeStored(file.id)">
@@ -96,7 +125,13 @@ function preview(file) {
                 <NIcon name="document" size="size-5" />
             </span>
 
-            <span class="min-w-0 flex-1 truncate text-sm text-[var(--text-base)]">{{ file.name }}</span>
+            <div class="min-w-0 flex-1 space-y-1.5">
+                <span class="block truncate text-sm text-[var(--text-base)]">{{ file.name }}</span>
+
+                <input v-if="describes" type="text" class="field-input" placeholder="Описание"
+                       :value="value.addedDescriptions[index] ?? ''"
+                       @input="describeAdded(index, $event.target.value)">
+            </div>
 
             <button type="button" class="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
                     @click="removeAdded(index)">

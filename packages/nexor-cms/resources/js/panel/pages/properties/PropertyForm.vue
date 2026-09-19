@@ -40,7 +40,7 @@ const form = useForm({
     is_active: true,
     sort: 500,
     default_value: '',
-    description: '',
+    with_description: false,
     settings: {},
 });
 
@@ -121,7 +121,7 @@ onMounted(async () => {
                 is_active: data.data.is_active,
                 sort: data.data.sort,
                 default_value: data.data.default_value ?? '',
-                description: data.data.description ?? '',
+                with_description: data.data.with_description ?? false,
                 settings: data.data.settings ?? {},
             });
 
@@ -175,14 +175,6 @@ onMounted(async () => {
                         <div class="sm:col-span-2">
                             <NField label="Значение по умолчанию" :error="form.error('default_value')">
                                 <NInput v-model="form.fields.default_value" />
-                            </NField>
-                        </div>
-
-                        <div class="sm:col-span-2">
-                            <NField label="Описание"
-                                    hint="Живёт вместе со свойством: видно редактору под полем и доступно шаблонам сайта как description."
-                                    :error="form.error('description')">
-                                <textarea v-model="form.fields.description" rows="3" class="field-input resize-y"></textarea>
                             </NField>
                         </div>
                     </div>
@@ -295,6 +287,8 @@ onMounted(async () => {
                         <NToggle v-model="form.fields.is_searchable" label="Участвует в поиске" />
                         <NToggle v-model="form.fields.is_shown_in_list" label="Колонка в списке"
                                  hint="Значение будет видно прямо в таблице элементов." />
+                        <NToggle v-model="form.fields.with_description" label="Описание"
+                                 hint="Выводить поле для описания свойства." />
                         <NToggle v-model="form.fields.is_active" label="Активно" />
                     </div>
                 </NCard>

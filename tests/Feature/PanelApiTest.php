@@ -215,7 +215,7 @@ class PanelApiTest extends TestCase
         $this->assertCount(2, $property->enums);
     }
 
-    public function test_a_property_keeps_its_description(): void
+    public function test_a_property_can_ask_for_value_descriptions(): void
     {
         $iblock = Iblock::factory()->create();
         $admin = $this->adminWith(['iblocks.update']);
@@ -224,19 +224,97 @@ class PanelApiTest extends TestCase
             'code' => 'MATERIAL',
             'name' => 'Материал',
             'type' => PropertyType::String->value,
-            'default_value' => 'Дуб',
-            'description' => "Порода дерева.\nПишется так, как в паспорте изделия.",
+            'with_description' => true,
         ])->assertCreated()->json('data.id');
 
-        $property = IblockProperty::query()->findOrFail($id);
-
-        // Описание живёт у свойства, поэтому шаблонам сайта достаётся вместе с ним.
-        $this->assertSame("Порода дерева.\nПишется так, как в паспорте изделия.", $property->description);
+        $this->assertTrue(IblockProperty::query()->findOrFail($id)->with_description);
 
         $this->actingAs($admin)
             ->getJson("/admin/api/iblocks/{$iblock->id}/properties/{$id}")
             ->assertOk()
-            ->assertJsonPath('data.description', $property->description);
+            ->assertJsonPath('data.with_description', true);
+    }
+
+    public function test_a_value_keeps_its_description(): void
+    {
+        $iblock = Iblock::factory()->create();
+        $property = IblockProperty::factory()->for($iblock)->create([
+            'code' => 'MATERIAL',
+            'type' => PropertyType::String,
+            'with_description' => true,
+        ]);
+
+        $admin = $this->grantIblock($this->adminWith(), $iblock, ['view', 'create', 'update']);
+
+        $id = $this->actingAs($admin)->postJson("/admin/api/iblocks/{$iblock->id}/elements", [
+            'name' => 'Стул',
+            'properties' => ['MATERIAL' => 'Дуб'],
+            'property_descriptions' => ['MATERIAL' => 'Массив, без шпона'],
+        ])->assertCreated()->json('data.id');
+
+        $element = IblockElement::query()->findOrFail($id);
+
+        $this->assertSame('Дуб', $element->property('MATERIAL'));
+        $this->assertSame('Массив, без шпона', $element->propertyDescription('MATERIAL'));
+
+        // Форма получает описание обратно и не теряет его при следующем сохранении.
+        $this->actingAs($admin)
+            ->getJson("/admin/api/iblocks/{$iblock->id}/elements/{$id}")
+            ->assertOk()
+            ->assertJsonPath('data.property_descriptions.MATERIAL', 'Массив, без шпона');
+
+        $this->actingAs($admin)->putJson("/admin/api/iblocks/{$iblock->id}/elements/{$id}", [
+            'name' => 'Стул',
+            'properties' => ['MATERIAL' => 'Дуб'],
+            'property_descriptions' => ['MATERIAL' => ''],
+        ])->assertOk();
+
+        $this->assertNull($element->fresh()->propertyDescription('MATERIAL'));
+    }
+
+    public function test_descriptions_follow_their_values_in_a_multiple_property(): void
+    {
+        $iblock = Iblock::factory()->create();
+        IblockProperty::factory()->for($iblock)->create([
+            'code' => 'LINKS',
+            'type' => PropertyType::String,
+            'is_multiple' => true,
+            'with_description' => true,
+        ]);
+
+        $admin = $this->grantIblock($this->adminWith(), $iblock, ['view', 'create']);
+
+        $id = $this->actingAs($admin)->postJson("/admin/api/iblocks/{$iblock->id}/elements", [
+            'name' => 'Каталоги',
+            // Пустое значение посередине уезжает вместе со своим описанием.
+            'properties' => ['LINKS' => ['/catalog.pdf', '', '/price.pdf']],
+            'property_descriptions' => ['LINKS' => ['Каталог 2026', 'потеряшка', 'Прайс']],
+        ])->assertCreated()->json('data.id');
+
+        $element = IblockElement::query()->findOrFail($id);
+
+        $this->assertSame(['/catalog.pdf', '/price.pdf'], $element->property('LINKS')->all());
+        $this->assertSame(['Каталог 2026', 'Прайс'], $element->propertyDescription('LINKS')->all());
+    }
+
+    public function test_a_description_is_ignored_while_the_property_does_not_ask_for_it(): void
+    {
+        $iblock = Iblock::factory()->create();
+        IblockProperty::factory()->for($iblock)->create([
+            'code' => 'MATERIAL',
+            'type' => PropertyType::String,
+            'with_description' => false,
+        ]);
+
+        $admin = $this->grantIblock($this->adminWith(), $iblock, ['view', 'create']);
+
+        $id = $this->actingAs($admin)->postJson("/admin/api/iblocks/{$iblock->id}/elements", [
+            'name' => 'Стул',
+            'properties' => ['MATERIAL' => 'Дуб'],
+            'property_descriptions' => ['MATERIAL' => 'Не должно сохраниться'],
+        ])->assertCreated()->json('data.id');
+
+        $this->assertNull(IblockElement::query()->findOrFail($id)->propertyDescription('MATERIAL'));
     }
 
     public function test_an_element_saves_without_any_section(): void

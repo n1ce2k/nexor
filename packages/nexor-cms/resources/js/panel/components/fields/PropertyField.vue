@@ -15,11 +15,13 @@ import { resolveField } from '../../registry';
 const props = defineProps({
     property: { type: Object, required: true },
     modelValue: { type: [String, Number, Boolean, Object, Array, null], default: null },
+    // Описание значения — у свойств с включённым переключателем «Описание».
+    description: { type: [String, Array, null], default: null },
     options: { type: Array, default: () => [] },
     error: { type: String, default: null },
 });
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'update:description']);
 
 const component = computed(() => resolveField(props.property.type));
 
@@ -27,6 +29,19 @@ const isFile = computed(() => props.property.type === 'file' || props.property.t
 
 // File properties keep their own multi-value shape, so the repeater is skipped.
 const repeats = computed(() => props.property.is_multiple && !isFile.value);
+
+const describes = computed(() => Boolean(props.property.with_description) && !isFile.value);
+
+/** Описание строки с тем же индексом, что и значение. */
+function descriptionAt(index) {
+    return Array.isArray(props.description) ? (props.description[index] ?? '') : '';
+}
+
+function updateDescription(index, text) {
+    const next = Array.isArray(props.description) ? [...props.description] : [];
+    next[index] = text;
+    emit('update:description', next);
+}
 
 const rows = computed(() => {
     if (!repeats.value) {
@@ -56,16 +71,16 @@ function removeRow(index) {
 
 <template>
     <NField :label="property.name" :hint="property.hint" :required="property.is_required" :error="error">
-        <p v-if="property.description" class="text-xs whitespace-pre-line text-[var(--text-muted)]">
-            {{ property.description }}
-        </p>
-
         <div v-if="repeats" class="space-y-2">
             <div v-for="(row, index) in rows" :key="index" class="flex items-start gap-2">
-                <div class="min-w-0 flex-1">
+                <div class="min-w-0 flex-1 space-y-1.5">
                     <component :is="component" :property="property" :options="options"
                                :model-value="row" :invalid="Boolean(error)"
                                @update:model-value="updateRow(index, $event)" />
+
+                    <input v-if="describes" type="text" class="field-input" placeholder="Описание"
+                           :value="descriptionAt(index)"
+                           @input="updateDescription(index, $event.target.value)">
                 </div>
 
                 <button type="button"
@@ -83,8 +98,16 @@ function removeRow(index) {
             </button>
         </div>
 
-        <component v-else :is="component" :property="property" :options="options"
-                   :model-value="modelValue" :invalid="Boolean(error)"
-                   @update:model-value="emit('update:modelValue', $event)" />
+        <template v-else>
+            <component :is="component" :property="property" :options="options"
+                       :model-value="modelValue" :description="description"
+                       :invalid="Boolean(error)"
+                       @update:model-value="emit('update:modelValue', $event)"
+                       @update:description="emit('update:description', $event)" />
+
+            <input v-if="describes" type="text" class="field-input" placeholder="Описание"
+                   :value="typeof description === 'string' ? description : ''"
+                   @input="emit('update:description', $event.target.value)">
+        </template>
     </NField>
 </template>

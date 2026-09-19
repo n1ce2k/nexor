@@ -88,12 +88,6 @@
                     <x-nexor::admin.field label="Значение по умолчанию" name="default_value" class="sm:col-span-2">
                         <x-nexor::admin.input name="default_value" :value="old('default_value', $property->default_value)" />
                     </x-nexor::admin.field>
-
-                    <x-nexor::admin.field label="Описание" name="description" class="sm:col-span-2"
-                                   hint="Видно редактору под полем и доступно шаблонам сайта как description.">
-                        <x-nexor::admin.textarea name="description" rows="3"
-                                          :value="old('description', $property->description)" />
-                    </x-nexor::admin.field>
                 </div>
             </x-nexor::admin.card>
 
@@ -246,6 +240,10 @@
                     <x-nexor::admin.toggle name="is_shown_in_list" label="Колонка в списке"
                                     hint="Значение будет видно прямо в таблице элементов."
                                     :checked="old('is_shown_in_list', $property->is_shown_in_list ?? false)" />
+
+                    <x-nexor::admin.toggle name="with_description" label="Описание"
+                                    hint="Выводить поле для описания свойства."
+                                    :checked="old('with_description', $property->with_description ?? false)" />
 
                     <x-nexor::admin.toggle name="is_active" label="Активно"
                                     :checked="old('is_active', $property->is_active ?? true)" />

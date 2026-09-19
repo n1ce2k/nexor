@@ -54,6 +54,7 @@
                         @foreach ($properties as $property)
                             <x-nexor::admin.property-field :property="$property"
                                                     :value="$values[$property->code] ?? null"
+                                                    :description="$descriptions[$property->code] ?? null"
                                                     class="{{ in_array($property->type->value, ['text', 'html', 'json'], true) || $property->is_multiple ? 'sm:col-span-2' : '' }}" />
                         @endforeach
                     </div>

@@ -1,4 +1,4 @@
-@props(['property', 'value' => null])
+@props(['property', 'value' => null, 'description' => null])
 
 @php
     use Nexor\Cms\Enums\PropertyType;
@@ -7,6 +7,8 @@
     $code = $property->code;
     $name = "properties[{$code}]";
     $old = old("properties.{$code}", $value ?? $property->default_value);
+    $describes = (bool) $property->with_description;
+    $oldDescription = old("property_descriptions.{$code}", $description);
 
     // Multiple non-file properties always render as a list of rows.
     $rows = $property->is_multiple && ! $type->isFile()
@@ -28,10 +30,6 @@
 
 <x-nexor::admin.field :label="$property->name" :name="'properties.'.$code"
                :hint="$property->hint" :required="$property->is_required">
-    @if (filled($property->description))
-        <p class="text-xs whitespace-pre-line text-[var(--text-muted)]">{{ $property->description }}</p>
-    @endif
-
 
     @if ($type->isFile())
         @php $files = is_array($value) ? $value : []; @endphp
@@ -48,10 +46,18 @@
                         </span>
                     @endif
 
-                    <a href="{{ Storage::disk('public')->url($file['path']) }}" target="_blank" rel="noopener"
-                       class="min-w-0 flex-1 truncate text-sm text-brand-600 hover:underline dark:text-brand-400">
-                        {{ basename($file['path']) }}
-                    </a>
+                    <div class="min-w-0 flex-1 space-y-1.5">
+                        <a href="{{ Storage::disk('public')->url($file['path']) }}" target="_blank" rel="noopener"
+                           class="block truncate text-sm text-brand-600 hover:underline dark:text-brand-400">
+                            {{ basename($file['path']) }}
+                        </a>
+
+                        @if ($describes)
+                            <input type="text" class="field-input" placeholder="Описание"
+                                   name="property_descriptions[{{ $code }}][saved][{{ $file['id'] }}]"
+                                   value="{{ $file['description'] ?? '' }}">
+                        @endif
+                    </div>
 
                     <label class="flex cursor-pointer items-center gap-1.5 text-xs text-red-600 dark:text-red-400">
                         <input type="checkbox" name="property_remove[{{ $code }}][]" value="{{ $file['id'] }}"
@@ -73,9 +79,18 @@
         </div>
 
     @elseif ($property->is_multiple)
-        <div x-data="repeater(@js(array_map(fn ($v) => ['value' => $v], $rows)), { value: '' })" class="space-y-2">
+        @php
+            $descriptionRows = is_array($oldDescription) ? array_values($oldDescription) : [];
+            $repeaterRows = [];
+
+            foreach (array_values($rows) as $i => $rowValue) {
+                $repeaterRows[] = ['value' => $rowValue, 'description' => $descriptionRows[$i] ?? ''];
+            }
+        @endphp
+
+        <div x-data="repeater(@js($repeaterRows), { value: '', description: '' })" class="space-y-2">
             <template x-for="(row, index) in rows" :key="index">
-                <div class="flex items-center gap-2">
+                <div class="flex items-start gap-2">
                     @switch (true)
                         @case ($type->usesEnums())
                             <select name="{{ $name }}[]" x-model="row.value" class="field-input">
@@ -113,6 +128,11 @@
                                    placeholder="{{ $property->setting('placeholder') }}"
                                    class="field-input">
                     @endswitch
+
+                    @if ($describes)
+                        <input type="text" name="property_descriptions[{{ $code }}][]" x-model="row.description"
+                               placeholder="Описание" class="field-input max-w-xs">
+                    @endif
 
                     <button type="button" @click="remove(index)"
                             class="shrink-0 rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10">
@@ -195,5 +215,10 @@
                                :maxlength="$property->setting('max_length')"
                                :pattern="$property->setting('pattern')" />
         @endswitch
+
+        @if ($describes)
+            <input type="text" name="property_descriptions[{{ $code }}]" placeholder="Описание"
+                   value="{{ is_array($oldDescription) ? '' : $oldDescription }}" class="field-input">
+        @endif
     @endif
 </x-nexor::admin.field>

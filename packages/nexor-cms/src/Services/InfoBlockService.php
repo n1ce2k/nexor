@@ -351,11 +351,14 @@ class InfoBlockService
         }
 
         $values = $element->propertyValues();
+        $descriptions = $element->propertyDescriptions();
 
         $properties = $this->getProperties($code)
             ->mapWithKeys(fn (IblockProperty $property) => [$property->code => [
                 'property' => $property,
                 'value' => $values->get($property->code),
+                // Заполнено только у свойств с включённым описанием значений.
+                'description' => $descriptions->get($property->code),
             ]])
             ->all();
 

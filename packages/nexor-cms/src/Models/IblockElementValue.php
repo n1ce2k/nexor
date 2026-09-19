@@ -12,6 +12,7 @@ use Nexor\Cms\Support\Nexor;
     'element_id', 'property_id', 'sort',
     'value_string', 'value_text', 'value_int', 'value_decimal', 'value_bool',
     'value_date', 'value_json', 'value_enum_id', 'value_element_id', 'value_section_id', 'value_user_id',
+    'description',
 ])]
 class IblockElementValue extends Model
 {

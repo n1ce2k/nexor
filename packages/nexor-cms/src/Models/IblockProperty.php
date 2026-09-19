@@ -15,7 +15,7 @@ use Nexor\Cms\Enums\PropertyType;
 #[Fillable([
     'iblock_id', 'code', 'name', 'hint', 'type',
     'is_multiple', 'is_required', 'is_filterable', 'is_searchable', 'is_shown_in_list', 'is_active',
-    'sort', 'default_value', 'description', 'settings',
+    'sort', 'default_value', 'with_description', 'settings',
 ])]
 class IblockProperty extends Model
 {
@@ -40,6 +40,7 @@ class IblockProperty extends Model
             'is_filterable' => 'boolean',
             'is_searchable' => 'boolean',
             'is_shown_in_list' => 'boolean',
+            'with_description' => 'boolean',
             'is_active' => 'boolean',
             'sort' => 'integer',
             'settings' => 'array',

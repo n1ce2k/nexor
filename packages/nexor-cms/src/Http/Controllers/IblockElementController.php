@@ -66,6 +66,7 @@ class IblockElementController extends Controller
             'properties' => $this->formProperties($iblock),
             'sections' => $iblock->has_sections ? $iblock->sections()->ordered()->get() : collect(),
             'values' => [],
+            'descriptions' => [],
             'selectedSections' => [],
         ]);
     }
@@ -104,6 +105,7 @@ class IblockElementController extends Controller
             'properties' => $this->formProperties($iblock),
             'sections' => $iblock->has_sections ? $iblock->sections()->ordered()->get() : collect(),
             'values' => PropertyValues::forForm($element),
+            'descriptions' => PropertyValues::descriptionsForForm($element),
             'selectedSections' => $element->sections->pluck('id')->all(),
         ]);
     }

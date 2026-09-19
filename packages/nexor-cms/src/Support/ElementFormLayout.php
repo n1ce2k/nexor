@@ -39,12 +39,14 @@ class ElementFormLayout
             'sort' => ['label' => 'Сортировка', 'tab' => 'main'],
             'active_from' => ['label' => 'Начало активности', 'tab' => 'main'],
             'active_to' => ['label' => 'Окончание активности', 'tab' => 'main'],
-            'preview_picture' => ['label' => 'Картинка анонса', 'tab' => 'preview'],
             'preview_text' => ['label' => 'Текст анонса', 'tab' => 'preview'],
+            // Картинка идёт после формата: текст занимает строку целиком, а
+            // формат и картинка встают рядом — формат слева, картинка справа.
             'preview_text_type' => ['label' => 'Формат анонса', 'tab' => 'preview'],
-            'detail_picture' => ['label' => 'Картинка описания', 'tab' => 'detail'],
+            'preview_picture' => ['label' => 'Картинка анонса', 'tab' => 'preview'],
             'detail_text' => ['label' => 'Подробный текст', 'tab' => 'detail'],
             'detail_text_type' => ['label' => 'Формат текста', 'tab' => 'detail'],
+            'detail_picture' => ['label' => 'Картинка описания', 'tab' => 'detail'],
             'meta_title' => ['label' => 'Заголовок страницы', 'tab' => 'seo'],
             'meta_description' => ['label' => 'Описание страницы', 'tab' => 'seo'],
             'meta_keywords' => ['label' => 'Ключевые слова', 'tab' => 'seo'],

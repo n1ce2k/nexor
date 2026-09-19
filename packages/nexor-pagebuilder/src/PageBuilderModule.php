@@ -18,7 +18,7 @@ use Nexor\PageBuilder\Support\LayoutDocument;
  */
 class PageBuilderModule extends Module
 {
-    public const VERSION = '0.1.0';
+    public const VERSION = '0.1.5';
 
     public function code(): string
     {

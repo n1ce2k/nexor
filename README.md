@@ -545,17 +545,27 @@ NEXOR_PANEL_ASSETS=vite
 n1ce2k/nexor ──(split.yml)──► n1ce2k/nexor-cms, nexor-shop, nexor-pagebuilder ──► Packagist ──► composer update на сайтах
 ```
 
+**У каждого пакета своя версия.** Ядро идёт по `0.3.x`, магазин по `0.2.x`, конструктор по `0.1.x` — модуль, в котором ничего не менялось, номер не меняет. Версия пакета живёт в его исходниках, оттуда её берут и панель, и релизный Action:
+
+| Пакет | Версия | Где лежит |
+|---|---|---|
+| `n1ce2k/nexor-cms` | 0.3.x | `Nexor::VERSION` в `packages/nexor-cms/src/Support/Nexor.php` |
+| `n1ce2k/nexor-shop` | 0.2.x | `ShopModule::VERSION` |
+| `n1ce2k/nexor-pagebuilder` | 0.1.x | `PageBuilderModule::VERSION` |
+
+Тег самого монорепо — это версия ядра.
+
 1. Если менялась панель (`.vue`, `resources/js`, `admin.css`) — `npm run build:packages`, собранный `packages/*/dist` коммитится вместе с кодом.
 2. `php artisan test --compact` и `vendor/bin/pint --dirty`.
-3. Поднять `Nexor::VERSION` в `packages/nexor-cms/src/Support/Nexor.php`, закоммитить.
-4. Поставить тег и отправить:
+3. Поднять версию каждого пакета, который менялся, — и `Nexor::VERSION` в любом случае, потому что по нему называется релиз. Закоммитить.
+4. Поставить тег версией ядра и отправить:
 
    ```bash
    git tag vX.Y.Z
    git push origin main --tags
    ```
 
-5. GitHub Action [split.yml](.github/workflows/split.yml) переносит `packages/nexor-cms`, `packages/nexor-shop` и `packages/nexor-pagebuilder` в отдельные репозитории вместе с тегом. Проверить: вкладка **Actions** в `n1ce2k/nexor` — зелёные прогоны по ветке `main` и по тегу, а во всех репозиториях появился тег.
+5. GitHub Action [split.yml](.github/workflows/split.yml) переносит `packages/nexor-cms`, `packages/nexor-shop` и `packages/nexor-pagebuilder` в отдельные репозитории. Каждое зеркало получает **свой** тег — из константы `VERSION` своего пакета; чья версия не менялась, тот тега и не получает. Проверить: вкладка **Actions** в `n1ce2k/nexor` — зелёные прогоны по ветке `main` и по тегу, а в зеркалах появились нужные теги.
 6. Packagist подхватывает версию сам, если в его настройках подключён GitHub. Иначе — кнопка **Update** на страницах пакетов.
 
 **Если прогон по тегу не запустился** (так было с первым тегом, пришедшим в одном пуше с новым workflow) — отправить тот же тег заново:
@@ -567,7 +577,7 @@ git push origin vX.Y.Z
 
 **Для работы нужно:** секрет `ACCESS_TOKEN` в `n1ce2k/nexor` → Settings → Secrets and variables → Actions — fine-grained токен GitHub с правом *Contents: Read and write* на `nexor-cms`, `nexor-shop` и `nexor-pagebuilder`. Новый пакет — новый пустой репозиторий, доступ к нему в токене и регистрация на Packagist. У токена есть срок: когда истечёт, Action упадёт с ошибкой доступа — выпустить новый и заменить секрет.
 
-При смене минорной версии (0.2 → 0.3) поправьте `branch-alias` в `composer.json` обоих пакетов и требование `n1ce2k/nexor-cms` у магазина.
+При смене минорной версии пакета (0.2 → 0.3) поправьте его `branch-alias` в `composer.json` — он у каждого свой (`0.3.x-dev` у ядра, `0.2.x-dev` у магазина, `0.1.x-dev` у конструктора). Если сменилась минорная версия **ядра** — заодно требование `n1ce2k/nexor-cms` у магазина и конструктора.
 
 ## Лицензия
 

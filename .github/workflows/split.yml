@@ -2,7 +2,12 @@
 # умеют ставить Composer и Packagist (composer.json должен лежать в корне).
 #
 #   push в main  → ветка main в n1ce2k/nexor-cms, n1ce2k/nexor-shop и n1ce2k/nexor-pagebuilder
-#   тег v0.2.2   → тот же тег во всех репозиториях → новая версия на Packagist
+#   тег v0.3.4   → каждое зеркало получает СВОЙ тег из константы VERSION своего пакета
+#
+# Версии у пакетов раздельные: ядро идёт по 0.3.x, магазин по 0.2.x, конструктор
+# по 0.1.x. Тег монорепо — это версия ядра; зеркалу магазина он ничего не
+# говорит, поэтому номер для каждого берётся из его же исходников. Пакет, чья
+# версия не менялась, тега не получает: его прошлый релиз остаётся актуальным.
 #
 # Нужен секрет ACCESS_TOKEN: личный токен GitHub с правом записи во все эти репозитории.
 
@@ -27,13 +32,32 @@ jobs:
         package:
           - path: packages/nexor-cms
             repository: nexor-cms
+            version_file: packages/nexor-cms/src/Support/Nexor.php
           - path: packages/nexor-shop
             repository: nexor-shop
+            version_file: packages/nexor-shop/src/ShopModule.php
           - path: packages/nexor-pagebuilder
             repository: nexor-pagebuilder
+            version_file: packages/nexor-pagebuilder/src/PageBuilderModule.php
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Версия ${{ matrix.package.repository }}
+        id: version
+        run: |
+          set -euo pipefail
+
+          version=$(grep -m1 -oP "const VERSION = '\K[0-9]+\.[0-9]+\.[0-9]+" "${{ matrix.package.version_file }}")
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+          # Зеркала публичные — читаем теги без токена.
+          if git ls-remote --tags "https://github.com/n1ce2k/${{ matrix.package.repository }}.git" "refs/tags/v$version" | grep -q .; then
+            echo "Тег v$version в зеркале уже есть — версия пакета не менялась."
+            echo "fresh=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "fresh=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Split ${{ matrix.package.repository }} (main)
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -48,13 +72,13 @@ jobs:
           user_name: n1ce
           user_email: andrew.n1ce2k@gmail.com
 
-      - name: Split ${{ matrix.package.repository }} (tag)
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+      - name: Split ${{ matrix.package.repository }} (${{ steps.version.outputs.tag }})
+        if: ${{ startsWith(github.ref, 'refs/tags/') && steps.version.outputs.fresh == 'true' }}
         uses: symplify/monorepo-split-github-action@v2.3.0
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         with:
-          tag: ${GITHUB_REF#refs/tags/}
+          tag: ${{ steps.version.outputs.tag }}
           package_directory: ${{ matrix.package.path }}
           repository_organization: n1ce2k
           repository_name: ${{ matrix.package.repository }}

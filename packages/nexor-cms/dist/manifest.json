@@ -1,6 +1,6 @@
 {
   "resources/css/admin.css": {
-    "file": "assets/admin-Dej0tiTx.css",
+    "file": "assets/admin-DE-w7yrK.css",
     "name": "admin",
     "names": [
       "admin.css"
@@ -15,7 +15,7 @@
     "isEntry": true
   },
   "resources/js/panel/main.js": {
-    "file": "assets/main-ZfDDtvSL.js",
+    "file": "assets/main-CLed-Qkb.js",
     "name": "main",
     "src": "resources/js/panel/main.js",
     "isEntry": true,

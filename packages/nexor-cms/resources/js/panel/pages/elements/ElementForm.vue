@@ -13,6 +13,7 @@ import NPageHeader from '../../components/ui/NPageHeader.vue';
 import NSelect from '../../components/ui/NSelect.vue';
 import NTabs from '../../components/ui/NTabs.vue';
 import NToggle from '../../components/ui/NToggle.vue';
+import NImageDrop from '../../components/fields/NImageDrop.vue';
 import PropertyField from '../../components/fields/PropertyField.vue';
 import { api, toFormData } from '../../api';
 import { propertyText, useFieldPrefs } from '../../composables/useFieldPrefs';
@@ -38,6 +39,11 @@ const ui = useUi();
 
 const schema = ref(null);
 const values = ref({});
+// Картинки анонса и описания: { url, file, remove } — см. NImageDrop.
+const pictures = ref({
+    preview_picture: { url: null, file: null, remove: false },
+    detail_picture: { url: null, file: null, remove: false },
+});
 // Описания значений — отдельной картой, чтобы не менять форму самих значений.
 const descriptions = ref({});
 
@@ -423,6 +429,18 @@ function buildPayload() {
 
     const body = toFormData(fields);
 
+    // Картинка уходит файлом, а её удаление — отдельным флагом: пустое поле
+    // формы означало бы «не трогать», а не «убрать».
+    Object.entries(pictures.value).forEach(([key, picture]) => {
+        if (picture.file) {
+            body.append(key, picture.file);
+        }
+
+        if (picture.remove && !picture.file) {
+            body.append(`${key}_remove`, '1');
+        }
+    });
+
     if (parentId.value && info.value?.product_iblock_id) {
         body.append('parent_element_id', parentId.value);
     }
@@ -518,6 +536,13 @@ async function save(stay = false) {
     }
 
     emitHook('element.saved', { iblock: props.iblock, element: data.data });
+
+    // Загруженная картинка стала сохранённой: показываем её адрес с сервера,
+    // иначе следующее сохранение отправило бы тот же файл заново.
+    pictures.value = {
+        preview_picture: { url: data.data.preview_picture_url ?? null, file: null, remove: false },
+        detail_picture: { url: data.data.detail_picture_url ?? null, file: null, remove: false },
+    };
 
     if (!stay) {
         router.push(backTo.value);
@@ -633,6 +658,11 @@ async function load() {
 
                 parentId.value = element.catalog.parent_element_id ?? parentId.value;
             }
+
+            pictures.value = {
+                preview_picture: { url: element.preview_picture_url ?? null, file: null, remove: false },
+                detail_picture: { url: element.detail_picture_url ?? null, file: null, remove: false },
+            };
 
             properties.value.forEach((property) => {
                 const stored = element.properties?.[property.code];
@@ -772,6 +802,16 @@ watch(() => [props.iblock, props.element], (next, previous) => {
                             <NField v-else-if="key === 'active_to'" label="Окончание активности"
                                     :error="form.error('active_to')">
                                 <NInput v-model="form.fields.active_to" type="datetime-local" />
+                            </NField>
+
+                            <NField v-else-if="key === 'preview_picture'" label="Картинка анонса"
+                                    :error="form.error('preview_picture')">
+                                <NImageDrop v-model="pictures.preview_picture" :error="form.error('preview_picture')" />
+                            </NField>
+
+                            <NField v-else-if="key === 'detail_picture'" label="Картинка описания"
+                                    :error="form.error('detail_picture')">
+                                <NImageDrop v-model="pictures.detail_picture" :error="form.error('detail_picture')" />
                             </NField>
 
                             <NField v-else-if="key === 'preview_text'" label="Текст анонса"

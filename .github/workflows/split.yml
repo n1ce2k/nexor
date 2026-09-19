@@ -2,7 +2,8 @@
 # умеют ставить Composer и Packagist (composer.json должен лежать в корне).
 #
 #   push в main  → ветка main в n1ce2k/nexor-cms, n1ce2k/nexor-shop и n1ce2k/nexor-pagebuilder
-#   тег v0.3.4   → каждое зеркало получает СВОЙ тег из константы VERSION своего пакета
+#   тег v0.3.5   → каждое зеркало получает СВОЙ тег из константы VERSION своего пакета
+#   Run workflow → то же самое без тега монорепо: чинит пропущенный релиз пакета
 #
 # Версии у пакетов раздельные: ядро идёт по 0.3.x, магазин по 0.2.x, конструктор
 # по 0.1.x. Тег монорепо — это версия ядра; зеркалу магазина он ничего не
@@ -17,6 +18,8 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+  # Запуск руками: разложить теги по зеркалам, не выпуская версию монорепо.
+  workflow_dispatch:
 
 concurrency:
   group: split-${{ github.ref }}
@@ -60,7 +63,7 @@ jobs:
           fi
 
       - name: Split ${{ matrix.package.repository }} (main)
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/') }}
         uses: symplify/monorepo-split-github-action@v2.3.0
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
@@ -73,7 +76,7 @@ jobs:
           user_email: andrew.n1ce2k@gmail.com
 
       - name: Split ${{ matrix.package.repository }} (${{ steps.version.outputs.tag }})
-        if: ${{ startsWith(github.ref, 'refs/tags/') && steps.version.outputs.fresh == 'true' }}
+        if: ${{ (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch') && steps.version.outputs.fresh == 'true' }}
         uses: symplify/monorepo-split-github-action@v2.3.0
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}

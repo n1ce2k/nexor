@@ -60,6 +60,13 @@ class ElementFormLayoutTest extends TestCase
 
         $this->assertSame('Артикул', $property['label']);
         $this->assertSame('property', $property['group']);
+
+        // Картинки анонса и описания — такие же базовые поля, их тоже можно
+        // двигать по вкладкам.
+        $keys = collect($fields)->pluck('key')->all();
+
+        $this->assertContains('preview_picture', $keys);
+        $this->assertContains('detail_picture', $keys);
     }
 
     public function test_a_layout_can_be_renamed_and_rearranged(): void

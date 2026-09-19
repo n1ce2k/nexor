@@ -215,6 +215,45 @@ class PanelApiTest extends TestCase
         $this->assertCount(2, $property->enums);
     }
 
+    public function test_an_element_keeps_its_pictures(): void
+    {
+        Storage::fake('public');
+
+        $iblock = Iblock::factory()->create();
+        $admin = $this->grantIblock($this->adminWith(), $iblock, ['view', 'create', 'update']);
+
+        $data = $this->actingAs($admin)->post("/admin/api/iblocks/{$iblock->id}/elements", [
+            'name' => 'Стул',
+            'preview_picture' => UploadedFile::fake()->image('anons.jpg'),
+            'detail_picture' => UploadedFile::fake()->image('podrobno.jpg'),
+        ], ['Accept' => 'application/json'])->assertCreated()->json('data');
+
+        $element = IblockElement::query()->findOrFail($data['id']);
+
+        Storage::disk('public')->assertExists($element->preview_picture);
+        Storage::disk('public')->assertExists($element->detail_picture);
+        // Форме нужен адрес, а не путь: по нему она рисует превью.
+        $this->assertNotNull($data['preview_picture_url']);
+
+        $stored = $element->preview_picture;
+
+        // Сохранение без файла картинку не трогает.
+        $this->actingAs($admin)->put("/admin/api/iblocks/{$iblock->id}/elements/{$element->id}", [
+            'name' => 'Стул',
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        $this->assertSame($stored, $element->fresh()->preview_picture);
+
+        // Убирает её только отдельный флаг — и файл с диска тоже уходит.
+        $this->actingAs($admin)->put("/admin/api/iblocks/{$iblock->id}/elements/{$element->id}", [
+            'name' => 'Стул',
+            'preview_picture_remove' => '1',
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        $this->assertNull($element->fresh()->preview_picture);
+        Storage::disk('public')->assertMissing($stored);
+    }
+
     public function test_a_property_can_ask_for_value_descriptions(): void
     {
         $iblock = Iblock::factory()->create();

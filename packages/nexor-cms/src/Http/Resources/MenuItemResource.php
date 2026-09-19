@@ -30,6 +30,7 @@ class MenuItemResource extends JsonResource
             'section_id' => $this->section_id,
             'max_depth' => $this->max_depth,
             'with_elements' => $this->with_elements,
+            'with_title' => $this->with_title,
             'target' => $this->target,
             'css_class' => $this->css_class,
             'icon' => $this->icon,

@@ -67,6 +67,7 @@ class MenuItemRequest extends FormRequest
 
             'max_depth' => ['nullable', 'integer', 'min:1', 'max:5'],
             'with_elements' => ['boolean'],
+            'with_title' => ['boolean'],
             'target' => ['nullable', Rule::in(['_blank'])],
             'css_class' => ['nullable', 'string', 'max:190'],
             'icon' => ['nullable', 'string', 'max:50'],

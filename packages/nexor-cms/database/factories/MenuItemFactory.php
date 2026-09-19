@@ -29,6 +29,7 @@ class MenuItemFactory extends Factory
             'visibility' => MenuVisibility::All,
             'max_depth' => 2,
             'with_elements' => false,
+            'with_title' => false,
             'highlight_children' => true,
             'is_active' => true,
             'sort' => 500,

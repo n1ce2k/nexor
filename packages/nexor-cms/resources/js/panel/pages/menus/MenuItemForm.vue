@@ -40,6 +40,7 @@ const form = useForm({
     section_id: null,
     max_depth: 2,
     with_elements: false,
+    with_title: false,
     target: '',
     css_class: '',
     icon: '',
@@ -70,6 +71,21 @@ const shows = computed(() => ({
     link: ['link', 'page', 'section'].includes(form.fields.type),
 }));
 
+/** Откуда возьмётся название, если своё не задали. */
+const titleHint = computed(() => {
+    if (shows.value.titleRequired) {
+        return null;
+    }
+
+    if (shows.value.root) {
+        return form.fields.with_title
+            ? 'Пусто — имя выбранного раздела, а без раздела — имя инфоблока.'
+            : 'При выключенном «Выводить название» в меню не попадёт.';
+    }
+
+    return 'Пусто — возьмём имя выбранной сущности.';
+});
+
 const iblockOptions = computed(() => session.iblocks.map((one) => ({ value: one.id, label: one.name })));
 
 const sectionedOnly = computed(() => session.iblocks
@@ -91,6 +107,7 @@ watch(() => props.modelValue, (open) => {
             section_id: props.item.section_id,
             max_depth: props.item.max_depth ?? 2,
             with_elements: props.item.with_elements ?? false,
+            with_title: props.item.with_title ?? false,
             target: props.item.target ?? '',
             css_class: props.item.css_class ?? '',
             icon: props.item.icon ?? '',
@@ -100,7 +117,7 @@ watch(() => props.modelValue, (open) => {
         }
         : {
             type: 'link', title: '', url: '', iblock_id: null, element_id: null, section_id: null,
-            max_depth: 2, with_elements: false, target: '', css_class: '', icon: '',
+            max_depth: 2, with_elements: false, with_title: false, target: '', css_class: '', icon: '',
             visibility: 'all', highlight_children: true, is_active: true,
         });
 
@@ -215,11 +232,16 @@ async function save() {
                         <NToggle v-model="form.fields.with_elements" label="Показывать и элементы" />
                     </NField>
                 </div>
+
+                <NField label="Свой пункт"
+                        hint="Выключено — разделы встают на место пункта. Включено — пункт рисуется сам, разделы уходят внутрь него.">
+                    <NToggle v-model="form.fields.with_title" label="Выводить название" />
+                </NField>
             </template>
 
             <NField v-if="shows.title" :label="shows.titleRequired ? 'Название' : 'Название (необязательно)'"
                     :required="shows.titleRequired"
-                    :hint="shows.titleRequired ? null : 'Пусто — возьмём имя выбранной сущности.'"
+                    :hint="titleHint"
                     :error="form.error('title')">
                 <NInput v-model="form.fields.title" />
             </NField>

@@ -19,6 +19,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue']);
 
 const input = ref(null);
+const dragging = ref(false);
 
 const value = computed(() => ({
     stored: props.modelValue?.stored ?? [],
@@ -52,27 +53,38 @@ const accept = computed(() => props.property.settings?.accept ?? (isImage.value 
 const visible = computed(() => value.value.stored.filter((file) => !value.value.remove.includes(file.id)));
 
 function pick(event) {
-    const files = Array.from(event.target.files ?? []);
+    take(Array.from(event.target.files ?? []));
+    event.target.value = '';
+}
+
+function drop(event) {
+    dragging.value = false;
+    take(Array.from(event.dataTransfer?.files ?? []));
+}
+
+/**
+ * Файлы приходят одинаково — из окна выбора и перетаскиванием.
+ *
+ * Картинке чужие форматы не нужны: перетащить PDF в поле «изображение» проще,
+ * чем выбрать его в окне, которое само отфильтровало бы список.
+ */
+function take(picked) {
+    const files = isImage.value ? picked.filter((file) => file.type.startsWith('image/')) : picked;
 
     if (files.length === 0) {
         return;
     }
 
+    const single = !props.property.is_multiple;
+
     emit('update:modelValue', {
         ...value.value,
-        added: props.property.is_multiple ? [...value.value.added, ...files] : [files[0]],
+        // Одиночное поле заменяет прежний файл: старый уходит на удаление.
+        remove: single
+            ? [...new Set([...value.value.remove, ...value.value.stored.map((file) => file.id)])]
+            : value.value.remove,
+        added: single ? [files[0]] : [...value.value.added, ...files],
     });
-
-    // Replacing a single-value file drops whatever was stored before.
-    if (!props.property.is_multiple && value.value.stored.length) {
-        emit('update:modelValue', {
-            stored: value.value.stored,
-            remove: value.value.stored.map((file) => file.id),
-            added: [files[0]],
-        });
-    }
-
-    event.target.value = '';
 }
 
 function removeStored(id) {
@@ -139,11 +151,31 @@ function preview(file) {
             </button>
         </div>
 
-        <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--surface-border-strong)] px-3 py-2 text-sm font-medium text-[var(--text-base)] transition hover:bg-[var(--surface-muted)]">
-            <NIcon name="upload" size="size-4" />
-            {{ visible.length || value.added.length ? 'Добавить ещё' : 'Выбрать файл' }}
+        <div class="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed p-3 transition"
+             :class="dragging
+                 ? 'border-brand-500 bg-brand-50/60 dark:bg-brand-500/10'
+                 : 'border-[var(--surface-border-strong)] hover:bg-[var(--surface-muted)]'"
+             @click="input?.click()"
+             @dragover.prevent="dragging = true"
+             @dragenter.prevent="dragging = true"
+             @dragleave.prevent="dragging = false"
+             @drop.prevent="drop">
+            <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-muted)] text-[var(--text-muted)]">
+                <NIcon :name="isImage ? 'image' : 'document'" size="size-5" />
+            </span>
+
+            <div class="min-w-0">
+                <p class="text-sm font-medium text-[var(--text-strong)]">
+                    {{ visible.length || value.added.length
+                        ? (property.is_multiple ? 'Перетащите ещё' : 'Перетащите, чтобы заменить')
+                        : 'Перетащите сюда' }}
+                    {{ isImage ? 'картинку' : 'файл' }}{{ property.is_multiple ? 'ы' : '' }}
+                </p>
+                <p class="mt-0.5 text-xs text-[var(--text-muted)]">Или нажмите, чтобы выбрать.</p>
+            </div>
+
             <input ref="input" type="file" class="sr-only" :accept="accept"
                    :multiple="property.is_multiple" @change="pick">
-        </label>
+        </div>
     </div>
 </template>

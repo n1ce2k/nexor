@@ -322,6 +322,11 @@ function errorOf(key) {
     return property ? form.error(`properties.${property.code}`) : form.error(key);
 }
 
+/** Картинки стоят в правой колонке: слева текст, справа иллюстрация к нему. */
+function isPicture(key) {
+    return key === 'preview_picture' || key === 'detail_picture';
+}
+
 /** Text-ish and multiple editors get the full width of the grid. */
 function wide(key) {
     const property = propertyOf(key);
@@ -751,7 +756,7 @@ watch(() => [props.iblock, props.element], (next, previous) => {
 
                 <div v-if="currentTab" class="grid gap-5 p-5 sm:grid-cols-2">
                     <template v-for="key in visibleFields(currentTab)" :key="key">
-                        <div :class="wide(key) && 'sm:col-span-2'">
+                        <div :class="[wide(key) && 'sm:col-span-2', isPicture(key) && 'sm:col-start-2']">
                             <component :is="resolveFormField(moduleFieldOf(key))" v-if="moduleFieldOf(key)"
                                        v-model="moduleValues[moduleFieldOf(key)]" :iblock="info"
                                        :element="element" :label="moduleFieldLabel(key)" :error="errorOf(key)" />

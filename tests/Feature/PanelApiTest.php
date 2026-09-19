@@ -215,6 +215,30 @@ class PanelApiTest extends TestCase
         $this->assertCount(2, $property->enums);
     }
 
+    public function test_a_property_keeps_its_description(): void
+    {
+        $iblock = Iblock::factory()->create();
+        $admin = $this->adminWith(['iblocks.update']);
+
+        $id = $this->actingAs($admin)->postJson("/admin/api/iblocks/{$iblock->id}/properties", [
+            'code' => 'MATERIAL',
+            'name' => 'Материал',
+            'type' => PropertyType::String->value,
+            'default_value' => 'Дуб',
+            'description' => "Порода дерева.\nПишется так, как в паспорте изделия.",
+        ])->assertCreated()->json('data.id');
+
+        $property = IblockProperty::query()->findOrFail($id);
+
+        // Описание живёт у свойства, поэтому шаблонам сайта достаётся вместе с ним.
+        $this->assertSame("Порода дерева.\nПишется так, как в паспорте изделия.", $property->description);
+
+        $this->actingAs($admin)
+            ->getJson("/admin/api/iblocks/{$iblock->id}/properties/{$id}")
+            ->assertOk()
+            ->assertJsonPath('data.description', $property->description);
+    }
+
     public function test_an_element_saves_without_any_section(): void
     {
         $iblock = Iblock::factory()->create();

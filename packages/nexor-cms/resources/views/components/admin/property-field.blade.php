@@ -28,6 +28,10 @@
 
 <x-nexor::admin.field :label="$property->name" :name="'properties.'.$code"
                :hint="$property->hint" :required="$property->is_required">
+    @if (filled($property->description))
+        <p class="text-xs whitespace-pre-line text-[var(--text-muted)]">{{ $property->description }}</p>
+    @endif
+
 
     @if ($type->isFile())
         @php $files = is_array($value) ? $value : []; @endphp

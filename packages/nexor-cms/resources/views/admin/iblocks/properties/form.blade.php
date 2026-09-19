@@ -88,6 +88,12 @@
                     <x-nexor::admin.field label="Значение по умолчанию" name="default_value" class="sm:col-span-2">
                         <x-nexor::admin.input name="default_value" :value="old('default_value', $property->default_value)" />
                     </x-nexor::admin.field>
+
+                    <x-nexor::admin.field label="Описание" name="description" class="sm:col-span-2"
+                                   hint="Видно редактору под полем и доступно шаблонам сайта как description.">
+                        <x-nexor::admin.textarea name="description" rows="3"
+                                          :value="old('description', $property->description)" />
+                    </x-nexor::admin.field>
                 </div>
             </x-nexor::admin.card>
 

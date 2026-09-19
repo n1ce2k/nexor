@@ -75,6 +75,29 @@ class IblockStructureTest extends TestCase
         $this->assertNull($property->setting('rows'));
     }
 
+    public function test_a_property_description_is_saved_and_shown_back(): void
+    {
+        $admin = $this->adminWith(['iblocks.update']);
+        $iblock = Iblock::factory()->create();
+
+        $this->actingAs($admin)->post(route('admin.iblocks.properties.store', $iblock), [
+            'code' => 'MATERIAL',
+            'name' => 'Материал',
+            'type' => PropertyType::String->value,
+            'default_value' => 'Дуб',
+            'description' => 'Порода дерева как в паспорте изделия.',
+        ])->assertRedirect(route('admin.iblocks.properties.index', $iblock));
+
+        $property = IblockProperty::query()->where('code', 'MATERIAL')->firstOrFail();
+
+        $this->assertSame('Порода дерева как в паспорте изделия.', $property->description);
+
+        $this->actingAs($admin)
+            ->get(route('admin.iblocks.properties.edit', [$iblock, $property]))
+            ->assertOk()
+            ->assertSee('Порода дерева как в паспорте изделия.');
+    }
+
     public function test_a_select_property_stores_its_options(): void
     {
         $admin = $this->adminWith(['iblocks.update']);

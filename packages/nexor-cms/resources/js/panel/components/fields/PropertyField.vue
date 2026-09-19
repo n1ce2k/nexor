@@ -56,6 +56,10 @@ function removeRow(index) {
 
 <template>
     <NField :label="property.name" :hint="property.hint" :required="property.is_required" :error="error">
+        <p v-if="property.description" class="text-xs whitespace-pre-line text-[var(--text-muted)]">
+            {{ property.description }}
+        </p>
+
         <div v-if="repeats" class="space-y-2">
             <div v-for="(row, index) in rows" :key="index" class="flex items-start gap-2">
                 <div class="min-w-0 flex-1">

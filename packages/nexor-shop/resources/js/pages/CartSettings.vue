@@ -19,6 +19,7 @@ const feedbacks = ref([]);
 const currencies = ref([]);
 const effectiveEdition = ref('basic');
 const urls = ref({});
+const receiptOptions = ref({ tax_systems: [], vat_codes: [], subjects: [], modes: [] });
 
 const form = useForm({
     edition: 'basic',
@@ -33,6 +34,12 @@ const form = useForm({
     telegram_enabled: false,
     telegram_token: '',
     telegram_chat_id: '',
+    receipts_enabled: false,
+    tax_system_code: 1,
+    vat_code: 1,
+    delivery_vat_code: 1,
+    payment_subject: 'commodity',
+    payment_mode: 'full_payment',
 });
 
 const canUpdate = computed(() => session.can('shop.cart.update'));
@@ -62,6 +69,7 @@ const tabs = computed(() => [
     { key: 'currency', label: 'Валюта', mark: Object.keys(form.errors.value).some((key) => key.startsWith('rates') || key === 'currency') },
     { key: 'fields', label: 'Поля заказа' },
     { key: 'notify', label: 'Уведомления', mark: Boolean(form.error('admin_email') || form.error('telegram_token') || form.error('telegram_chat_id')) },
+    { key: 'receipts', label: 'Чеки', mark: Boolean(form.error('tax_system_code') || form.error('vat_code') || form.error('delivery_vat_code')) },
 ]);
 
 const currencyOptions = computed(() => currencies.value.map((item) => ({ value: item.value, label: `${item.label} (${item.symbol})` })));
@@ -78,6 +86,7 @@ function apply(data) {
     currencies.value = data.currencies;
     effectiveEdition.value = data.effective_edition;
     urls.value = data.urls ?? {};
+    receiptOptions.value = data.receipt_options ?? receiptOptions.value;
 
     form.fill({ ...data.settings, rates: { ...(data.settings.rates ?? {}) } });
 }
@@ -195,7 +204,7 @@ onMounted(() => {
 
 <template>
     <div>
-        <NPageHeader title="Корзина" description="Перечень параметров для работы с корзиной (Бета)">
+        <NPageHeader title="Корзина" description="Перечень параметров для работы с корзиной">
 <!--            <template #actions>-->
 <!--                <NButton v-if="urls.cart" variant="secondary" size="sm" :href="urls.cart" target="_blank">Открыть корзину</NButton>-->
 <!--            </template>-->
@@ -299,7 +308,7 @@ onMounted(() => {
             <!-- Поля заказа -->
             <div v-show="tab === 'fields'" class="p-5">
                 <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-                    <p class="text-sm text-[var(--text-muted)]">Что покупатель заполняет при заказе. Порядок — как в форме.</p>
+                    <p class="text-sm text-[var(--text-muted)]">Поля формы при оформлении заказа.</p>
                     <NButton v-if="canUpdate" size="sm" icon="plus" @click="openField()">Добавить поле</NButton>
                 </div>
 
@@ -347,7 +356,7 @@ onMounted(() => {
             </div>
 
             <!-- Уведомления -->
-            <div v-show="tab === 'notify'" class="space-y-5 p-5 sm:max-w-xl">
+            <div v-show="tab === 'notify'" class="space-y-5 p-5 sm:max-w-xl ">
                 <NToggle v-model="form.fields.notify_admin" label="Письмо администратору о новом заказе"
                          hint="Шаблон письма — «Почтовые шаблоны», код SHOP_ORDER_ADMIN." :disabled="!canUpdate" />
 
@@ -384,6 +393,45 @@ onMounted(() => {
                         </NButton>
                     </template>
                 </div>
+            </div>
+
+            <!-- Чеки 54-ФЗ -->
+            <div v-show="tab === 'receipts'" class="space-y-5 p-5 sm:max-w-xl">
+                <NToggle v-model="form.fields.receipts_enabled" label="Отправлять чек вместе с платежом"
+                         hint="Состав заказа уходит в ЮKassa, она пробивает чек на своей кассе и шлёт его покупателю. Без этого чек придётся выбивать вручную."
+                         :disabled="!canUpdate" />
+
+                <template v-if="form.fields.receipts_enabled">
+                    <NField label="Система налогообложения" :error="form.error('tax_system_code')"
+                            hint="Та, что указана в кассе. Неверная — ЮKassa откажет в чеке.">
+                        <NSelect v-model="form.fields.tax_system_code" :options="receiptOptions.tax_systems" :disabled="!canUpdate" />
+                    </NField>
+
+                    <div class="grid gap-5 sm:grid-cols-2">
+                        <NField label="Ставка НДС товаров" :error="form.error('vat_code')">
+                            <NSelect v-model="form.fields.vat_code" :options="receiptOptions.vat_codes" :disabled="!canUpdate" />
+                        </NField>
+
+                        <NField label="Ставка НДС доставки" :error="form.error('delivery_vat_code')"
+                                hint="Доставка идёт в чеке отдельной строкой.">
+                            <NSelect v-model="form.fields.delivery_vat_code" :options="receiptOptions.vat_codes" :disabled="!canUpdate" />
+                        </NField>
+                    </div>
+
+                    <div class="grid gap-5 sm:grid-cols-2">
+                        <NField label="Предмет расчёта" :error="form.error('payment_subject')">
+                            <NSelect v-model="form.fields.payment_subject" :options="receiptOptions.subjects" :disabled="!canUpdate" />
+                        </NField>
+
+                        <NField label="Способ расчёта" :error="form.error('payment_mode')">
+                            <NSelect v-model="form.fields.payment_mode" :options="receiptOptions.modes" :disabled="!canUpdate" />
+                        </NField>
+                    </div>
+
+                    <p class="text-sm text-[var(--text-muted)]">
+                        Чек уходит только если в заказе заполнен e-mail или телефон покупателя — иначе его некому отправить.
+                    </p>
+                </template>
             </div>
 
             <template v-if="canUpdate && tab !== 'fields'" #footer>

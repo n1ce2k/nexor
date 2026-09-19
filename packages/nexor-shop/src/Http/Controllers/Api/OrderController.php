@@ -38,7 +38,7 @@ class OrderController extends ApiController
 
     public function show(Order $order): JsonResponse
     {
-        return OrderResource::make($order->load('items'))
+        return OrderResource::make($order->load(['items', 'payments.refunds']))
             ->additional(['statuses' => OrderStatus::options(), 'checkout' => Nexor::feature('shop.checkout')])
             ->response();
     }
@@ -54,7 +54,7 @@ class OrderController extends ApiController
 
         ActivityLogger::updated($order, 'Заказ №'.$order->number);
 
-        return OrderResource::make($order->load('items'))
+        return OrderResource::make($order->load(['items', 'payments.refunds']))
             ->additional(['message' => 'Заказ №'.$order->number.' сохранён.'])
             ->response();
     }

@@ -8,12 +8,12 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Nexor\Shop\Database\Factories\PaymentMethodFactory;
+use Nexor\Shop\Enums\PaymentProvider;
 
 /**
- * Способ оплаты. Пока это только подпись в заказе: приём денег онлайн —
- * отдельная задача.
+ * Способ оплаты: подпись в заказе и, если задан провайдер, приём денег онлайн.
  */
-#[Fillable(['name', 'description', 'is_active', 'sort'])]
+#[Fillable(['name', 'description', 'provider', 'settings', 'is_active', 'sort'])]
 class PaymentMethod extends Model
 {
     /** @use HasFactory<PaymentMethodFactory> */
@@ -29,6 +29,9 @@ class PaymentMethod extends Model
     protected function casts(): array
     {
         return [
+            'provider' => PaymentProvider::class,
+            // Секреты внутри зашифрованы отдельно — см. Support\Payments\Payments.
+            'settings' => 'array',
             'is_active' => 'boolean',
             'sort' => 'integer',
         ];

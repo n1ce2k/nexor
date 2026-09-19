@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Nexor\Cms\Enums\Currency;
 use Nexor\Shop\Database\Factories\OrderFactory;
 use Nexor\Shop\Enums\CartEdition;
+use Nexor\Shop\Enums\OrderPaymentStatus;
 use Nexor\Shop\Enums\OrderStatus;
 
 #[Fillable([
@@ -19,7 +20,7 @@ use Nexor\Shop\Enums\OrderStatus;
     'subtotal', 'discount', 'delivery_price', 'total',
     'promocode_id', 'promocode_code',
     'delivery_method_id', 'delivery_name', 'payment_method_id', 'payment_name',
-    'manager_comment', 'ip',
+    'manager_comment', 'ip', 'payment_status', 'paid_at',
 ])]
 class Order extends Model
 {
@@ -44,6 +45,8 @@ class Order extends Model
             'discount' => 'decimal:2',
             'delivery_price' => 'decimal:2',
             'total' => 'decimal:2',
+            'payment_status' => OrderPaymentStatus::class,
+            'paid_at' => 'datetime',
         ];
     }
 
@@ -53,6 +56,22 @@ class Order extends Model
         static::created(function (self $order): void {
             $order->forceFill(['number' => str_pad((string) $order->id, 6, '0', STR_PAD_LEFT)])->saveQuietly();
         });
+    }
+
+    /**
+     * @return HasMany<Payment, $this>
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'order_id')->latest('id');
+    }
+
+    /**
+     * @return BelongsTo<PaymentMethod, $this>
+     */
+    public function paymentMethod(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethod::class, 'payment_method_id');
     }
 
     /**

@@ -2,7 +2,8 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-    api, formatDate, formatMoney, formatQuantity, NBadge, NButton, NCard, NField, NPageHeader, NSelect, useForm, useSession, useUi,
+    api, formatDate, formatMoney, formatQuantity, NBadge, NButton, NCard, NField, NInput, NModal, NPageHeader, NSelect,
+    useForm, useSession, useUi,
 } from '../core.js';
 
 /**
@@ -23,7 +24,15 @@ const checkout = ref(false);
 const form = useForm({ status: 'new', manager_comment: '' });
 
 const canUpdate = computed(() => session.can('shop.orders.update'));
+const canRefund = computed(() => session.can('shop.payments.refund'));
 const symbol = computed(() => data.value?.currency_symbol ?? '');
+
+const syncing = ref(false);
+const refunding = ref(null);
+const refundForm = useForm({ amount: '', reason: '' });
+
+/** Платежи есть только у заказов с онлайн-оплатой — иначе показывать нечего. */
+const payments = computed(() => data.value?.payments ?? []);
 
 const filledCustomer = computed(() => (data.value?.customer ?? []).filter((field) => field.value));
 
@@ -66,6 +75,36 @@ async function remove() {
         router.push({ name: 'shop.orders' });
     } catch (error) {
         ui.notifyError(error);
+    }
+}
+
+/** Спрашиваем ЮKassa о состоянии платежей: уведомление могло не дойти. */
+async function syncPayments() {
+    syncing.value = true;
+
+    try {
+        const response = await api.post(`shop/orders/${props.order}/payments/sync`);
+
+        data.value = response.data;
+        ui.notify(response.message);
+    } catch (error) {
+        ui.notifyError(error);
+    } finally {
+        syncing.value = false;
+    }
+}
+
+function openRefund(payment) {
+    refunding.value = payment;
+    refundForm.reset({ amount: payment.refundable, reason: '' });
+}
+
+async function refund() {
+    const response = await refundForm.submit('post', `shop/orders/${props.order}/payments/${refunding.value.id}/refund`);
+
+    if (response) {
+        data.value = response.data;
+        refunding.value = null;
     }
 }
 
@@ -157,7 +196,13 @@ onMounted(load);
                 </NCard>
 
                 <NCard v-if="checkout" title="Доставка и оплата">
-                    <dl class="grid gap-4 text-sm sm:grid-cols-2">
+                    <template v-if="payments.length" #actions>
+                        <NButton variant="secondary" size="sm" :loading="syncing" @click="syncPayments">
+                            Проверить статус
+                        </NButton>
+                    </template>
+
+                    <dl class="grid gap-4 text-sm sm:grid-cols-3">
                         <div>
                             <dt class="text-xs text-[var(--text-muted)]">Доставка</dt>
                             <dd class="mt-0.5 text-[var(--text-strong)]">{{ data.delivery?.name ?? '—' }}</dd>
@@ -166,7 +211,52 @@ onMounted(load);
                             <dt class="text-xs text-[var(--text-muted)]">Оплата</dt>
                             <dd class="mt-0.5 text-[var(--text-strong)]">{{ data.payment ?? '—' }}</dd>
                         </div>
+                        <div>
+                            <dt class="text-xs text-[var(--text-muted)]">Состояние оплаты</dt>
+                            <dd class="mt-0.5 flex flex-wrap items-center gap-2">
+                                <NBadge :color="data.payment_status_color">{{ data.payment_status_label }}</NBadge>
+                                <span v-if="data.paid_at" class="text-xs text-[var(--text-muted)]">{{ formatDate(data.paid_at) }}</span>
+                            </dd>
+                        </div>
                     </dl>
+
+                    <ul v-if="payments.length" class="mt-5 space-y-3 border-t border-[var(--surface-border)] pt-5">
+                        <li v-for="payment in payments" :key="payment.id" class="rounded-xl border border-[var(--surface-border)] p-4">
+                            <div class="flex flex-wrap items-center gap-3">
+                                <NBadge :color="payment.status_color">{{ payment.status_label }}</NBadge>
+                                <span class="font-medium text-[var(--text-strong)]">{{ formatMoney(payment.amount) }} {{ symbol }}</span>
+                                <span v-if="Number(payment.refunded) > 0" class="text-sm text-[var(--text-muted)]">
+                                    возвращено {{ formatMoney(payment.refunded) }} {{ symbol }}
+                                </span>
+                                <span class="text-xs text-[var(--text-muted)]">
+                                    {{ payment.provider_label }} · {{ formatDate(payment.created_at) }}
+                                </span>
+
+                                <div class="ml-auto flex items-center gap-2">
+                                    <a v-if="payment.external_url" :href="payment.external_url" target="_blank" rel="noopener"
+                                       class="text-xs text-[var(--text-muted)] hover:text-brand-600 hover:underline">в ЮKassa</a>
+                                    <NButton v-if="canRefund && Number(payment.refundable) > 0" variant="ghost" size="sm"
+                                             @click="openRefund(payment)">
+                                        Вернуть деньги
+                                    </NButton>
+                                </div>
+                            </div>
+
+                            <p v-if="payment.cancellation_reason" class="mt-2 text-xs text-[var(--text-muted)]">
+                                Причина отмены: {{ payment.cancellation_reason }}
+                            </p>
+
+                            <ul v-if="payment.refunds.length" class="mt-3 space-y-1 text-sm">
+                                <li v-for="item in payment.refunds" :key="item.id"
+                                    class="flex flex-wrap items-center gap-2 text-[var(--text-muted)]">
+                                    <span>Возврат {{ formatMoney(item.amount) }} {{ symbol }}</span>
+                                    <span class="text-xs">{{ formatDate(item.created_at) }}</span>
+                                    <span v-if="!item.is_succeeded" class="text-xs text-amber-600">в обработке</span>
+                                    <span v-if="item.reason" class="text-xs">· {{ item.reason }}</span>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
                 </NCard>
             </div>
 
@@ -202,5 +292,29 @@ onMounted(load);
                 </NCard>
             </div>
         </div>
+
+        <NModal :model-value="refunding !== null" title="Возврат денег" @update:model-value="refunding = null">
+            <div v-if="refunding" class="space-y-5">
+                <p class="text-sm text-[var(--text-muted)]">
+                    Деньги уйдут покупателю тем же способом, которым он платил. Доступно к возврату
+                    {{ formatMoney(refunding.refundable) }} {{ symbol }}.
+                </p>
+
+                <NField :label="`Сумма, ${symbol}`" required :error="refundForm.error('amount')">
+                    <NInput v-model="refundForm.fields.amount" type="number" min="0.01" step="0.01"
+                            :max="refunding.refundable" :invalid="Boolean(refundForm.error('amount'))" />
+                </NField>
+
+                <NField label="Причина" hint="Останется в истории заказа; покупателю не показывается."
+                        :error="refundForm.error('reason')">
+                    <NInput v-model="refundForm.fields.reason" placeholder="Не подошёл размер" />
+                </NField>
+            </div>
+
+            <template #footer>
+                <NButton variant="secondary" size="sm" @click="refunding = null">Отмена</NButton>
+                <NButton size="sm" :loading="refundForm.busy.value" @click="refund">Вернуть</NButton>
+            </template>
+        </NModal>
     </div>
 </template>

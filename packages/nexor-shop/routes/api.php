@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Nexor\Shop\Http\Controllers\Api\DeliveryMethodController;
 use Nexor\Shop\Http\Controllers\Api\OrderController;
 use Nexor\Shop\Http\Controllers\Api\OrderFieldController;
+use Nexor\Shop\Http\Controllers\Api\OrderPaymentController;
 use Nexor\Shop\Http\Controllers\Api\PaymentMethodController;
 use Nexor\Shop\Http\Controllers\Api\PromocodeController;
 use Nexor\Shop\Http\Controllers\Api\SettingsController;
@@ -39,6 +40,12 @@ Route::prefix('shop')->name('shop.')->group(function (): void {
     Route::delete('orders/{order}', [OrderController::class, 'destroy'])
         ->name('orders.destroy')->middleware('nexor.permission:shop.orders.delete');
 
+    // Платежи заказа: состояние спрашиваем у провайдера, возврат — отдельное право.
+    Route::post('orders/{order}/payments/sync', [OrderPaymentController::class, 'sync'])
+        ->name('orders.payments.sync')->middleware(['nexor.permission:shop.orders.view', 'throttle:30,1']);
+    Route::post('orders/{order}/payments/{payment}/refund', [OrderPaymentController::class, 'refund'])
+        ->name('orders.payments.refund')->middleware(['nexor.permission:shop.payments.refund', 'throttle:30,1']);
+
     Route::middleware('nexor.feature:shop.promocodes')->group(function (): void {
         Route::get('promocodes', [PromocodeController::class, 'index'])
             ->name('promocodes.index')->middleware('nexor.permission:shop.promocodes.view');
@@ -64,5 +71,9 @@ Route::prefix('shop')->name('shop.')->group(function (): void {
             Route::delete($uri.'/{'.$name.'}', [$controller, 'destroy'])
                 ->name($uri.'.destroy')->middleware('nexor.permission:shop.checkout.update');
         }
+
+        // Проверка ключей провайдера — запрос наружу, поэтому с ограничением.
+        Route::post('payment-methods/{payment_method}/check', [PaymentMethodController::class, 'check'])
+            ->name('payment-methods.check')->middleware(['nexor.permission:shop.checkout.update', 'throttle:10,1']);
     });
 });

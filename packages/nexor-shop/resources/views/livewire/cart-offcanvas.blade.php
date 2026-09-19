@@ -25,7 +25,7 @@
 
         <div class="flex-1 overflow-y-auto px-5">
             @if ($placedNumber)
-                <div class="py-6">@include('nexor-shop::partials.success', ['number' => $placedNumber])</div>
+                <div class="py-6">@include('nexor-shop::partials.success', ['number' => $placedNumber, 'paymentUrl' => $paymentUrl])</div>
             @elseif ($summary->isEmpty())
                 <p class="py-10 text-center text-slate-500">В корзине пока ничего нет.</p>
             @else

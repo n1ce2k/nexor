@@ -6,7 +6,7 @@
 
 <div>
     @if ($placedNumber)
-        @include('nexor-shop::partials.success', ['number' => $placedNumber])
+        @include('nexor-shop::partials.success', ['number' => $placedNumber, 'paymentUrl' => $paymentUrl])
     @elseif ($summary->isEmpty())
         <div class="rounded-2xl border border-dashed border-slate-300 p-10 text-center">
             <p class="text-lg font-medium text-slate-900">Корзина пуста — оформлять нечего</p>

@@ -10,6 +10,7 @@ use Nexor\Cms\Support\Nexor;
 use Nexor\Shop\Enums\AddedFeedback;
 use Nexor\Shop\Enums\CartDisplay;
 use Nexor\Shop\Enums\CartEdition;
+use Nexor\Shop\Support\Payments\Receipt;
 use Nexor\Shop\Support\TelegramNotifier;
 
 class SettingsRequest extends FormRequest
@@ -39,6 +40,13 @@ class SettingsRequest extends FormRequest
             'telegram_token' => ['nullable', 'string', 'max:100'],
             // Личный или групповой chat id (группы — с минусом) либо @канал.
             'telegram_chat_id' => ['nullable', 'string', 'max:64', 'regex:/^(-?\d+|@[A-Za-z0-9_]{5,})$/'],
+            // Чеки 54-ФЗ уходят вместе с платежом; коды — из словарей ЮKassa.
+            'receipts_enabled' => ['boolean'],
+            'tax_system_code' => ['required_if:receipts_enabled,true', 'integer', Rule::in(array_keys(Receipt::TAX_SYSTEMS))],
+            'vat_code' => ['required_if:receipts_enabled,true', 'integer', Rule::in(array_keys(Receipt::VAT_CODES))],
+            'delivery_vat_code' => ['required_if:receipts_enabled,true', 'integer', Rule::in(array_keys(Receipt::VAT_CODES))],
+            'payment_subject' => ['nullable', Rule::in(array_keys(Receipt::SUBJECTS))],
+            'payment_mode' => ['nullable', Rule::in(array_keys(Receipt::MODES))],
         ];
     }
 
@@ -91,6 +99,11 @@ class SettingsRequest extends FormRequest
             'admin_email' => 'e-mail администратора',
             'telegram_token' => 'токен бота',
             'telegram_chat_id' => 'chat id',
+            'tax_system_code' => 'система налогообложения',
+            'vat_code' => 'ставка НДС',
+            'delivery_vat_code' => 'ставка НДС доставки',
+            'payment_subject' => 'предмет расчёта',
+            'payment_mode' => 'способ расчёта',
         ];
     }
 }

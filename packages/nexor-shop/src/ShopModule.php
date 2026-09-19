@@ -10,7 +10,7 @@ use Nexor\Cms\Support\Modules\Module;
  */
 class ShopModule extends Module
 {
-    public const VERSION = '0.1.5';
+    public const VERSION = '0.2.0';
 
     public function code(): string
     {
@@ -24,7 +24,7 @@ class ShopModule extends Module
 
     public function description(): string
     {
-        return 'Корзина Basic и Ultimate, промокоды, оформление заказа и раздел «Заказы».';
+        return 'Корзина Basic и Ultimate, промокоды, оформление заказа, оплата картой и раздел «Заказы».';
     }
 
     public function version(): string
@@ -57,6 +57,13 @@ class ShopModule extends Module
                     'shop.orders.view' => 'Просмотр заказов',
                     'shop.orders.update' => 'Изменение заказов',
                     'shop.orders.delete' => 'Удаление заказов',
+                ],
+            ],
+            'shop_payments' => [
+                'label' => 'Магазин: оплата',
+                'sort' => 805,
+                'items' => [
+                    'shop.payments.refund' => 'Возврат денег покупателю',
                 ],
             ],
             'shop_cart' => [
@@ -131,6 +138,15 @@ class ShopModule extends Module
             'telegram_enabled' => false,
             'telegram_token' => '',
             'telegram_chat_id' => '',
+            // Чеки 54-ФЗ: состав заказа уходит в платёж, ЮKassa бьёт чек сама.
+            'receipts_enabled' => false,
+            // Система налогообложения продавца (1 — ОСН, 2 — УСН доходы, ...).
+            'tax_system_code' => 1,
+            // Ставка НДС товаров и доставки (1 — без НДС, 4 — 20%).
+            'vat_code' => 1,
+            'delivery_vat_code' => 1,
+            'payment_subject' => 'commodity',
+            'payment_mode' => 'full_payment',
         ];
     }
 }

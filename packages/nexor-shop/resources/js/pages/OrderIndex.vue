@@ -22,6 +22,7 @@ const columns = [
     { key: 'items_count', label: 'Товаров', align: 'center', width: '6rem', muted: true },
     { key: 'total', label: 'Сумма', align: 'right', width: '9rem' },
     { key: 'status', label: 'Статус', align: 'center', width: '8rem' },
+    { key: 'payment_status', label: 'Оплата', align: 'center', width: '9rem' },
 ];
 
 let searchTimer = null;
@@ -95,6 +96,10 @@ onMounted(load);
 
                 <template #cell-status="{ row }">
                     <NBadge :color="row.status_color">{{ row.status_label }}</NBadge>
+                </template>
+
+                <template #cell-payment_status="{ row }">
+                    <NBadge :color="row.payment_status_color">{{ row.payment_status_label }}</NBadge>
                 </template>
             </NTable>
 

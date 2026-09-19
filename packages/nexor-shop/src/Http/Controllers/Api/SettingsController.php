@@ -13,6 +13,7 @@ use Nexor\Shop\Enums\AddedFeedback;
 use Nexor\Shop\Enums\CartDisplay;
 use Nexor\Shop\Enums\CartEdition;
 use Nexor\Shop\Http\Requests\SettingsRequest;
+use Nexor\Shop\Support\Payments\Receipt;
 use Nexor\Shop\Support\Shop;
 use Nexor\Shop\Support\TelegramNotifier;
 use RuntimeException;
@@ -49,6 +50,12 @@ class SettingsController extends ApiController
             'telegram_enabled' => (bool) ($data['telegram_enabled'] ?? false),
             'telegram_chat_id' => trim((string) ($data['telegram_chat_id'] ?? '')),
             'telegram_token' => $this->tokenToStore($data['telegram_token'] ?? null),
+            'receipts_enabled' => (bool) ($data['receipts_enabled'] ?? false),
+            'tax_system_code' => (int) ($data['tax_system_code'] ?? 1),
+            'vat_code' => (int) ($data['vat_code'] ?? 1),
+            'delivery_vat_code' => (int) ($data['delivery_vat_code'] ?? 1),
+            'payment_subject' => (string) ($data['payment_subject'] ?? 'commodity'),
+            'payment_mode' => (string) ($data['payment_mode'] ?? 'full_payment'),
         ]);
 
         if ($state = ModuleState::query()->where('code', Shop::MODULE)->first()) {
@@ -96,6 +103,17 @@ class SettingsController extends ApiController
     }
 
     /**
+     * Словарь ЮKassa в вид, понятный селекту панели.
+     *
+     * @param  array<int|string, string>  $map
+     * @return array<int, array{value: int|string, label: string}>
+     */
+    protected function options(array $map): array
+    {
+        return array_map(fn ($value, $label) => ['value' => $value, 'label' => $label], array_keys($map), $map);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     protected function payload(): array
@@ -118,6 +136,18 @@ class SettingsController extends ApiController
                 'telegram_chat_id' => (string) $settings['telegram_chat_id'],
                 // Сам токен в браузер не уходит никогда — только маска, что он задан.
                 'telegram_token' => TelegramNotifier::token() ? TelegramNotifier::MASK : '',
+                'receipts_enabled' => (bool) $settings['receipts_enabled'],
+                'tax_system_code' => (int) $settings['tax_system_code'],
+                'vat_code' => (int) $settings['vat_code'],
+                'delivery_vat_code' => (int) $settings['delivery_vat_code'],
+                'payment_subject' => (string) $settings['payment_subject'],
+                'payment_mode' => (string) $settings['payment_mode'],
+            ],
+            'receipt_options' => [
+                'tax_systems' => $this->options(Receipt::TAX_SYSTEMS),
+                'vat_codes' => $this->options(Receipt::VAT_CODES),
+                'subjects' => $this->options(Receipt::SUBJECTS),
+                'modes' => $this->options(Receipt::MODES),
             ],
             'effective_edition' => Shop::edition()->value,
             'editions' => array_map(fn (CartEdition $edition) => [

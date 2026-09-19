@@ -2,6 +2,8 @@
 
 namespace Nexor\Shop;
 
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Http\Request;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
@@ -37,6 +39,16 @@ class ShopServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom($this->path('database/migrations'));
         $this->loadViewsFrom($this->path('resources/views'), 'nexor-shop');
+
+        // Уведомления ЮKassa приходят без сессии и без токена формы: подписи
+        // у них нет, поэтому состояние платежа мы всё равно перечитываем у неё.
+        foreach ([PreventRequestForgery::class, ValidateCsrfToken::class] as $csrf) {
+            if (class_exists($csrf) && method_exists($csrf, 'except')) {
+                $csrf::except('shop/payment/yookassa');
+
+                break;
+            }
+        }
 
         // <livewire:nexor-shop::cart-page /> → Nexor\Shop\Livewire\CartPage
         Livewire::addNamespace('nexor-shop', classNamespace: 'Nexor\\Shop\\Livewire');

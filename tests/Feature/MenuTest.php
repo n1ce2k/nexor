@@ -170,6 +170,82 @@ class MenuTest extends TestCase
         $this->assertSame([], $tree[0]['children']);
     }
 
+    public function test_a_dynamic_item_can_show_its_own_title(): void
+    {
+        $iblock = $this->catalogue();
+        $menu = $this->menu();
+
+        MenuItem::factory()->for($menu)->create(['title' => 'Главная', 'url' => '/', 'sort' => 100]);
+        MenuItem::factory()->for($menu)->ofType(MenuItemType::Sections)->create([
+            'title' => null, 'url' => null, 'iblock_id' => $iblock->id,
+            'max_depth' => 2, 'with_title' => true, 'sort' => 200,
+        ]);
+
+        $tree = $this->resolver()->tree('main', url('/no-such'));
+
+        // Пункт больше не растворяется: своё имя — от инфоблока, разделы — внутрь.
+        $this->assertSame(['Главная', 'Каталог'], array_column($tree, 'name'));
+        $this->assertSame(url('/katalog'), $tree[1]['url']);
+        $this->assertSame(['Мебель', 'Декор'], array_column($tree[1]['children'], 'name'));
+        $this->assertSame([2, 2], array_column($tree[1]['children'], 'level'));
+        $this->assertSame(['Стулья'], array_column($tree[1]['children'][0]['children'], 'name'));
+    }
+
+    public function test_the_shown_title_can_be_written_by_hand(): void
+    {
+        $iblock = $this->catalogue();
+        $menu = $this->menu();
+
+        MenuItem::factory()->for($menu)->ofType(MenuItemType::Sections)->create([
+            'title' => 'Вся продукция', 'url' => null, 'iblock_id' => $iblock->id,
+            'max_depth' => 1, 'with_title' => true,
+        ]);
+
+        $tree = $this->resolver()->tree('main', url('/no-such'));
+
+        $this->assertSame(['Вся продукция'], array_column($tree, 'name'));
+        $this->assertSame(['Мебель', 'Декор'], array_column($tree[0]['children'], 'name'));
+    }
+
+    public function test_the_chosen_section_becomes_the_title_instead_of_a_second_item(): void
+    {
+        $iblock = $this->catalogue();
+        $mebel = IblockSection::query()->where('code', 'mebel')->firstOrFail();
+        $menu = $this->menu();
+
+        MenuItem::factory()->for($menu)->ofType(MenuItemType::Sections)->create([
+            'title' => null, 'url' => null, 'iblock_id' => $iblock->id,
+            'section_id' => $mebel->id, 'max_depth' => 2, 'with_title' => true,
+        ]);
+
+        $tree = $this->resolver()->tree('main', url('/no-such'));
+
+        // «Мебель» ровно одна: названием пункта, а не названием и первым разделом.
+        $this->assertSame(['Мебель'], array_column($tree, 'name'));
+        $this->assertSame($mebel->url(), $tree[0]['url']);
+
+        // Корень в глубину не считается: два уровня — это «Стулья» и «Венские».
+        $this->assertSame(['Стулья'], array_column($tree[0]['children'], 'name'));
+        $this->assertSame(['Венские'], array_column($tree[0]['children'][0]['children'], 'name'));
+    }
+
+    public function test_the_shown_title_lights_up_on_a_section_page(): void
+    {
+        $iblock = $this->catalogue();
+        $menu = $this->menu();
+
+        MenuItem::factory()->for($menu)->ofType(MenuItemType::Sections)->create([
+            'title' => null, 'url' => null, 'iblock_id' => $iblock->id,
+            'max_depth' => 2, 'with_title' => true, 'highlight_children' => true,
+        ]);
+
+        $tree = $this->resolver()->tree('main', url('/katalog/mebel'));
+
+        $this->assertTrue($tree[0]['open']);
+        $this->assertFalse($tree[0]['active']);
+        $this->assertTrue($tree[0]['children'][0]['active']);
+    }
+
     public function test_a_dynamic_item_can_start_from_a_section(): void
     {
         $iblock = $this->catalogue();
@@ -379,6 +455,22 @@ class MenuTest extends TestCase
             ->postJson("/admin/api/menus/{$menu->id}/items", [
                 'type' => 'sections', 'iblock_id' => $iblock->id, 'max_depth' => 2,
             ])->assertCreated();
+    }
+
+    public function test_the_panel_saves_the_shown_title_flag(): void
+    {
+        $menu = $this->menu();
+        $iblock = $this->catalogue();
+
+        $id = $this->actingAs($this->adminWith(['menus.update']))
+            ->postJson("/admin/api/menus/{$menu->id}/items", [
+                'type' => 'sections', 'iblock_id' => $iblock->id, 'max_depth' => 2, 'with_title' => true,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.with_title', true)
+            ->json('data.id');
+
+        $this->assertTrue(MenuItem::query()->findOrFail($id)->with_title);
     }
 
     public function test_dragging_saves_the_new_order_and_nesting(): void

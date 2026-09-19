@@ -23,7 +23,7 @@ use Nexor\Cms\Support\MenuResolver;
  */
 #[Fillable([
     'menu_id', 'parent_id', 'type', 'title', 'url',
-    'iblock_id', 'element_id', 'section_id', 'max_depth', 'with_elements',
+    'iblock_id', 'element_id', 'section_id', 'max_depth', 'with_elements', 'with_title',
     'target', 'css_class', 'icon', 'visibility',
     'highlight_children', 'is_active', 'sort',
 ])]
@@ -60,6 +60,7 @@ class MenuItem extends Model
         'visibility' => 'all',
         'max_depth' => 2,
         'with_elements' => false,
+        'with_title' => false,
         'highlight_children' => true,
         'is_active' => true,
         'sort' => 500,
@@ -72,6 +73,7 @@ class MenuItem extends Model
             'visibility' => MenuVisibility::class,
             'max_depth' => 'integer',
             'with_elements' => 'boolean',
+            'with_title' => 'boolean',
             'highlight_children' => 'boolean',
             'is_active' => 'boolean',
             'sort' => 'integer',

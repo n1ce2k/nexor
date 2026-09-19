@@ -6,6 +6,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Nexor\Cms\Enums\MenuItemType;
 use Nexor\Cms\Enums\MenuVisibility;
+use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\Menu;
 use Nexor\Cms\Models\MenuItem;
 use Nexor\Cms\Services\InfoBlockService;
@@ -226,6 +227,10 @@ class MenuResolver
         // Уровень считается от единицы, и когда корень задан, и когда нет, иначе
         // выбранный раздел получает ноль и его дети встают рядом, а не внутрь.
         $base = $root ? $root->depth - 1 : -1;
+
+        // Корень, ставший названием пункта, в глубину не считается: «глубина 2»
+        // обещает два уровня разделов под ним, а не один.
+        $depth = max(1, $item->max_depth) + ($item->with_title && $root ? 1 : 0);
         $nodes = [];
 
         foreach ($sections as $section) {
@@ -235,7 +240,7 @@ class MenuResolver
 
             $own = $section->depth - $base;
 
-            if ($own > max(1, $item->max_depth)) {
+            if ($own > $depth) {
                 continue;
             }
 
@@ -257,7 +262,63 @@ class MenuResolver
             ];
         }
 
-        return $this->nest($nodes, $root?->id);
+        $branch = $this->nest($nodes, $root?->id);
+
+        if (! $item->with_title) {
+            return $branch;
+        }
+
+        // Выбранный раздел уже стал названием пункта — вторым узлом он не нужен;
+        // разделы всего инфоблока просто опускаются на уровень внутрь.
+        $children = $root
+            ? ($branch[0]['children'] ?? [])
+            : $this->deepen($branch, 1);
+
+        return [$this->titleNode($item, $iblock, $root, $level) + ['children' => $children]];
+    }
+
+    /**
+     * Сам динамический пункт, когда он выводит своё название.
+     *
+     * Имя — своё, иначе раздела, иначе инфоблока; ведёт туда же, откуда берёт
+     * имя: в выбранный раздел или на страницу инфоблока.
+     *
+     * @return array<string, mixed>
+     */
+    protected function titleNode(MenuItem $item, Iblock $iblock, mixed $root, int $level): array
+    {
+        return [
+            'id' => $item->id,
+            'kind' => $item->type->value,
+            'name' => filled($item->title) ? $item->title : ($root?->name ?? $iblock->name),
+            'url' => $root ? $root->url() : url('/'.$iblock->code),
+            'level' => $level,
+            'target' => $item->target,
+            'class' => $item->css_class,
+            'icon' => $item->icon,
+            'visibility' => $item->visibility,
+            'highlight_children' => $item->highlight_children,
+            'active' => false,
+            'open' => false,
+        ];
+    }
+
+    /**
+     * Опускает ветку на `$by` уровней вглубь вместе с детьми.
+     *
+     * @param  array<int, array<string, mixed>>  $nodes
+     * @return array<int, array<string, mixed>>
+     */
+    protected function deepen(array $nodes, int $by): array
+    {
+        foreach ($nodes as &$node) {
+            $node['level'] += $by;
+            $node['children'] = $this->deepen($node['children'] ?? [], $by);
+        }
+
+        unset($node);
+
+        return $nodes;
     }
 
     protected function inside(string $path, int $id, string $rootPath, int $rootId): bool

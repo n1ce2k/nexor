@@ -123,18 +123,15 @@ onMounted(() => {
 
 <template>
     <div class="space-y-6">
-        <NPageHeader title="Модули" description="Лицензия сайта, функции по уровням и установленные модули." />
+        <NPageHeader title="Модули" description="Панель управления интеграциями, платежными системами и торговыми компонентами."/>
 
         <NTabs v-if="tabs.length > 1" v-model="tab" :tabs="tabs" />
 
         <template v-if="!loading && license">
-            <div v-show="tab === 'installed'">
+            <div class="hidden licencesTitle" v-show="tab === 'installed'">
                 Лицензия: {{ license.label }}
             </div>
-<!--            <NCard title="Лицензия">-->
-<!--                -->
 
-<!--            </NCard>-->
 
             <NCard v-show="tab === 'installed'" title="Установленные модули" :padding="false">
                 <NEmpty v-if="!modules.length" icon="puzzle" title="Модулей пока нет"
@@ -142,13 +139,13 @@ onMounted(() => {
 
                 <ul v-else class="divide-y divide-[var(--surface-border)]">
                     <li v-for="module in modules" :key="module.code" class="flex flex-wrap items-center gap-4 px-5 py-4">
-                        <div class="min-w-0 flex-1">
+                        <div class="min-w-0 flex-1 moduleBlock">
                             <p class="flex flex-wrap items-center gap-2 font-medium text-[var(--text-strong)]">
                                 {{ module.name }}
                                 <code class="rounded bg-[var(--surface-muted)] px-1.5 py-0.5 font-mono text-xs font-normal text-[var(--text-muted)]">
                                     {{ module.code }} · {{ module.version }}
                                 </code>
-                                <NBadge color="violet">{{ module.license.label }}</NBadge>
+                                <NBadge style="display:none" color="violet">{{ module.license.label }}</NBadge>
                             </p>
                             <p v-if="module.description" class="mt-1 text-sm text-[var(--text-muted)]">{{ module.description }}</p>
                             <p v-if="!module.is_licensed" class="mt-1 flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
@@ -172,8 +169,7 @@ onMounted(() => {
             </NCard>
 
             <template v-if="tab === 'available'">
-                <NCard title="Доступные модули" :padding="false"
-                       description="Ставятся composer'ом с сервера пакетов NEXOR.">
+                <NCard title="Доступные модули" :padding="false">
                     <NEmpty v-if="!available.length" icon="puzzle" title="Все модули уже установлены"
                             description="Новые появятся здесь после выхода." />
 

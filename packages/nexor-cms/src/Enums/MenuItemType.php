@@ -36,7 +36,7 @@ enum MenuItemType: string
             self::Link => 'Название и адрес вручную — для внешних ссылок и якорей.',
             self::Page => 'Элемент инфоблока; адрес считается сам.',
             self::Section => 'Раздел инфоблока; адрес считается сам.',
-            self::Sections => 'Развернётся в дерево разделов при выводе меню.',
+            self::Sections => 'Развернётся в дерево разделов при выводе меню; с «Выводить название» — внутрь своего пункта.',
             self::Heading => 'Подпись без ссылки — для больших меню в подвале.',
             self::Divider => 'Горизонтальная черта между пунктами.',
         };
@@ -77,7 +77,7 @@ enum MenuItemType: string
             self::Link => ['title', 'url', 'target'],
             self::Page => ['iblock_id', 'element_id', 'title'],
             self::Section => ['iblock_id', 'section_id', 'title'],
-            self::Sections => ['iblock_id', 'section_id', 'max_depth', 'with_elements'],
+            self::Sections => ['iblock_id', 'section_id', 'max_depth', 'with_elements', 'with_title', 'title'],
             self::Heading => ['title'],
             self::Divider => [],
         };

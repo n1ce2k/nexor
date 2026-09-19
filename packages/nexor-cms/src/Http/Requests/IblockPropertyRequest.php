@@ -38,6 +38,7 @@ class IblockPropertyRequest extends FormRequest
             'is_shown_in_list' => ['boolean'],
             'is_active' => ['boolean'],
             'sort' => ['nullable', 'integer', 'min:0', 'max:999999'],
+            'description' => ['nullable', 'string', 'max:5000'],
             'default_value' => ['nullable', 'string', 'max:2000'],
 
             'settings' => ['array'],
@@ -85,6 +86,7 @@ class IblockPropertyRequest extends FormRequest
             'type' => 'тип',
             'sort' => 'сортировка',
             'default_value' => 'значение по умолчанию',
+            'description' => 'описание',
             'settings.link_iblock_id' => 'связанный инфоблок',
         ];
     }

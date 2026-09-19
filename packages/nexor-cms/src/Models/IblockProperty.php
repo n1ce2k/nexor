@@ -15,7 +15,7 @@ use Nexor\Cms\Enums\PropertyType;
 #[Fillable([
     'iblock_id', 'code', 'name', 'hint', 'type',
     'is_multiple', 'is_required', 'is_filterable', 'is_searchable', 'is_shown_in_list', 'is_active',
-    'sort', 'default_value', 'settings',
+    'sort', 'default_value', 'description', 'settings',
 ])]
 class IblockProperty extends Model
 {

@@ -40,6 +40,7 @@ const form = useForm({
     is_active: true,
     sort: 500,
     default_value: '',
+    description: '',
     settings: {},
 });
 
@@ -120,6 +121,7 @@ onMounted(async () => {
                 is_active: data.data.is_active,
                 sort: data.data.sort,
                 default_value: data.data.default_value ?? '',
+                description: data.data.description ?? '',
                 settings: data.data.settings ?? {},
             });
 
@@ -173,6 +175,14 @@ onMounted(async () => {
                         <div class="sm:col-span-2">
                             <NField label="Значение по умолчанию" :error="form.error('default_value')">
                                 <NInput v-model="form.fields.default_value" />
+                            </NField>
+                        </div>
+
+                        <div class="sm:col-span-2">
+                            <NField label="Описание"
+                                    hint="Живёт вместе со свойством: видно редактору под полем и доступно шаблонам сайта как description."
+                                    :error="form.error('description')">
+                                <textarea v-model="form.fields.description" rows="3" class="field-input resize-y"></textarea>
                             </NField>
                         </div>
                     </div>

@@ -32,6 +32,7 @@ class IblockPropertyResource extends JsonResource
             'is_active' => $this->is_active,
             'sort' => $this->sort,
             'default_value' => $this->default_value,
+            'description' => $this->description,
             'settings' => $this->settings ?? [],
             'enums' => IblockPropertyEnumResource::collection($this->whenLoaded('enums')),
             'values_count' => $this->whenCounted('values'),

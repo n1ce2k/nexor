@@ -26,11 +26,13 @@ class Edit extends BaseComponent
      * @param  string  $key  Ключ блока, общий для всего сайта: about.title
      * @param  string  $as  Каким тегом выводить
      * @param  bool  $html  Разрешить простое оформление: жирный, курсив, ссылки
+     * @param  bool  $multiline  Разрешить переносы строк внутри блока
      */
     public function __construct(
         public string $key,
         public string $as = 'div',
         public bool $html = false,
+        public bool $multiline = false,
     ) {}
 
     public function render(): View
@@ -41,6 +43,8 @@ class Edit extends BaseComponent
             'tag' => preg_replace('/[^a-z0-9]/i', '', $this->as) ?: 'div',
             'stored' => ContentBlocks::get($this->key),
             'type' => $type,
+            // В блоке с оформлением переносы есть всегда: там они <br>.
+            'breaks' => $this->multiline || $this->html,
             'editing' => InlineEditor::active(),
             // В режиме правки блок заодно записывается в хранилище — со
             // значением из шаблона и пометкой «не правлен».

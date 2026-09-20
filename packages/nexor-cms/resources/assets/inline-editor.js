@@ -34,6 +34,36 @@
         }
     };
 
+    /**
+     * Перенос строки на месте курсора.
+     *
+     * Ровно <br> и ничего больше: браузер на своё усмотрение заворачивает
+     * строки в <div> или <p>, а это уже чужая разметка внутри блока сайта.
+     */
+    const insertBreak = () => {
+        const selection = window.getSelection();
+
+        if (!selection || selection.rangeCount === 0) {
+            return;
+        }
+
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+
+        const br = document.createElement('br');
+        range.insertNode(br);
+
+        // В конце строки одиночный <br> не виден, пока за ним ничего нет:
+        // ставим второй и оставляем курсор между ними.
+        const tail = document.createElement('br');
+        br.after(tail);
+
+        range.setStartAfter(br);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    };
+
     // ------------------------------------------------------------------ текст
 
     const editText = (element) => {
@@ -42,6 +72,9 @@
         }
 
         const html = element.dataset.nexorType === 'html';
+        // Блок, которому разрешены переносы: Enter вставляет строку, а
+        // сохраняет клик вне блока или Ctrl+Enter.
+        const breaks = element.dataset.nexorBreaks === '1';
         const before = element.innerHTML;
         const beforeValue = html ? before : element.innerText;
 
@@ -96,14 +129,26 @@
             if (event.key === 'Escape') {
                 event.preventDefault();
                 stop(false);
+
+                return;
             }
 
-            // Enter сохраняет, Shift+Enter переносит строку — но только там,
-            // где перенос вообще разрешён разметкой.
-            if (event.key === 'Enter' && (!event.shiftKey || element.dataset.nexorType !== 'html')) {
+            if (event.key !== 'Enter') {
+                return;
+            }
+
+            // Однострочный блок: Enter — это «готово».
+            if (!breaks || event.ctrlKey || event.metaKey) {
                 event.preventDefault();
                 element.blur();
+
+                return;
             }
+
+            // Многострочный: вставляем именно <br>, иначе браузер завернёт
+            // строку в <div> или <p> — и разметка блока поедет.
+            event.preventDefault();
+            insertBreak();
         };
 
         element.addEventListener('blur', onBlur);
@@ -214,10 +259,15 @@
     document.querySelector('[data-nexor-edit-off]')?.addEventListener('click', (event) => {
         event.preventDefault();
 
+        // Уходим на тот же адрес без ?nexor-edit: иначе он снова включил бы
+        // режим при первой же перезагрузке страницы.
+        const url = new URL(window.location.href);
+        url.searchParams.delete('nexor-edit');
+
         send(`${base}/mode`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ active: false }),
-        }).then(() => window.location.reload());
+        }).then(() => window.location.replace(url.toString()));
     });
 })();

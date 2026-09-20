@@ -45,8 +45,16 @@ class InlineEditor
     {
         $value = trim($value);
 
+        // Браузер заворачивает строки contenteditable то в <div>, то в <p>:
+        // и то и другое здесь значит одно — перенос строки.
+        $value = (string) preg_replace('#</(div|p)>\s*<\1[^>]*>#i', '<br>', $value);
+        $value = (string) preg_replace('#</?(div|p)[^>]*>#i', '', $value);
+
         if ($type !== 'html') {
-            return strip_tags($value);
+            // Переносы остаются переносами: шаблон выведет их через nl2br.
+            $value = (string) preg_replace('#<br\s*/?>#i', "\n", $value);
+
+            return str_replace("\r\n", "\n", strip_tags($value));
         }
 
         $value = strip_tags($value, '<b><strong><i><em><u><s><br><span><a>');

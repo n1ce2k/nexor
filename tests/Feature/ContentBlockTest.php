@@ -184,6 +184,61 @@ class ContentBlockTest extends TestCase
         );
     }
 
+    // ------------------------------------------------------------ переносы
+
+    public function test_a_multiline_block_keeps_its_line_breaks(): void
+    {
+        $this->actingAs($this->editor())
+            ->patchJson('/nexor/content/about.desc', [
+                'type' => 'text',
+                // Браузер присылает переносы тегом, в хранилище это переводы строк.
+                'value' => 'Первый абзац.<br>Второй абзац.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('value', "Первый абзац.\nВторой абзац.");
+
+        $html = Blade::render('<x-nexor::edit key="about.desc" as="p" multiline>Текст</x-nexor::edit>');
+
+        // На странице перенос снова становится тегом.
+        $this->assertStringContainsString('Первый абзац.<br />'."\n".'Второй абзац.', $html);
+    }
+
+    public function test_a_single_line_block_gets_no_breaks(): void
+    {
+        ContentBlocks::put('about.title', 'text', "Про\nнас");
+
+        $html = Blade::render('<x-nexor::edit key="about.title" as="h2">О компании</x-nexor::edit>');
+
+        $this->assertStringNotContainsString('<br', $html);
+    }
+
+    public function test_the_wrappers_contenteditable_adds_become_breaks(): void
+    {
+        // Браузеры заворачивают новую строку то в <div>, то в <p> — и то и
+        // другое должно стать переносом, а не пропасть вместе с текстом.
+        $this->actingAs($this->editor())
+            ->patchJson('/nexor/content/about.lead', [
+                'type' => 'html',
+                'value' => '<div>Первый</div><div>Второй</div>',
+            ])
+            ->assertOk()
+            ->assertJsonPath('value', 'Первый<br>Второй');
+    }
+
+    public function test_a_multiline_block_is_editable_as_one_piece(): void
+    {
+        $this->actingAs($this->editor())->get('/?nexor-edit=1');
+
+        $html = Blade::render('<x-nexor::edit key="about.desc" as="p" multiline>Текст</x-nexor::edit>');
+
+        // Скрипту нужна пометка, чтобы Enter переносил строку, а не сохранял.
+        $this->assertStringContainsString('data-nexor-breaks="1"', $html);
+
+        $single = Blade::render('<x-nexor::edit key="about.title" as="h2">Заголовок</x-nexor::edit>');
+
+        $this->assertStringNotContainsString('data-nexor-breaks', $single);
+    }
+
     // ------------------------------------------------------------ автозапись
 
     public function test_opening_a_page_in_edit_mode_writes_its_blocks_down(): void

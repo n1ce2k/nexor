@@ -82,6 +82,13 @@ class Permissions
                     'menus.delete' => 'Удаление меню',
                 ],
             ],
+            'content_blocks' => [
+                'label' => 'Блоки на страницах',
+                'sort' => 555,
+                'items' => [
+                    'content.blocks.update' => 'Правка блоков прямо на сайте',
+                ],
+            ],
             'forms' => [
                 'label' => 'Формы обратной связи',
                 'sort' => 560,

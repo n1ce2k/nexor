@@ -4,6 +4,7 @@ namespace Nexor\Cms\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Nexor\Cms\Support\ContentBlocks;
 use Nexor\Cms\Support\InlineEditor;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -24,6 +25,12 @@ class InjectInlineEditor
         }
 
         $response = $next($request);
+
+        // Блоки, встреченные на странице, дописываются одной операцией и
+        // только в режиме правки: посетитель сайта ничего не пишет никогда.
+        if (InlineEditor::active()) {
+            ContentBlocks::flush();
+        }
 
         return $this->shouldInject($request, $response)
             ? $this->inject($response)

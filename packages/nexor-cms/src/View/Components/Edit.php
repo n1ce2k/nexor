@@ -35,11 +35,16 @@ class Edit extends BaseComponent
 
     public function render(): View
     {
+        $type = $this->html ? 'html' : 'text';
+
         return view('nexor::inline.text', [
             'tag' => preg_replace('/[^a-z0-9]/i', '', $this->as) ?: 'div',
             'stored' => ContentBlocks::get($this->key),
-            'type' => $this->html ? 'html' : 'text',
+            'type' => $type,
             'editing' => InlineEditor::active(),
+            // В режиме правки блок заодно записывается в хранилище — со
+            // значением из шаблона и пометкой «не правлен».
+            'remember' => InlineEditor::active() ? fn (string $default) => ContentBlocks::remember($this->key, $type, $default) : null,
         ]);
     }
 }

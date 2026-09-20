@@ -25,6 +25,7 @@ use Nexor\Cms\Http\Middleware\CheckIblockPermission;
 use Nexor\Cms\Http\Middleware\CheckMaintenanceMode;
 use Nexor\Cms\Http\Middleware\CheckPermission;
 use Nexor\Cms\Http\Middleware\EnsureUserCanAccessAdmin;
+use Nexor\Cms\Http\Middleware\InjectInlineEditor;
 use Nexor\Cms\Services\InfoBlockService;
 use Nexor\Cms\Support\MailConfig;
 use Nexor\Cms\Support\Modules\ModuleManager;
@@ -63,6 +64,7 @@ class NexorServiceProvider extends ServiceProvider
     {
         $this->registerMiddleware();
         $this->registerMaintenanceMode();
+        $this->registerInlineEditor();
         $this->registerRoutes();
         $this->registerMail();
         $this->registerBindings();
@@ -124,6 +126,17 @@ class NexorServiceProvider extends ServiceProvider
     protected function registerMaintenanceMode(): void
     {
         $this->app['router']->pushMiddlewareToGroup('web', CheckMaintenanceMode::class);
+    }
+
+    /**
+     * Режим правки блоков на страницах сайта.
+     *
+     * Тоже на группе `web`: править можно и страницы, которые объявляет само
+     * приложение, а не только те, что пришли из пакета.
+     */
+    protected function registerInlineEditor(): void
+    {
+        $this->app['router']->pushMiddlewareToGroup('web', InjectInlineEditor::class);
     }
 
     /**

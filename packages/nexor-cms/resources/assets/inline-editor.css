@@ -1,0 +1,82 @@
+/**
+ * Оформление режима правки блоков.
+ *
+ * Обводка рисуется контуром, а не рамкой или тенью: контур не занимает места
+ * и не сдвигает вёрстку сайта, что бы ни было в его собственных стилях.
+ */
+[data-nexor-edit] {
+    cursor: text;
+    outline: 1px dashed rgba(37, 99, 235, 0.45);
+    outline-offset: 3px;
+    transition: outline-color 0.15s ease, background-color 0.15s ease;
+}
+
+[data-nexor-edit][data-nexor-type='image'] {
+    cursor: pointer;
+}
+
+[data-nexor-edit]:hover {
+    outline: 2px solid #2563eb;
+    background-color: rgba(37, 99, 235, 0.06);
+}
+
+[data-nexor-edit][contenteditable='true'] {
+    outline: 2px solid #2563eb;
+    background-color: rgba(37, 99, 235, 0.08);
+}
+
+[data-nexor-edit].nexor-edit--drop {
+    outline: 2px solid #16a34a;
+    background-color: rgba(22, 163, 74, 0.1);
+}
+
+[data-nexor-edit].nexor-edit--saved {
+    outline: 2px solid #16a34a;
+}
+
+[data-nexor-edit].nexor-edit--failed {
+    outline: 2px solid #dc2626;
+}
+
+/* Полоса режима: видно, что страница сейчас редактируется. */
+.nexor-edit-bar {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 2147483000;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font: 500 13px/1.3 system-ui, -apple-system, 'Segoe UI', sans-serif;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35);
+}
+
+.nexor-edit-bar span {
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+.nexor-edit-bar button {
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 8px;
+    background: #2563eb;
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+}
+
+.nexor-edit-bar button:hover {
+    background: #1d4ed8;
+}
+
+/* Иконка внутри кнопки: свой размер, потому что Tailwind есть не у каждого сайта. */
+.nexor-edit-bar button svg {
+    display: block;
+    width: 16px;
+    height: 16px;
+}

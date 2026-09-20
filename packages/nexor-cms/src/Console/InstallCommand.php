@@ -21,6 +21,7 @@ use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\Permissions;
 use Nexor\Cms\Support\TailwindSources;
 use Nexor\Cms\Support\UserModelSetup;
+use Throwable;
 
 class InstallCommand extends Command
 {
@@ -32,6 +33,9 @@ class InstallCommand extends Command
                             {--license-key= : Лицензионный ключ вида nxr-...}';
 
     protected $description = 'Установить NEXOR CMS: миграции, роли, права и учётная запись администратора';
+
+    /** Почему не вышло сделать ссылку на хранилище. */
+    protected ?string $storageLinkError = null;
 
     public function handle(): int
     {
@@ -58,6 +62,8 @@ class InstallCommand extends Command
             return true;
         });
 
+        $this->components->task('Ссылка на хранилище', fn () => $this->linkStorage());
+
         $this->components->task('Шаблоны сайта', fn () => $this->publishSiteViews() >= 0);
 
         $this->components->task('Tailwind видит шаблоны компонентов', function (): bool {
@@ -72,11 +78,50 @@ class InstallCommand extends Command
         $this->createAdministrator();
 
         $this->newLine();
+
+        if (! file_exists(public_path('storage'))) {
+            $this->components->warn('Не удалось сделать ссылку public/storage — загруженные картинки не откроются.');
+            $this->line('  Выполните <fg=cyan>php artisan storage:link</> (на Windows — из консоли с правами администратора).');
+
+            if ($this->storageLinkError) {
+                $this->line('  Причина: '.$this->storageLinkError);
+            }
+
+            $this->newLine();
+        }
+
         $this->components->info('Готово. Панель управления: /'.Nexor::routePrefix());
         $this->line('  Админка приходит в пакете уже собранной — Node для неё не нужен.');
         $this->line('  Для стилей сайта соберите его CSS как обычно: <fg=cyan>npm install && npm run build</>');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Симлинк `public/storage` на `storage/app/public`.
+     *
+     * Без него загруженные картинки отдают 404: в базе лежит путь внутри
+     * диска (`elements/файл.jpg`), а наружу он смотрит адресом `/storage/…`.
+     * Laravel делает ссылку отдельной командой, про которую при установке
+     * забывают, поэтому зовём её сами.
+     */
+    protected function linkStorage(): bool
+    {
+        if (file_exists(public_path('storage'))) {
+            return true;
+        }
+
+        try {
+            Artisan::call('storage:link');
+        } catch (Throwable $exception) {
+            // На Windows симлинк без прав администратора не создаётся —
+            // установку это ронять не должно, но молчать тоже нельзя.
+            $this->storageLinkError = $exception->getMessage();
+
+            return false;
+        }
+
+        return file_exists(public_path('storage'));
     }
 
     /**

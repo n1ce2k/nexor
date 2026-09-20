@@ -10,6 +10,9 @@
 <{{ $tag }} {{ $attributes }}
     @if ($editing)
         data-nexor-edit="{{ $key }}" data-nexor-type="{{ $type }}"
+        @if ($breaks) data-nexor-breaks="1" @endif
         @if ($stored !== null) data-nexor-edited="1" @endif
     @endif
->{!! $stored === null ? $default : ($type === 'html' ? $stored : e($stored)) !!}</{{ $tag }}>
+>{!! $stored === null
+        ? $default
+        : ($type === 'html' ? $stored : ($breaks ? nl2br(e($stored)) : e($stored))) !!}</{{ $tag }}>

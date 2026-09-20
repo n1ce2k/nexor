@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Nexor\Cms\Support\ContentBlocks;
 use Nexor\Cms\Support\InlineEditor;
+use Nexor\Cms\Support\Nexor;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -64,9 +65,11 @@ class InjectInlineEditor
     {
         return view('nexor::inline.editor', [
             'base' => url('nexor/content'),
+            // Версия в адресе: иначе после обновления CMS браузер правщика
+            // ещё десять минут крутил бы старый редактор из кеша.
             'assets' => [
-                'css' => route('nexor.content.asset', ['file' => 'inline-editor.css']),
-                'js' => route('nexor.content.asset', ['file' => 'inline-editor.js']),
+                'css' => route('nexor.content.asset', ['file' => 'inline-editor.css', 'v' => Nexor::VERSION]),
+                'js' => route('nexor.content.asset', ['file' => 'inline-editor.js', 'v' => Nexor::VERSION]),
             ],
         ])->render();
     }

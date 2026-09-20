@@ -121,7 +121,8 @@ class Section extends Component
      * запроса.
      *
      * Понимает три формы: `?FINISH=Матовый`, `?FINISH[]=A&FINISH[]=B`
-     * и границы `?PRICE_FROM=100`, `?PRICE_TO=900`.
+     * и границы `?FINISH_FROM=100`, `?FINISH_TO=900`. Цена торгового каталога
+     * приходит отдельно: `?price_from=`, `?price_to=`.
      *
      * @return array<string, mixed>
      */
@@ -143,18 +144,43 @@ class Section extends Component
                 continue;
             }
 
-            // Границы диапазона выражаются одним оператором за раз, поэтому
-            // верхняя перекрывает нижнюю: «до» встречается чаще.
-            foreach ([['_FROM', '>='], ['_TO', '<=']] as [$suffix, $operator]) {
-                $bound = request()->query($code.$suffix);
+            // Обе границы работают вместе: «от 100 до 900» — это одно условие.
+            $range = $this->range($code.'_FROM', $code.'_TO');
 
-                if ($bound !== null && $bound !== '') {
-                    $filter[$code] = [$operator, $bound];
-                }
+            if ($range !== []) {
+                $filter[$code] = $range;
             }
         }
 
+        // Цена лежит в торговом каталоге, а не в свойствах, поэтому и параметр
+        // у неё свой, всегда один и тот же.
+        $price = $this->range('price_from', 'price_to');
+
+        if ($price !== [] && $this->requireIblock($this->iblock)->is_catalog) {
+            $filter['price'] = $price;
+        }
+
         return $filter;
+    }
+
+    /**
+     * Границы диапазона из адреса: пустые не попадают в фильтр.
+     *
+     * @return array<string, string>
+     */
+    protected function range(string $from, string $to): array
+    {
+        $range = [];
+
+        foreach ([['from', $from], ['to', $to]] as [$key, $parameter]) {
+            $bound = request()->query($parameter);
+
+            if ($bound !== null && $bound !== '' && is_numeric($bound)) {
+                $range[$key] = $bound;
+            }
+        }
+
+        return $range;
     }
 
     /**

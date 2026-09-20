@@ -17,6 +17,7 @@ use Nexor\Shop\Support\Cart;
 use Nexor\Shop\Support\CartException;
 use Nexor\Shop\Support\Shop;
 use Tests\Concerns\BuildsShop;
+use Tests\Concerns\UsesPackageViews;
 use Tests\TestCase;
 
 /**
@@ -24,7 +25,15 @@ use Tests\TestCase;
  */
 class CartTest extends TestCase
 {
-    use BuildsShop, RefreshDatabase;
+    use BuildsShop, RefreshDatabase, UsesPackageViews;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Вёрстка корзины на сайте — дело сайта; тест проверяет пакетную.
+        $this->usePackageViews('nexor-shop', base_path('packages/nexor-shop/resources/views'));
+    }
 
     // ----------------------------------------------------------------- Basic
 

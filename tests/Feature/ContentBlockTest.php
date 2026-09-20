@@ -106,6 +106,16 @@ class ContentBlockTest extends TestCase
         $this->actingAs($editor)->get('/?nexor-edit=0')->assertDontSee('nexor-edit-bar');
     }
 
+    public function test_the_editor_script_is_addressed_by_its_own_fingerprint(): void
+    {
+        $html = $this->actingAs($this->editor())->get('/?nexor-edit=1')->assertOk()->getContent();
+
+        // Отпечаток файла, а не версия CMS: иначе правка самого редактора
+        // десять минут не доезжала бы до браузера из-за кеша.
+        $this->assertMatchesRegularExpression('#inline-editor\.js\?v=[0-9a-f]{10}#', $html);
+        $this->assertMatchesRegularExpression('#inline-editor\.css\?v=[0-9a-f]{10}#', $html);
+    }
+
     public function test_the_editor_assets_are_closed_to_strangers(): void
     {
         $this->get('/nexor/content/assets/inline-editor.js')->assertForbidden();

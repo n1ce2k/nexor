@@ -24,6 +24,14 @@
         return data;
     });
 
+    /** Текст, который можно безопасно вставить как разметку. */
+    const escape = (value) => {
+        const box = document.createElement('div');
+        box.textContent = value;
+
+        return box.innerHTML;
+    };
+
     const flash = (element, ok, text) => {
         element.classList.remove('nexor-edit--saved', 'nexor-edit--failed');
         element.classList.add(ok ? 'nexor-edit--saved' : 'nexor-edit--failed');
@@ -108,9 +116,13 @@
             })
                 .then((data) => {
                     // Показываем то, что сохранилось на сервере, а не набранное:
-                    // из разметки там могли что-то вычистить.
+                    // из разметки там могли что-то вычистить. Переводы строк
+                    // при этом снова становятся <br>: текстом они схлопнулись
+                    // бы в пробел, и абзацы слиплись бы до перезагрузки.
                     if (html) {
                         element.innerHTML = data.value;
+                    } else if (breaks) {
+                        element.innerHTML = escape(data.value).replace(/\n/g, '<br>');
                     } else {
                         element.textContent = data.value;
                     }

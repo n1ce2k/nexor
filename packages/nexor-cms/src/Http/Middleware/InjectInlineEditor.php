@@ -61,15 +61,26 @@ class InjectInlineEditor
         return $response;
     }
 
+    /**
+     * Короткий отпечаток файла редактора.
+     */
+    protected function stamp(string $file): string
+    {
+        $path = dirname(__DIR__, 3).'/resources/assets/'.$file;
+
+        return is_file($path) ? substr(md5_file($path), 0, 10) : Nexor::VERSION;
+    }
+
     protected function markup(): string
     {
         return view('nexor::inline.editor', [
             'base' => url('nexor/content'),
-            // Версия в адресе: иначе после обновления CMS браузер правщика
-            // ещё десять минут крутил бы старый редактор из кеша.
+            // Отпечаток файла в адресе: иначе браузер правщика ещё десять
+            // минут крутил бы старый редактор из кеша — и после обновления
+            // CMS, и при правке самого редактора.
             'assets' => [
-                'css' => route('nexor.content.asset', ['file' => 'inline-editor.css', 'v' => Nexor::VERSION]),
-                'js' => route('nexor.content.asset', ['file' => 'inline-editor.js', 'v' => Nexor::VERSION]),
+                'css' => route('nexor.content.asset', ['file' => 'inline-editor.css', 'v' => $this->stamp('inline-editor.css')]),
+                'js' => route('nexor.content.asset', ['file' => 'inline-editor.js', 'v' => $this->stamp('inline-editor.js')]),
             ],
         ])->render();
     }

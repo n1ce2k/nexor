@@ -5,7 +5,9 @@ namespace Nexor\Cms\Services;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection as BaseCollection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Nexor\Cms\Enums\PropertyType;
 use Nexor\Cms\Models\Iblock;
@@ -45,6 +47,16 @@ class InfoBlockService
 
     /** @var array<int, string> */
     public const OPERATORS = ['>', '<', '>=', '<=', '=', '!=', '<>', 'LIKE', 'NOT LIKE'];
+
+    /**
+     * Поля торгового каталога, по которым можно фильтровать и сортировать.
+     *
+     * Они лежат не в свойствах и не в колонках элемента, а в `catalog_products`,
+     * поэтому и обрабатываются отдельно.
+     *
+     * @var array<int, string>
+     */
+    public const CATALOG_FIELDS = ['price'];
 
     /**
      * Инфоблоки, уже найденные в этом запросе.
@@ -698,6 +710,12 @@ class InfoBlockService
                 continue;
             }
 
+            if (in_array($key, self::CATALOG_FIELDS, true)) {
+                $this->applyRange($query, $this->priceQuery(), $value);
+
+                continue;
+            }
+
             $property = $iblock->properties->firstWhere('code', $key);
 
             if (! $property) {
@@ -713,6 +731,12 @@ class InfoBlockService
      */
     protected function applyColumnFilter(Builder $query, string $column, mixed $value): void
     {
+        if ($this->isRange($value)) {
+            $this->applyRange($query, $column, $value);
+
+            return;
+        }
+
         if ($operator = $this->operatorIn($value)) {
             $query->where($column, $operator, $value[1]);
 
@@ -751,6 +775,12 @@ class InfoBlockService
 
             if ($property->type === PropertyType::Select) {
                 $this->applyEnumFilter($values, $property, $value);
+
+                return;
+            }
+
+            if ($this->isRange($value)) {
+                $this->applyRange($values, $column, $value);
 
                 return;
             }
@@ -807,6 +837,12 @@ class InfoBlockService
                 continue;
             }
 
+            if (in_array($field, self::CATALOG_FIELDS, true)) {
+                $query->orderBy($this->priceQuery(), $direction);
+
+                continue;
+            }
+
             $property = $iblock->properties->firstWhere('code', $field);
 
             if (! $property) {
@@ -832,6 +868,79 @@ class InfoBlockService
     protected function sectionWithDescendants(IblockSection $section): array
     {
         return [$section->id, ...$this->getDescendantSectionIds($section)];
+    }
+
+    /**
+     * Цена товара со скидкой — своя или лучшая у его предложений.
+     *
+     * Подзапрос, а не join: элемент может быть и простым товаром, и товаром
+     * с предложениями, а фильтр по цене в обоих случаях должен работать
+     * одинаково — по той цене, которую увидит покупатель.
+     */
+    protected function priceQuery(): QueryBuilder
+    {
+        return DB::table('catalog_products')
+            ->selectRaw('MIN(price * (100 - COALESCE(discount_percent, 0)) / 100)')
+            ->whereNotNull('price')
+            ->where(fn (QueryBuilder $where) => $where
+                ->whereColumn('catalog_products.element_id', 'iblock_elements.id')
+                ->orWhereColumn('catalog_products.parent_element_id', 'iblock_elements.id'));
+    }
+
+    /**
+     * Диапазон записан как `['from' => 100, 'to' => 900]`; хватает и одной границы.
+     */
+    protected function isRange(mixed $value): bool
+    {
+        return is_array($value) && (array_key_exists('from', $value) || array_key_exists('to', $value));
+    }
+
+    /**
+     * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>|QueryBuilder  $query
+     * @param  array<string, mixed>  $range
+     */
+    protected function applyRange(Builder|QueryBuilder $query, string|QueryBuilder $column, array $range): void
+    {
+        foreach ([['from', '>='], ['to', '<=']] as [$key, $operator]) {
+            $bound = $range[$key] ?? null;
+
+            if ($bound === null || $bound === '') {
+                continue;
+            }
+
+            // Обе границы работают вместе: ползунок цены иначе терял бы нижнюю.
+            $query->where($column, $operator, $bound);
+        }
+    }
+
+    /**
+     * Наименьшая и наибольшая цена в выборке — границы ползунка в фильтре.
+     *
+     * @param  array<string, mixed>  $filter
+     * @return array{min: float, max: float}|null
+     */
+    public function getPriceRange(string $code, array $filter = []): ?array
+    {
+        $iblock = $this->requireInfoBlock($code);
+
+        if (! $iblock->is_catalog) {
+            return null;
+        }
+
+        $query = IblockElement::query()->where('iblock_id', $iblock->id)->active();
+
+        $this->applyFilters($query, $filter, $iblock);
+
+        $prices = $query->select([
+            DB::raw('MIN(('.$this->priceQuery()->toSql().')) as min_price'),
+            DB::raw('MAX(('.$this->priceQuery()->toSql().')) as max_price'),
+        ])->first();
+
+        if ($prices?->min_price === null) {
+            return null;
+        }
+
+        return ['min' => (float) $prices->min_price, 'max' => (float) $prices->max_price];
     }
 
     /**

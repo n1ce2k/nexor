@@ -36,6 +36,10 @@ class Image extends BaseComponent
     {
         $stored = ContentBlocks::get($this->key);
 
+        if (InlineEditor::active()) {
+            ContentBlocks::remember($this->key, 'image', (string) $this->src);
+        }
+
         return view('nexor::inline.image', [
             'url' => $stored ? Uploads::url($stored) : $this->src,
             'editing' => InlineEditor::active(),

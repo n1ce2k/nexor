@@ -16,6 +16,7 @@ use Nexor\Cms\Console\LicenseCommand;
 use Nexor\Cms\Console\LoginLinkCommand;
 use Nexor\Cms\Console\PublishComponentCommand;
 use Nexor\Cms\Console\RunUpdateCommand;
+use Nexor\Cms\Console\ScanContentCommand;
 use Nexor\Cms\Console\SetPasswordCommand;
 use Nexor\Cms\Console\SyncPermissionsCommand;
 use Nexor\Cms\Contracts\NexorUser;
@@ -82,6 +83,7 @@ class NexorServiceProvider extends ServiceProvider
                 PublishComponentCommand::class,
                 RunUpdateCommand::class,
                 SetPasswordCommand::class,
+                ScanContentCommand::class,
                 SyncPermissionsCommand::class,
             ]);
 

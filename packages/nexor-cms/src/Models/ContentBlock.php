@@ -11,10 +11,15 @@ use Nexor\Cms\Support\Nexor;
 /**
  * Правка блока, сделанная на сайте: ключ и то, чем заменили шаблонное значение.
  */
-#[Fillable(['key', 'type', 'value', 'updated_by'])]
+#[Fillable(['key', 'type', 'value', 'edited', 'updated_by'])]
 class ContentBlock extends Model
 {
     protected $table = 'content_blocks';
+
+    protected function casts(): array
+    {
+        return ['edited' => 'boolean'];
+    }
 
     /**
      * @return BelongsTo<NexorUser, $this>

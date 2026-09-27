@@ -10,6 +10,7 @@ use Nexor\Shop\Models\Order;
 use Nexor\Shop\Models\OrderItem;
 use Nexor\Shop\Models\Payment;
 use Nexor\Shop\Models\PaymentRefund;
+use Nexor\Shop\Support\Delivery\Shipments;
 
 /**
  * @mixin Order
@@ -44,6 +45,18 @@ class OrderResource extends JsonResource
             'delivery' => $this->when($checkout, fn () => $this->delivery_name ? [
                 'name' => $this->delivery_name,
                 'price' => $this->delivery_price,
+                // Снимок выбора у службы доставки: город, тариф, пункт, срок.
+                'details' => $this->deliveryDetails(),
+                // Передача заказа службе: состояние, трек-номер, отказ.
+                'state' => $this->delivery_state->value,
+                'state_label' => $this->delivery_state->label(),
+                'state_color' => $this->delivery_state->color(),
+                'track' => $this->delivery_track,
+                'track_url' => $this->deliveryTrackUrl(),
+                'status' => $this->delivery_status,
+                'error' => $this->delivery_error,
+                'synced_at' => $this->delivery_synced_at?->toIso8601String(),
+                'can_register' => Shipments::possible($this->resource),
             ] : null),
             'payment' => $this->when($checkout, fn () => $this->payment_name),
             'payment_status' => $paymentStatus->value,

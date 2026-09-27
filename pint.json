@@ -1,0 +1,9 @@
+{
+    "preset": "laravel",
+    "exclude": [
+        "nastart.cookies",
+        "node_modules",
+        "public",
+        "storage"
+    ]
+}

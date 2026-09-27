@@ -14,6 +14,7 @@ use Nexor\Shop\Models\Order;
 use Nexor\Shop\Models\OrderField;
 use Nexor\Shop\Models\PaymentMethod;
 use Nexor\Shop\Models\Promocode;
+use Nexor\Shop\Support\Delivery\Selection;
 
 /**
  * Превращает корзину в заказ.
@@ -62,10 +63,11 @@ class OrderPlacer
 
     /**
      * @param  array<string, mixed>  $customer  Значения полей по коду
+     * @param  array<string, mixed>  $deliveryData  Выбор у службы доставки: город, тариф, пункт
      *
      * @throws ValidationException
      */
-    public function place(Cart $cart, array $customer, ?int $deliveryId = null, ?int $paymentId = null): Order
+    public function place(Cart $cart, array $customer, ?int $deliveryId = null, ?int $paymentId = null, array $deliveryData = []): Order
     {
         $summary = $cart->summary();
 
@@ -89,9 +91,14 @@ class OrderPlacer
 
         $data = Validator::make(['customer' => $customer], $rules, [], $attributes)->validate();
 
-        $deliveryPrice = $delivery?->priceFor($summary->total()) ?? 0.0;
+        // Способ со службой считает цену по выбору покупателя, остальные — по своим настройкам.
+        $chosen = $delivery?->isCalculated()
+            ? Selection::resolve($delivery, $summary, $deliveryData, $data['customer'] ?? [])
+            : null;
 
-        $order = DB::transaction(function () use ($summary, $fields, $data, $delivery, $payment, $deliveryPrice): Order {
+        $deliveryPrice = $chosen['price'] ?? $delivery?->priceFor($summary->total()) ?? 0.0;
+
+        $order = DB::transaction(function () use ($summary, $fields, $data, $delivery, $payment, $deliveryPrice, $chosen): Order {
             if (Shop::tracksStock()) {
                 $this->takeStock($summary);
             }
@@ -118,7 +125,9 @@ class OrderPlacer
                 'promocode_id' => $summary->promocode?->id,
                 'promocode_code' => $summary->promocode?->code,
                 'delivery_method_id' => $delivery?->id,
-                'delivery_name' => $delivery?->name,
+                // В названии остаётся и тариф: «СДЭК, Посылка склад-склад».
+                'delivery_name' => $chosen['label'] ?? $delivery?->name,
+                'delivery_data' => $chosen['data'] ?? null,
                 'payment_method_id' => $payment?->id,
                 'payment_name' => $payment?->name,
                 'ip' => Request::ip(),

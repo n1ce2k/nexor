@@ -2,6 +2,10 @@
     Оформление заказа (Ultimate).
 
     Приходит: $summary, $fields, $deliveries, $payments, $deliveryPrice, $grandTotal, $cartUrl.
+
+    У способа со службой доставки (СДЭК) добавляется выбор города, тарифа и
+    пункта выдачи — он в partials/cdek: $calculated, $rates, $tariff, $points,
+    $settings, $ready.
 --}}
 
 <div>
@@ -34,7 +38,11 @@
                                         <span class="flex justify-between gap-3 font-medium text-slate-900">
                                             {{ $delivery->name }}
                                             <span class="whitespace-nowrap">
-                                                {{ $delivery->priceFor($summary->total()) > 0 ? \Nexor\Shop\Support\Shop::format($delivery->priceFor($summary->total())) : 'бесплатно' }}
+                                                @if ($delivery->isCalculated() && ! $delivery->isFree($summary->total()))
+                                                    по расчёту
+                                                @else
+                                                    {{ $delivery->priceFor($summary->total()) > 0 ? \Nexor\Shop\Support\Shop::format($delivery->priceFor($summary->total())) : 'бесплатно' }}
+                                                @endif
                                             </span>
                                         </span>
                                         @if ($delivery->description)
@@ -49,6 +57,17 @@
                                 </label>
                             @endforeach
                         </div>
+
+                        {{-- Способ со службой доставки: город, тариф, пункт выдачи. --}}
+                        @if ($calculated)
+                            @include('nexor-shop::partials.cdek', [
+                                'rates' => $rates,
+                                'tariff' => $tariff,
+                                'points' => $points,
+                                'settings' => $settings,
+                                'ready' => $ready,
+                            ])
+                        @endif
 
                         @error('delivery')
                             <p class="mt-2 text-sm text-red-600">{{ $message }}</p>

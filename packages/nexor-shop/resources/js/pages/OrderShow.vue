@@ -31,6 +31,26 @@ const syncing = ref(false);
 const refunding = ref(null);
 const refundForm = useForm({ amount: '', reason: '' });
 
+/** Передача заказа в службу доставки: она же тянет трек-номер. */
+const sendingToDelivery = ref(false);
+
+const delivery = computed(() => data.value?.delivery ?? null);
+
+async function sendToDelivery(action) {
+    sendingToDelivery.value = true;
+
+    try {
+        const response = await api.post(`shop/orders/${props.order}/delivery/${action}`);
+
+        data.value = response.data;
+        ui.notify(response.message);
+    } catch (error) {
+        ui.notifyError(error);
+    } finally {
+        sendingToDelivery.value = false;
+    }
+}
+
 /** Платежи есть только у заказов с онлайн-оплатой — иначе показывать нечего. */
 const payments = computed(() => data.value?.payments ?? []);
 
@@ -220,6 +240,42 @@ onMounted(load);
                         </div>
                     </dl>
 
+                    <!-- Что покупатель выбрал у службы доставки: город, тариф, пункт. -->
+                    <dl v-if="delivery?.details?.length"
+                        class="mt-5 grid gap-3 border-t border-[var(--surface-border)] pt-5 text-sm sm:grid-cols-2">
+                        <div v-for="row in delivery.details" :key="row.label">
+                            <dt class="text-xs text-[var(--text-muted)]">{{ row.label }}</dt>
+                            <dd class="mt-0.5 text-[var(--text-strong)]">{{ row.value }}</dd>
+                        </div>
+                    </dl>
+
+                    <!-- Передача заказа службе: кнопка и полученный трек-номер. -->
+                    <div v-if="delivery?.details?.length" class="mt-4 flex flex-wrap items-center gap-3">
+                        <NButton v-if="canUpdate && delivery.can_register" size="sm" variant="secondary"
+                                 :loading="sendingToDelivery" @click="sendToDelivery('register')">
+                            Передать в СДЭК
+                        </NButton>
+
+                        <NButton v-else-if="canUpdate && delivery.state === 'pending'" size="sm" variant="secondary"
+                                 :loading="sendingToDelivery" @click="sendToDelivery('sync')">
+                            Обновить номер
+                        </NButton>
+
+                        <template v-if="delivery.track">
+                            <a :href="delivery.track_url" target="_blank" rel="noopener"
+                               class="font-mono text-sm font-semibold text-brand-600 hover:underline">
+                                {{ delivery.track }}
+                            </a>
+                            <span class="text-xs text-[var(--text-muted)]">трек-номер СДЭК</span>
+                        </template>
+
+                        <span v-if="delivery.synced_at" class="text-xs text-[var(--text-faint)]">
+                            обновлено {{ formatDate(delivery.synced_at) }}
+                        </span>
+                    </div>
+
+                    <p v-if="delivery?.error" class="mt-2 text-sm text-red-600">{{ delivery.error }}</p>
+
                     <ul v-if="payments.length" class="mt-5 space-y-3 border-t border-[var(--surface-border)] pt-5">
                         <li v-for="payment in payments" :key="payment.id" class="rounded-xl border border-[var(--surface-border)] p-4">
                             <div class="flex flex-wrap items-center gap-3">
@@ -272,6 +328,35 @@ onMounted(load);
                         </div>
                         <p v-if="!filledCustomer.length" class="text-[var(--text-muted)]">Поля формы не заполнены.</p>
                     </dl>
+                </NCard>
+
+                <NCard v-if="checkout && delivery?.details?.length" title="Доставка СДЭК">
+                    <dl class="space-y-3 text-sm">
+                        <div class="flex items-center justify-between gap-3">
+                            <dt class="text-[var(--text-muted)]">Передача</dt>
+                            <dd><NBadge :color="delivery.state_color">{{ delivery.state_label }}</NBadge></dd>
+                        </div>
+
+                        <div v-if="delivery.track" class="flex items-center justify-between gap-3">
+                            <dt class="text-[var(--text-muted)]">Трек-номер</dt>
+                            <dd>
+                                <a :href="delivery.track_url" target="_blank" rel="noopener"
+                                   class="font-mono font-semibold text-brand-600 hover:underline">{{ delivery.track }}</a>
+                            </dd>
+                        </div>
+
+                        <!-- Статус самой посылки приходит от службы при обновлении. -->
+                        <div v-if="delivery.status" class="flex items-center justify-between gap-3">
+                            <dt class="text-[var(--text-muted)]">Статус</dt>
+                            <dd class="text-right text-[var(--text-strong)]">{{ delivery.status }}</dd>
+                        </div>
+                    </dl>
+
+                    <template v-if="canUpdate && delivery.state !== 'none'" #footer>
+                        <NButton size="sm" variant="secondary" :loading="sendingToDelivery" @click="sendToDelivery('sync')">
+                            Обновить у службы
+                        </NButton>
+                    </template>
                 </NCard>
 
                 <NCard title="Обработка">

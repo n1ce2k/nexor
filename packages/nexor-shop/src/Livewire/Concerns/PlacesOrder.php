@@ -38,11 +38,14 @@ trait PlacesOrder
         return OrderField::query()->active()->ordered()->get();
     }
 
-    protected function submitOrder(?int $deliveryId = null, ?int $paymentId = null): void
+    /**
+     * @param  array<string, mixed>  $deliveryData  Выбор у службы доставки: город, тариф, пункт
+     */
+    protected function submitOrder(?int $deliveryId = null, ?int $paymentId = null, array $deliveryData = []): void
     {
         $this->resetErrorBag();
 
-        $order = app(OrderPlacer::class)->place(Cart::current(), $this->customer, $deliveryId, $paymentId);
+        $order = app(OrderPlacer::class)->place(Cart::current(), $this->customer, $deliveryId, $paymentId, $deliveryData);
 
         $this->placedNumber = (string) $order->number;
         $this->paymentUrl = Payments::ready($order->paymentMethod)

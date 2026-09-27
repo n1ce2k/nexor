@@ -12,6 +12,7 @@ use Nexor\Cms\Support\Nexor;
 use Nexor\Shop\Enums\OrderStatus;
 use Nexor\Shop\Http\Resources\OrderResource;
 use Nexor\Shop\Models\Order;
+use Nexor\Shop\Support\Delivery\Shipments;
 
 /**
  * Раздел «Заказы».
@@ -38,6 +39,11 @@ class OrderController extends ApiController
 
     public function show(Order $order): JsonResponse
     {
+        // Заявка ушла, а номера ещё не было — спросим службу, пока менеджер смотрит.
+        if (Shipments::stale($order)) {
+            Shipments::sync($order);
+        }
+
         return OrderResource::make($order->load(['items', 'payments.refunds']))
             ->additional(['statuses' => OrderStatus::options(), 'checkout' => Nexor::feature('shop.checkout')])
             ->response();

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Nexor\Shop\Http\Controllers\Api\DeliveryMethodController;
 use Nexor\Shop\Http\Controllers\Api\OrderController;
+use Nexor\Shop\Http\Controllers\Api\OrderDeliveryController;
 use Nexor\Shop\Http\Controllers\Api\OrderFieldController;
 use Nexor\Shop\Http\Controllers\Api\OrderPaymentController;
 use Nexor\Shop\Http\Controllers\Api\PaymentMethodController;
@@ -40,6 +41,12 @@ Route::prefix('shop')->name('shop.')->group(function (): void {
     Route::delete('orders/{order}', [OrderController::class, 'destroy'])
         ->name('orders.destroy')->middleware('nexor.permission:shop.orders.delete');
 
+    // Передача заказа службе доставки: запросы наружу, поэтому с ограничением.
+    Route::post('orders/{order}/delivery/register', [OrderDeliveryController::class, 'register'])
+        ->name('orders.delivery.register')->middleware(['nexor.permission:shop.orders.update', 'throttle:30,1']);
+    Route::post('orders/{order}/delivery/sync', [OrderDeliveryController::class, 'sync'])
+        ->name('orders.delivery.sync')->middleware(['nexor.permission:shop.orders.view', 'throttle:60,1']);
+
     // Платежи заказа: состояние спрашиваем у провайдера, возврат — отдельное право.
     Route::post('orders/{order}/payments/sync', [OrderPaymentController::class, 'sync'])
         ->name('orders.payments.sync')->middleware(['nexor.permission:shop.orders.view', 'throttle:30,1']);
@@ -75,5 +82,14 @@ Route::prefix('shop')->name('shop.')->group(function (): void {
         // Проверка ключей провайдера — запрос наружу, поэтому с ограничением.
         Route::post('payment-methods/{payment_method}/check', [PaymentMethodController::class, 'check'])
             ->name('payment-methods.check')->middleware(['nexor.permission:shop.checkout.update', 'throttle:10,1']);
+
+        // Ключи СДЭК проверяются до сохранения, поэтому без {delivery_method}.
+        Route::post('delivery-methods/check', [DeliveryMethodController::class, 'check'])
+            ->name('delivery-methods.check')->middleware(['nexor.permission:shop.checkout.update', 'throttle:10,1']);
+
+        // Подсказки по городам для настроек отправителя: ключи приходят из формы,
+        // поэтому город выбирается и в ещё не сохранённом способе.
+        Route::post('delivery-methods/cities', [DeliveryMethodController::class, 'cities'])
+            ->name('delivery-methods.cities')->middleware(['nexor.permission:shop.checkout.update', 'throttle:60,1']);
     });
 });

@@ -6,11 +6,13 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Nexor\Cms\Enums\Currency;
 use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\Permissions;
+use Nexor\Cms\Support\Secrets;
 use Nexor\Shop\Enums\OrderStatus;
 use Nexor\Shop\Models\DeliveryMethod;
 use Nexor\Shop\Models\Order;
 use Nexor\Shop\Models\OrderField;
 use Nexor\Shop\Models\Promocode;
+use Nexor\Shop\Support\Delivery\Deliveries;
 use Nexor\Shop\Support\Shop;
 use Tests\Concerns\BuildsShop;
 use Tests\Concerns\CreatesAdminUsers;
@@ -214,6 +216,71 @@ class ShopPanelApiTest extends TestCase
         ])->assertOk();
 
         $this->assertSame('Самовывоз со склада', DeliveryMethod::query()->find($id)->name);
+    }
+
+    public function test_a_cdek_method_keeps_its_settings_and_hides_the_password(): void
+    {
+        $admin = $this->adminWith(['shop.checkout.view', 'shop.checkout.update']);
+
+        $id = $this->actingAs($admin)->postJson('/admin/api/shop/delivery-methods', [
+            'name' => 'СДЭК',
+            'provider' => 'cdek',
+            'settings' => [
+                'account' => 'account-123',
+                'secret' => 'secret-456',
+                'from_city' => 'Москва',
+                'from_code' => 44,
+                'tariffs' => [['code' => 136, 'name' => 'Посылка склад-склад', 'to_door' => false]],
+                'weight' => ['property' => 'ves', 'unit' => 'kg', 'default' => 2],
+                'price' => ['markup_percent' => 10, 'round' => 'ten', 'on_error' => 'block'],
+            ],
+        ])->assertCreated()
+            // Пароль в панель уходит только маской.
+            ->assertJsonPath('data.settings.secret', Secrets::MASK)
+            ->assertJsonPath('data.settings.weight.property', 'VES')
+            ->assertJsonPath('data.is_ready', true)
+            ->json('data.id');
+
+        $method = DeliveryMethod::query()->findOrFail($id);
+        $settings = Deliveries::settings($method);
+
+        $this->assertSame('secret-456', Secrets::decrypt($settings['secret']));
+        $this->assertSame(44, $settings['from_code']);
+        $this->assertSame('ten', $settings['price']['round']);
+
+        // Маска вместо пароля означает «оставить сохранённый».
+        $this->actingAs($admin)->putJson("/admin/api/shop/delivery-methods/{$id}", [
+            'name' => 'СДЭК',
+            'provider' => 'cdek',
+            'settings' => [
+                'account' => 'account-123',
+                'secret' => Secrets::MASK,
+                'from_code' => 44,
+                'tariffs' => [['code' => 136, 'to_door' => false]],
+            ],
+        ])->assertOk();
+
+        $this->assertSame('secret-456', Secrets::decrypt(Deliveries::settings($method->refresh())['secret']));
+    }
+
+    public function test_a_cdek_method_needs_keys_a_city_and_a_tariff(): void
+    {
+        $this->actingAs($this->adminWith(['shop.checkout.update']))
+            ->postJson('/admin/api/shop/delivery-methods', [
+                'name' => 'СДЭК',
+                'provider' => 'cdek',
+                'settings' => [],
+            ])->assertStatus(422)
+            ->assertJsonValidationErrors(['settings.account', 'settings.from_code', 'settings.tariffs']);
+    }
+
+    public function test_cdek_rules_add_the_markup_and_round_the_price(): void
+    {
+        $rules = ['markup_percent' => 10, 'markup_fixed' => 50, 'round' => 'ten'];
+
+        // 1000 + 10% = 1100, плюс 50 — и вверх до десятки.
+        $this->assertSame(1150.0, Deliveries::applyRules(1000, $rules));
+        $this->assertSame(1000.0, Deliveries::applyRules(1000, ['round' => 'none']));
     }
 
     public function test_delivery_methods_are_closed_on_lite(): void

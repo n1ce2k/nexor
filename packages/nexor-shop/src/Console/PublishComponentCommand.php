@@ -62,6 +62,8 @@ class PublishComponentCommand extends Command
             'files' => [
                 'pages/checkout.blade.php', 'livewire/checkout.blade.php', 'partials/order-form.blade.php',
                 'partials/totals.blade.php', 'partials/success.blade.php',
+                // Блок службы доставки: город, тарифы, пункты выдачи.
+                'partials/cdek.blade.php', 'partials/cdek-points.blade.php',
             ],
         ],
     ];

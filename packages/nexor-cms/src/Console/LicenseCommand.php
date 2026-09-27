@@ -4,6 +4,7 @@ namespace Nexor\Cms\Console;
 
 use Illuminate\Console\Command;
 use Nexor\Cms\Support\EnvFile;
+use Nexor\Cms\Support\Install;
 use Nexor\Cms\Support\License\LicenseKey;
 use Nexor\Cms\Support\Licensing;
 
@@ -70,6 +71,8 @@ class LicenseCommand extends Command
             Licensing::OK => '<fg=green>ключ в порядке</>',
             Licensing::NONE => '<fg=yellow>ключа нет</>',
             Licensing::EXPIRED => '<fg=yellow>срок истёк</>',
+            Licensing::FOREIGN => '<fg=red>ключ выдан на другой домен</>',
+            Licensing::MOVED => '<fg=red>база привязана к другому сайту</>',
             default => '<fg=red>ключ не прошёл проверку</>',
         });
 
@@ -81,10 +84,27 @@ class LicenseCommand extends Command
             $this->components->twoColumnDetail('Действует до', date('d.m.Y', strtotime($state['expires_at'])));
         }
 
+        $this->components->twoColumnDetail('Домен ключа', $state['host'] ?? 'любой');
+        $this->components->twoColumnDetail('Домен сайта', $state['current_host'] ?: 'не определён');
+        $this->components->twoColumnDetail(
+            'Привязка',
+            Install::host() === null ? 'нет' : Install::host().', '.Install::id(),
+        );
+
+        if (Licensing::exempt($state['current_host'])) {
+            $this->newLine();
+            $this->line('  Локальный адрес: привязка к домену здесь не проверяется.');
+        }
+
         if ($state['message']) {
             $this->newLine();
             $this->components->warn($state['message']);
-            $this->line('  Ввести ключ: <fg=cyan>php artisan nexor:license nxr-...</>');
+
+            if ($state['status'] === Licensing::MOVED) {
+                $this->line('  Закрепить установку за этим доменом: <fg=cyan>php artisan nexor:license:bind</>');
+            } else {
+                $this->line('  Ввести ключ: <fg=cyan>php artisan nexor:license nxr-...</>');
+            }
         }
     }
 }

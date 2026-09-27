@@ -4,9 +4,12 @@ namespace Tests\Feature;
 
 use Nexor\Cms\Enums\License;
 use Nexor\Cms\Support\License\Base62;
+use Nexor\Cms\Support\License\Host;
 use Nexor\Cms\Support\License\LicenseKey;
+use Nexor\Cms\Support\License\Signature;
 use Nexor\Cms\Support\Licensing;
 use Nexor\Cms\Support\Nexor;
+use Tests\Concerns\IssuesLicenseKeys;
 use Tests\TestCase;
 
 /**
@@ -17,39 +20,13 @@ use Tests\TestCase;
  */
 class LicenseKeyTest extends TestCase
 {
-    protected string $privateKey;
-
-    protected string $publicKey;
+    use IssuesLicenseKeys;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        // Своя пара на время теста: настоящий приватный ключ лежит вне репозитория.
-        $config = ['private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1'];
-
-        if (is_file('C:/php/extras/ssl/openssl.cnf')) {
-            $config['config'] = 'C:/php/extras/ssl/openssl.cnf';
-        }
-
-        $pair = openssl_pkey_new($config);
-        openssl_pkey_export($pair, $private, null, $config);
-
-        $this->privateKey = (string) $private;
-        $this->publicKey = openssl_pkey_get_details($pair)['key'];
-
-        config(['nexor.license_public_key' => $this->publicKey]);
-        Licensing::flush();
-    }
-
-    protected function useKey(License $edition = License::Pro, ?int $expiresAt = null): LicenseKey
-    {
-        $key = LicenseKey::issue($edition, $expiresAt, $this->privateKey);
-
-        config(['nexor.license_key' => $key->key]);
-        Licensing::flush();
-
-        return $key;
+        $this->useIssuer();
     }
 
     public function test_a_key_looks_like_one_continuous_word(): void
@@ -88,14 +65,7 @@ class LicenseKeyTest extends TestCase
 
     public function test_a_key_from_another_issuer_is_refused(): void
     {
-        $config = ['private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1'];
-
-        if (is_file('C:/php/extras/ssl/openssl.cnf')) {
-            $config['config'] = 'C:/php/extras/ssl/openssl.cnf';
-        }
-
-        $other = openssl_pkey_new($config);
-        openssl_pkey_export($other, $otherPrivate, null, $config);
+        [$otherPrivate] = $this->issuerPair();
 
         $key = LicenseKey::issue(License::Pro, null, $otherPrivate)->key;
 
@@ -130,6 +100,62 @@ class LicenseKeyTest extends TestCase
         config(['nexor.license_key' => null]);
         Licensing::flush();
         $this->assertSame(Licensing::NONE, Licensing::status());
+    }
+
+    // ---------------------------------------------------------------- домен
+
+    public function test_a_key_carries_the_domain_it_was_issued_for(): void
+    {
+        $key = LicenseKey::issue(License::Pro, null, $this->privateKey, host: 'https://WWW.Site.ru/catalog');
+
+        // В ключ домен попадает уже приведённым к одному виду.
+        $this->assertSame('site.ru', $key->host);
+        $this->assertSame('site.ru', LicenseKey::parse($key->key, $this->publicKey)->host);
+
+        $this->assertTrue($key->matches('site.ru'));
+        $this->assertTrue($key->matches('www.site.ru:8080'));
+        $this->assertFalse($key->matches('vasya.ru'));
+        $this->assertFalse($key->matches('sub.site.ru'));
+    }
+
+    public function test_a_key_without_a_domain_fits_any_site(): void
+    {
+        $key = LicenseKey::issue(License::Pro, null, $this->privateKey);
+
+        $this->assertNull($key->host);
+        $this->assertTrue($key->matches('vasya.ru'));
+        $this->assertTrue($key->matches(null));
+    }
+
+    public function test_keys_of_the_first_version_keep_working(): void
+    {
+        // Такие ключи уже выданы: в них нет домена, и ломать их нельзя.
+        $payload = pack('CCNN', 1, 3, 0, 777);
+        $key = LicenseKey::PREFIX.Base62::encode($payload.Signature::sign($payload, $this->privateKey));
+
+        $parsed = LicenseKey::parse($key, $this->publicKey);
+
+        $this->assertSame(License::Pro, $parsed->edition);
+        $this->assertSame(777, $parsed->serial);
+        $this->assertNull($parsed->host);
+        $this->assertTrue($parsed->matches('vasya.ru'));
+    }
+
+    public function test_a_domain_is_read_the_same_however_it_is_written(): void
+    {
+        foreach (['https://WWW.Site.ru/catalog?x=1', 'site.ru:8080', 'www.site.ru.', 'SITE.RU'] as $value) {
+            $this->assertSame('site.ru', Host::normalise($value));
+        }
+
+        $this->assertSame('', Host::normalise(null));
+        $this->assertSame('::1', Host::normalise('[::1]:8080'));
+
+        // Рабочие адреса лицензией не проверяются.
+        $this->assertTrue(Host::isLocal('localhost'));
+        $this->assertTrue(Host::isLocal('nexor.test'));
+        $this->assertTrue(Host::isLocal('192.168.1.10'));
+        $this->assertFalse(Host::isLocal('site.ru'));
+        $this->assertFalse(Host::isLocal('95.181.12.4'));
     }
 
     public function test_base62_survives_any_bytes(): void

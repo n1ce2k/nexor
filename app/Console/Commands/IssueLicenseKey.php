@@ -20,6 +20,7 @@ class IssueLicenseKey extends Command
     protected $signature = 'nexor:license:make
                             {--edition=pro : Редакция: lite, standart или pro}
                             {--days= : Срок в днях; без него ключ бессрочный}
+                            {--host= : Домен сайта; без него ключ подходит любому}
                             {--for= : Кому выдан — только для журнала выпуска}
                             {--private= : Путь к приватному ключу}';
 
@@ -48,7 +49,12 @@ class IssueLicenseKey extends Command
         $expiresAt = $days === null ? null : time() + $days * 86400;
 
         try {
-            $key = LicenseKey::issue($edition, $expiresAt, (string) file_get_contents($path));
+            $key = LicenseKey::issue(
+                $edition,
+                $expiresAt,
+                (string) file_get_contents($path),
+                host: $this->option('host') ? (string) $this->option('host') : null,
+            );
         } catch (Throwable $exception) {
             $this->components->error($exception->getMessage());
 
@@ -67,6 +73,7 @@ class IssueLicenseKey extends Command
         $this->components->twoColumnDetail('Редакция', $edition->label());
         $this->components->twoColumnDetail('Номер ключа', $key->number());
         $this->components->twoColumnDetail('Действует до', $expiresAt === null ? 'бессрочно' : date('d.m.Y', $expiresAt));
+        $this->components->twoColumnDetail('Домен', $key->host ?? 'любой');
 
         if ($this->option('for')) {
             $this->components->twoColumnDetail('Кому', (string) $this->option('for'));
@@ -76,6 +83,10 @@ class IssueLicenseKey extends Command
         $this->line('<fg=cyan>'.$key->key.'</>');
         $this->newLine();
         $this->line('  Установка у клиента: <fg=cyan>php artisan nexor:license '.substr($key->key, 0, 12).'...</>');
+
+        if ($key->host === null) {
+            $this->line('  Ключ без домена подойдёт любому сайту — для боевого укажите <fg=cyan>--host=site.ru</>');
+        }
 
         return self::SUCCESS;
     }

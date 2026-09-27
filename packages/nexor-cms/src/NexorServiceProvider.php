@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
+use Nexor\Cms\Console\BindLicenseCommand;
 use Nexor\Cms\Console\InstallCommand;
 use Nexor\Cms\Console\LicenseCommand;
 use Nexor\Cms\Console\LoginLinkCommand;
@@ -27,6 +28,7 @@ use Nexor\Cms\Http\Middleware\CheckFeature;
 use Nexor\Cms\Http\Middleware\CheckIblockPermission;
 use Nexor\Cms\Http\Middleware\CheckMaintenanceMode;
 use Nexor\Cms\Http\Middleware\CheckPermission;
+use Nexor\Cms\Http\Middleware\EnsureLicensedHost;
 use Nexor\Cms\Http\Middleware\EnsureUserCanAccessAdmin;
 use Nexor\Cms\Http\Middleware\InjectCookieCounters;
 use Nexor\Cms\Http\Middleware\InjectInlineEditor;
@@ -63,13 +65,17 @@ class NexorServiceProvider extends ServiceProvider
 
         // The HTTP kernel replaces the router's middleware groups when it is
         // resolved, so the guard is re-attached right after that happens too.
-        $this->app->afterResolving(HttpKernel::class, fn () => $this->registerMaintenanceMode());
+        $this->app->afterResolving(HttpKernel::class, function (): void {
+            $this->registerMaintenanceMode();
+            $this->registerLicenseGuard();
+        });
     }
 
     public function boot(): void
     {
         $this->registerMiddleware();
         $this->registerMaintenanceMode();
+        $this->registerLicenseGuard();
         $this->registerInlineEditor();
         $this->registerCookies();
         $this->registerRoutes();
@@ -85,6 +91,7 @@ class NexorServiceProvider extends ServiceProvider
             $this->commands([
                 InstallCommand::class,
                 LicenseCommand::class,
+                BindLicenseCommand::class,
                 LoginLinkCommand::class,
                 PublishComponentCommand::class,
                 RunUpdateCommand::class,
@@ -135,6 +142,18 @@ class NexorServiceProvider extends ServiceProvider
     protected function registerMaintenanceMode(): void
     {
         $this->app['router']->pushMiddlewareToGroup('web', CheckMaintenanceMode::class);
+    }
+
+    /**
+     * Копия сайта на чужом домене закрывается.
+     *
+     * Тоже на группе `web`: закрывать надо и страницы, которые объявляет само
+     * приложение. Что именно закрывать — панель или сайт целиком — решает
+     * `nexor.license_guard`, поэтому middleware подключается всегда.
+     */
+    protected function registerLicenseGuard(): void
+    {
+        $this->app['router']->pushMiddlewareToGroup('web', EnsureLicensedHost::class);
     }
 
     /**

@@ -15,6 +15,8 @@ use Nexor\Cms\Database\Seeders\RoleSeeder;
 use Nexor\Cms\Database\Seeders\SettingSeeder;
 use Nexor\Cms\Models\Role;
 use Nexor\Cms\Support\EnvFile;
+use Nexor\Cms\Support\Install;
+use Nexor\Cms\Support\License\Host;
 use Nexor\Cms\Support\License\LicenseKey;
 use Nexor\Cms\Support\Licensing;
 use Nexor\Cms\Support\Nexor;
@@ -61,6 +63,15 @@ class InstallCommand extends Command
 
             return true;
         });
+
+        // Установка закрепляется за доменом: перенос базы на другой сайт после
+        // этого виден, даже если ключ из .env просто убрали.
+        if (($host = Host::current()) !== '') {
+            $this->components->task(
+                'Привязка установки: '.$host,
+                fn () => Install::bind($host, Licensing::key()?->serial) !== null,
+            );
+        }
 
         $this->components->task('Ссылка на хранилище', fn () => $this->linkStorage());
 

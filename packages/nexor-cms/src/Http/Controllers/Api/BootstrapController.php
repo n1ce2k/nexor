@@ -62,6 +62,9 @@ class BootstrapController extends ApiController
                 'status' => $state['status'],
                 'number' => $state['number'],
                 'expires_at' => $state['expires_at'],
+                // Домен ключа и домен сайта: по ним видно, куда переехала копия.
+                'host' => $state['host'],
+                'current_host' => $state['current_host'],
                 'message' => $state['message'],
             ],
             // «Код функции или модуля → доступно»: по нему панель прячет меню и страницы.

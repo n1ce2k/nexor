@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use Nexor\Cms\Http\Controllers\Site\AgreementController;
 use Nexor\Cms\Http\Controllers\Site\CaptchaController;
 use Nexor\Cms\Http\Controllers\Site\ContentBlockController;
+use Nexor\Cms\Http\Controllers\Site\CookieAssetController;
+use Nexor\Cms\Http\Controllers\Site\CookieConsentController;
 use Nexor\Cms\Http\Controllers\Site\FormController;
 use Nexor\Cms\Http\Controllers\Site\InlineAssetController;
 
@@ -39,6 +41,18 @@ Route::prefix('nexor/content')->name('nexor.content.')->group(function (): void 
         Route::delete('{key}', [ContentBlockController::class, 'destroy'])->name('reset');
     });
 });
+
+/*
+ * Согласие на cookie. Маршруты публичные: баннер видит как раз тот, кто ещё
+ * ничего не разрешал, а значит и не вошёл.
+ */
+Route::get('nexor/cookies/assets/{file}', CookieAssetController::class)
+    ->where('file', '[a-z0-9.-]+')
+    ->name('nexor.cookies.asset');
+
+Route::post('nexor/cookies', CookieConsentController::class)
+    ->middleware('throttle:30,1')
+    ->name('nexor.cookies.consent');
 
 // Nexor Captcha: картинка задачи и новая задача для кнопки «обновить».
 Route::middleware('throttle:60,1')->group(function (): void {

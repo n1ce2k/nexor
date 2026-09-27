@@ -3,6 +3,7 @@
 namespace Nexor\Cms;
 
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
+use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Blade;
@@ -14,6 +15,7 @@ use Livewire\Livewire;
 use Nexor\Cms\Console\InstallCommand;
 use Nexor\Cms\Console\LicenseCommand;
 use Nexor\Cms\Console\LoginLinkCommand;
+use Nexor\Cms\Console\PruneCookieConsentsCommand;
 use Nexor\Cms\Console\PublishComponentCommand;
 use Nexor\Cms\Console\RunUpdateCommand;
 use Nexor\Cms\Console\ScanContentCommand;
@@ -26,12 +28,15 @@ use Nexor\Cms\Http\Middleware\CheckIblockPermission;
 use Nexor\Cms\Http\Middleware\CheckMaintenanceMode;
 use Nexor\Cms\Http\Middleware\CheckPermission;
 use Nexor\Cms\Http\Middleware\EnsureUserCanAccessAdmin;
+use Nexor\Cms\Http\Middleware\InjectCookieCounters;
 use Nexor\Cms\Http\Middleware\InjectInlineEditor;
 use Nexor\Cms\Services\InfoBlockService;
+use Nexor\Cms\Support\Cookies;
 use Nexor\Cms\Support\MailConfig;
 use Nexor\Cms\Support\Modules\ModuleManager;
 use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\View\Components\News\Listing as NewsListing;
+use Throwable;
 
 class NexorServiceProvider extends ServiceProvider
 {
@@ -66,6 +71,7 @@ class NexorServiceProvider extends ServiceProvider
         $this->registerMiddleware();
         $this->registerMaintenanceMode();
         $this->registerInlineEditor();
+        $this->registerCookies();
         $this->registerRoutes();
         $this->registerMail();
         $this->registerBindings();
@@ -83,6 +89,7 @@ class NexorServiceProvider extends ServiceProvider
                 PublishComponentCommand::class,
                 RunUpdateCommand::class,
                 SetPasswordCommand::class,
+                PruneCookieConsentsCommand::class,
                 ScanContentCommand::class,
                 SyncPermissionsCommand::class,
             ]);
@@ -128,6 +135,31 @@ class NexorServiceProvider extends ServiceProvider
     protected function registerMaintenanceMode(): void
     {
         $this->app['router']->pushMiddlewareToGroup('web', CheckMaintenanceMode::class);
+    }
+
+    /**
+     * Счётчики, разрешённые посетителем, подмешиваются в страницы сайта.
+     */
+    protected function registerCookies(): void
+    {
+        $this->app['router']->pushMiddlewareToGroup('web', InjectCookieCounters::class);
+
+        // Согласие не шифруем: эту cookie читает и скрипт баннера в браузере,
+        // а зашифрованное значение он разобрать не сможет. Секрета в ней нет —
+        // только три галочки, которые поставил сам посетитель.
+        $this->app->booted(function (): void {
+            $names = [Cookies::defaults()['cookie_name']];
+
+            try {
+                // Настройки читаются, только если база уже на месте: провайдер
+                // грузится и до миграций, и падать из-за этого он не должен.
+                $names[] = (string) Cookies::get('cookie_name');
+            } catch (Throwable) {
+                // Останется имя по умолчанию — его сайту и хватает.
+            }
+
+            EncryptCookies::except(array_values(array_unique(array_filter($names))));
+        });
     }
 
     /**

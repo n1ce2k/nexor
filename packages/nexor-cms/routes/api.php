@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use Nexor\Cms\Http\Controllers\Api\ActivityLogController;
 use Nexor\Cms\Http\Controllers\Api\AgreementController;
 use Nexor\Cms\Http\Controllers\Api\BootstrapController;
+use Nexor\Cms\Http\Controllers\Api\CookieController;
 use Nexor\Cms\Http\Controllers\Api\DashboardController;
 use Nexor\Cms\Http\Controllers\Api\FeedbackFormController;
 use Nexor\Cms\Http\Controllers\Api\FeedbackSubmissionController;
@@ -175,6 +176,31 @@ Route::prefix('forms/{form}/submissions')->name('forms.submissions.')->scopeBind
 });
 
 $guard(Route::apiResource('agreements', AgreementController::class), 'nexor.permission', 'agreements.');
+
+/*
+ * Cookie: настройки баннера, счётчики и журнал согласий.
+ *
+ * Счётчик — это код, который попадёт на все страницы сайта, поэтому правка
+ * закрыта отдельным правом, а не общим «редактировать настройки».
+ */
+Route::prefix('cookies')->name('cookies.')->group(function (): void {
+    Route::get('/', [CookieController::class, 'show'])
+        ->name('show')->middleware('nexor.permission:cookies.view');
+    Route::put('/', [CookieController::class, 'update'])
+        ->name('update')->middleware('nexor.permission:cookies.update');
+
+    Route::post('counters', [CookieController::class, 'storeCounter'])
+        ->name('counters.store')->middleware('nexor.permission:cookies.update');
+    Route::put('counters/{counter}', [CookieController::class, 'updateCounter'])
+        ->name('counters.update')->middleware('nexor.permission:cookies.update');
+    Route::delete('counters/{counter}', [CookieController::class, 'destroyCounter'])
+        ->name('counters.destroy')->middleware('nexor.permission:cookies.update');
+
+    Route::get('consents', [CookieController::class, 'consents'])
+        ->name('consents')->middleware('nexor.permission:cookies.consents.view');
+    Route::delete('consents', [CookieController::class, 'prune'])
+        ->name('consents.prune')->middleware('nexor.permission:cookies.update');
+});
 
 /*
  * Developer console. Authorisation is enforced inside the controller — super

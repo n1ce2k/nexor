@@ -7,6 +7,7 @@ import LogsIndex from './pages/LogsIndex.vue';
 import NotFound from './pages/NotFound.vue';
 import AgreementForm from './pages/agreements/AgreementForm.vue';
 import AgreementIndex from './pages/agreements/AgreementIndex.vue';
+import CookieSettings from './pages/cookies/CookieSettings.vue';
 import ElementForm from './pages/elements/ElementForm.vue';
 import ElementIndex from './pages/elements/ElementIndex.vue';
 import TypeIndex from './pages/iblock-types/TypeIndex.vue';
@@ -59,6 +60,7 @@ const routes = [
     { path: '/forms/create', name: 'forms.create', component: FormForm, meta: { permission: 'forms.create' } },
     { path: '/forms/:form/edit', name: 'forms.edit', component: FormForm, props: true, meta: { permission: 'forms.view' } },
     { path: '/agreements', name: 'agreements.index', component: AgreementIndex, meta: { permission: 'agreements.view' } },
+    { path: '/cookies', name: 'cookies.index', component: CookieSettings, meta: { permission: 'cookies.view' } },
     { path: '/agreements/create', name: 'agreements.create', component: AgreementForm, meta: { permission: 'agreements.create' } },
     { path: '/agreements/:agreement/edit', name: 'agreements.edit', component: AgreementForm, props: true, meta: { permission: 'agreements.update' } },
 

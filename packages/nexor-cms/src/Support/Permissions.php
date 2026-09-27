@@ -82,6 +82,15 @@ class Permissions
                     'menus.delete' => 'Удаление меню',
                 ],
             ],
+            'cookies' => [
+                'label' => 'Cookie',
+                'sort' => 556,
+                'items' => [
+                    'cookies.view' => 'Просмотр настроек cookie',
+                    'cookies.update' => 'Изменение настроек, счётчиков и чистка журнала',
+                    'cookies.consents.view' => 'Просмотр журнала согласий',
+                ],
+            ],
             'content_blocks' => [
                 'label' => 'Блоки на страницах',
                 'sort' => 555,

@@ -1,0 +1,239 @@
+/**
+ * Баннер согласия на cookie.
+ *
+ * Вёрстка нарочно скромная и на своих классах: баннер попадает на любой сайт,
+ * со своей сеткой и своим сбросом стилей, поэтому он ни на что не опирается и
+ * ничего не задаёт глобально.
+ */
+.nexor-cookies {
+    --nexor-cookies-accent: #2563eb;
+    --nexor-cookies-accent-text: #ffffff;
+    --nexor-cookies-link: #2563eb;
+
+    font: 400 14px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: #0f172a;
+}
+
+.nexor-cookies__banner,
+.nexor-cookies__modal {
+    position: fixed;
+    z-index: 2147482000;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+    opacity: 0;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.nexor-cookies__banner {
+    left: 20px;
+    right: 20px;
+    bottom: 20px;
+    max-width: 640px;
+    padding: 20px;
+    transform: translateY(16px);
+}
+
+.nexor-cookies__modal {
+    left: 50%;
+    top: 50%;
+    width: 560px;
+    max-width: calc(100% - 32px);
+    max-height: calc(100% - 48px);
+    overflow-y: auto;
+    padding: 24px;
+    transform: translate(-50%, -48%);
+}
+
+.nexor-cookies__banner.is-open,
+.nexor-cookies__modal.is-open {
+    opacity: 1;
+}
+
+.nexor-cookies__banner.is-open {
+    transform: translateY(0);
+}
+
+.nexor-cookies__modal.is-open {
+    transform: translate(-50%, -50%);
+}
+
+.nexor-cookies__overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2147481000;
+    background: rgba(15, 23, 42, 0.45);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.nexor-cookies__overlay.is-open {
+    opacity: 1;
+}
+
+.nexor-cookies__title {
+    margin: 0 0 6px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.nexor-cookies__subtitle {
+    margin: 18px 0 10px;
+    font-weight: 600;
+}
+
+.nexor-cookies__text {
+    margin: 0;
+    color: #475569;
+}
+
+.nexor-cookies__text a,
+.nexor-cookies__link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--nexor-cookies-link);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.nexor-cookies__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.nexor-cookies__btn {
+    padding: 10px 16px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #fff;
+    color: inherit;
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.nexor-cookies__btn:hover {
+    background: #f1f5f9;
+}
+
+.nexor-cookies__btn--accent {
+    border-color: var(--nexor-cookies-accent);
+    background: var(--nexor-cookies-accent);
+    color: var(--nexor-cookies-accent-text);
+}
+
+.nexor-cookies__btn--accent:hover {
+    filter: brightness(0.94);
+    background: var(--nexor-cookies-accent);
+}
+
+/* Светлая кнопка и ссылка — второй и третий по заметности выбор. */
+.nexor-cookies__btn--soft {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--nexor-cookies-accent) 12%, #fff);
+    color: var(--nexor-cookies-accent);
+}
+
+.nexor-cookies__btn--soft:hover {
+    background: color-mix(in srgb, var(--nexor-cookies-accent) 18%, #fff);
+}
+
+.nexor-cookies__btn--link {
+    margin-left: auto;
+    border-color: transparent;
+    background: none;
+    color: var(--nexor-cookies-link);
+}
+
+.nexor-cookies__btn--link:hover {
+    background: none;
+    text-decoration: underline;
+}
+
+.nexor-cookies__modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.nexor-cookies__close {
+    padding: 0 4px;
+    border: 0;
+    background: none;
+    color: #94a3b8;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.nexor-cookies__category {
+    padding: 14px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.nexor-cookies__category:last-child {
+    border-bottom: 0;
+}
+
+.nexor-cookies__category-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nexor-cookies__category-head input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--nexor-cookies-accent);
+}
+
+.nexor-cookies__category-head label {
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Шеврон разворачивает описание: заголовок остаётся галочкой, а не кнопкой. */
+.nexor-cookies__chevron {
+    margin-left: auto;
+    padding: 6px;
+    border: 0;
+    background: none;
+    color: #94a3b8;
+    line-height: 0;
+    cursor: pointer;
+}
+
+.nexor-cookies__chevron svg {
+    width: 12px;
+    height: 8px;
+    transition: transform 0.2s ease;
+}
+
+.nexor-cookies__chevron[aria-expanded='false'] svg {
+    transform: rotate(180deg);
+}
+
+.nexor-cookies__desc {
+    margin: 10px 0 0;
+    color: #475569;
+}
+
+.nexor-cookies__desc[hidden] {
+    display: none;
+}
+
+@media (max-width: 640px) {
+    .nexor-cookies__banner {
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border-radius: 16px 16px 0 0;
+    }
+}

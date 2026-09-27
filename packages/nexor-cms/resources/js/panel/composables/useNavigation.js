@@ -75,6 +75,10 @@ export function useNavigation() {
             forms.push({ label: 'Соглашения', icon: 'check', to: { name: 'agreements.index' } });
         }
 
+        if (session.can('cookies.view')) {
+            forms.push({ label: 'Cookie', icon: 'shield', to: { name: 'cookies.index' } });
+        }
+
         groups.push({ label: 'Формы', items: [...forms, ...extras('Формы')] });
 
         moduleGroups.forEach((label) => groups.push({ label, items: extras(label) }));

@@ -75,6 +75,9 @@ return [
     'updates' => [
         'enabled' => env('NEXOR_UPDATES', true),
         'composer' => env('NEXOR_COMPOSER'),
+        // PHP для composer и artisan, если консольный старше сайта:
+        // NEXOR_PHP=/opt/php/8.3/bin/php
+        'php' => env('NEXOR_PHP'),
     ],
 
     'license_key' => env('NEXOR_LICENSE_KEY'),

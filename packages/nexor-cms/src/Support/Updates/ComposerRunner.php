@@ -53,6 +53,11 @@ class ComposerRunner
             return ['ok' => false, 'composer' => null, 'reason' => 'Composer не найден. Укажите путь к нему в NEXOR_COMPOSER.'];
         }
 
+        // Путь указан, а файла нет: иначе человек увидит только «код выхода 127».
+        if (str_contains($composer, '/') && ! is_file($composer)) {
+            return ['ok' => false, 'composer' => $composer, 'reason' => "NEXOR_COMPOSER указывает на {$composer}, но такого файла нет."];
+        }
+
         if (! is_writable(base_path('vendor'))) {
             return ['ok' => false, 'composer' => $composer, 'reason' => 'Папка vendor закрыта на запись — обновление не сможет её изменить.'];
         }
@@ -65,7 +70,7 @@ class ComposerRunner
      */
     public static function composer(): ?string
     {
-        $configured = trim((string) config('nexor.updates.composer', ''));
+        $configured = self::expandHome(trim((string) config('nexor.updates.composer', '')));
 
         if ($configured !== '') {
             return $configured;
@@ -76,6 +81,20 @@ class ComposerRunner
         }
 
         return is_file(base_path('composer.phar')) ? base_path('composer.phar') : null;
+    }
+
+    /**
+     * PHP, которым запускаются artisan и composer.
+     *
+     * На виртуальном хостинге консольный `php` часто старше того, что отдаёт
+     * сайт (у рег.ру — 8.2 против 8.3), и composer под ним не соберёт
+     * зависимости. Тогда путь задаётся в NEXOR_PHP.
+     */
+    public static function php(): string
+    {
+        $configured = self::expandHome(trim((string) config('nexor.updates.php', '')));
+
+        return $configured !== '' ? $configured : ((new PhpExecutableFinder)->find() ?: 'php');
     }
 
     /**
@@ -195,24 +214,74 @@ class ComposerRunner
         self::state($id, $state);
         self::append($id, PHP_EOL.($exitCode === 0 ? 'Готово.' : 'Не получилось, код выхода '.$exitCode.'.').PHP_EOL);
 
+        if ($exitCode === 127) {
+            self::append($id, 'Команда не найдена: проверьте NEXOR_COMPOSER и NEXOR_PHP в .env — '
+                .'пути пишутся полностью, без ~.'.PHP_EOL);
+        }
+
         return $exitCode;
     }
 
     /**
+     * Команда шага в виде списка аргументов — без оболочки.
+     *
      * @param  array{type: string, arguments: array<int, string>}  $step
      * @return array<int, string>
      */
-    protected static function command(array $step): array
+    public static function command(array $step): array
     {
-        $php = (new PhpExecutableFinder)->find() ?: 'php';
+        $php = self::php();
         $composer = self::composer() ?? 'composer';
 
-        // composer.phar запускается тем же php, что и сайт.
+        // Composer — php-скрипт, даже когда лежит без расширения .phar
+        // (~/bin/composer). Запущенный сам, он возьмёт php из своей первой
+        // строки, то есть консольный — поэтому запускаем его явно своим.
         $binary = $step['type'] === 'artisan'
             ? [$php, base_path('artisan')]
-            : (str_ends_with($composer, '.phar') ? [$php, $composer] : [$composer]);
+            : (self::isPhpScript($composer) ? [$php, $composer] : [$composer]);
 
         return [...$binary, ...$step['arguments']];
+    }
+
+    /**
+     * Файл — php-скрипт: .phar, `<?php` или `#!` с php в первой строке.
+     */
+    protected static function isPhpScript(string $path): bool
+    {
+        if (str_ends_with($path, '.phar')) {
+            return true;
+        }
+
+        if (! is_file($path)) {
+            return false;
+        }
+
+        $head = (string) file_get_contents($path, false, null, 0, 128);
+        $first = strtok($head, "\n") ?: '';
+
+        return str_starts_with($head, '<?php') || (str_starts_with($first, '#!') && str_contains($first, 'php'));
+    }
+
+    /**
+     * `~` в начале пути — домашняя папка.
+     *
+     * Процесс запускается без оболочки, и разворачивать `~` некому: без этого
+     * NEXOR_COMPOSER=~/bin/composer давал «команда не найдена», код 127.
+     */
+    protected static function expandHome(string $path): string
+    {
+        if ($path !== '~' && ! str_starts_with($path, '~/')) {
+            return $path;
+        }
+
+        $home = (string) (getenv('HOME') ?: ($_SERVER['HOME'] ?? ''));
+
+        // Под php-fpm HOME часто пуст — тогда спрашиваем систему.
+        if ($home === '' && function_exists('posix_getpwuid') && function_exists('posix_geteuid')) {
+            $home = (string) (posix_getpwuid(posix_geteuid())['dir'] ?? '');
+        }
+
+        return $home === '' ? $path : rtrim($home, '/').substr($path, 1);
     }
 
     /**
@@ -224,7 +293,7 @@ class ComposerRunner
      */
     protected static function launch(string $id): void
     {
-        $php = (new PhpExecutableFinder)->find() ?: 'php';
+        $php = self::php();
         $command = implode(' ', array_map(
             fn (string $part) => escapeshellarg($part),
             [$php, base_path('artisan'), 'nexor:updates:run', $id],

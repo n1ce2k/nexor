@@ -200,4 +200,59 @@ class UpdatesTest extends TestCase
 
         $this->assertSame(ComposerRunner::FAILED, ComposerRunner::status($id)['state']);
     }
+
+    // ------------------------------------------------------- composer хостинга
+
+    /** Composer в том виде, в каком его ставят на хостинг: phar без расширения. */
+    protected function composerScript(): string
+    {
+        $path = storage_path('framework/testing/bin/composer');
+
+        File::ensureDirectoryExists(dirname($path));
+        File::put($path, "#!/usr/bin/env php\n<?php echo 'composer';\n");
+
+        return $path;
+    }
+
+    public function test_a_composer_without_the_phar_extension_runs_with_our_php(): void
+    {
+        config(['nexor.updates.composer' => $this->composerScript(), 'nexor.updates.php' => '/opt/php/8.3/bin/php']);
+
+        // Запущенный сам, он взял бы php из первой строки — консольный, 8.2.
+        $this->assertSame(
+            ['/opt/php/8.3/bin/php', $this->composerScript(), 'update', 'n1ce2k/nexor-cms'],
+            ComposerRunner::command(['type' => 'composer', 'arguments' => ['update', 'n1ce2k/nexor-cms']]),
+        );
+
+        $this->assertSame('/opt/php/8.3/bin/php', ComposerRunner::command(['type' => 'artisan', 'arguments' => ['migrate']])[0]);
+    }
+
+    public function test_a_tilde_in_the_path_means_the_home_folder(): void
+    {
+        $home = getenv('HOME');
+        putenv('HOME=/var/www/u0756649/data');
+
+        try {
+            config(['nexor.updates.composer' => '~/bin/composer']);
+
+            // Процесс идёт без оболочки: не развернуть ~ — это код выхода 127.
+            $this->assertSame('/var/www/u0756649/data/bin/composer', ComposerRunner::composer());
+        } finally {
+            putenv($home === false ? 'HOME' : 'HOME='.$home);
+        }
+    }
+
+    public function test_a_composer_path_to_nowhere_is_reported_before_the_run(): void
+    {
+        config(['nexor.updates.composer' => '/nowhere/bin/composer']);
+
+        $availability = ComposerRunner::availability();
+
+        if (! $availability['ok'] && str_contains((string) $availability['reason'], 'отключена функция')) {
+            $this->markTestSkipped('На этой машине запуск процессов закрыт.');
+        }
+
+        $this->assertFalse($availability['ok']);
+        $this->assertStringContainsString('/nowhere/bin/composer', (string) $availability['reason']);
+    }
 }

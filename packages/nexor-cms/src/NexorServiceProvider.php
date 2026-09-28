@@ -22,6 +22,7 @@ use Nexor\Cms\Console\RunUpdateCommand;
 use Nexor\Cms\Console\ScanContentCommand;
 use Nexor\Cms\Console\SetPasswordCommand;
 use Nexor\Cms\Console\SyncPermissionsCommand;
+use Nexor\Cms\Console\UserModelCommand;
 use Nexor\Cms\Contracts\NexorUser;
 use Nexor\Cms\Http\Controllers\AssetController;
 use Nexor\Cms\Http\Middleware\CheckFeature;
@@ -30,6 +31,7 @@ use Nexor\Cms\Http\Middleware\CheckMaintenanceMode;
 use Nexor\Cms\Http\Middleware\CheckPermission;
 use Nexor\Cms\Http\Middleware\EnsureLicensedHost;
 use Nexor\Cms\Http\Middleware\EnsureUserCanAccessAdmin;
+use Nexor\Cms\Http\Middleware\EnsureUserModelIsReady;
 use Nexor\Cms\Http\Middleware\InjectCookieCounters;
 use Nexor\Cms\Http\Middleware\InjectInlineEditor;
 use Nexor\Cms\Services\InfoBlockService;
@@ -45,6 +47,7 @@ class NexorServiceProvider extends ServiceProvider
     /** @var array<string, class-string> */
     protected array $middleware = [
         'nexor.admin' => EnsureUserCanAccessAdmin::class,
+        'nexor.setup' => EnsureUserModelIsReady::class,
         'nexor.permission' => CheckPermission::class,
         'nexor.iblock' => CheckIblockPermission::class,
         'nexor.maintenance' => CheckMaintenanceMode::class,
@@ -99,6 +102,7 @@ class NexorServiceProvider extends ServiceProvider
                 PruneCookieConsentsCommand::class,
                 ScanContentCommand::class,
                 SyncPermissionsCommand::class,
+                UserModelCommand::class,
             ]);
 
             $this->registerPublishing();
@@ -225,7 +229,7 @@ class NexorServiceProvider extends ServiceProvider
             'as' => 'admin.api.',
             // Без 'auth': гостя разворачивает сам nexor.admin. Стандартный
             // auth ведёт на маршрут login, которого в чистом Laravel нет.
-            'middleware' => [...$middleware, 'nexor.admin'],
+            'middleware' => [...$middleware, 'nexor.setup', 'nexor.admin'],
         ], function (): void {
             $this->loadRoutesFrom($this->path('routes/api.php'));
 
@@ -241,7 +245,8 @@ class NexorServiceProvider extends ServiceProvider
         Route::group([
             'prefix' => Nexor::routePrefix(),
             'as' => 'admin.',
-            'middleware' => $middleware,
+            // nexor.setup — до входа: без трейтов CMS падает и сам вход.
+            'middleware' => [...$middleware, 'nexor.setup'],
         ], fn () => $this->loadRoutesFrom($this->path('routes/admin.php')));
 
         // Публичная часть: приём форм компонента `form`.

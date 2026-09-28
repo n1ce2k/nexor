@@ -103,6 +103,17 @@ class UserModelSetup
     }
 
     /**
+     * В файле уже всё есть: дописывать больше нечего.
+     *
+     * Так проверяется только что дописанная модель — отражение в том же
+     * процессе показало бы прежний, уже загруженный класс.
+     */
+    public static function sourceReady(string $source): bool
+    {
+        return self::apply($source) === $source;
+    }
+
+    /**
      * Тот же разбор, но без записи — так его проверяют тесты.
      */
     public static function apply(string $source): ?string

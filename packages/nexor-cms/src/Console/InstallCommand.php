@@ -90,6 +90,12 @@ class InstallCommand extends Command
 
         $this->newLine();
 
+        if (! $this->userModelReady()) {
+            $this->components->error('Панель не заработает: модель пользователя не подготовлена.');
+            $this->line('  Допишите её: <fg=cyan>php artisan nexor:user-model</>');
+            $this->newLine();
+        }
+
         if (! file_exists(public_path('storage'))) {
             $this->components->warn('Не удалось сделать ссылку public/storage — загруженные картинки не откроются.');
             $this->line('  Выполните <fg=cyan>php artisan storage:link</> (на Windows — из консоли с правами администратора).');
@@ -248,51 +254,32 @@ class InstallCommand extends Command
      */
     protected function prepareUserModel(): void
     {
-        $missing = UserModelSetup::missing();
-
-        if ($missing === []) {
+        if (UserModelSetup::missing() === []) {
             $this->components->task('Модель пользователя', fn () => true);
 
             return;
         }
 
-        if ($missing === ['class']) {
-            $this->components->error('Модель пользователя '.Nexor::userModel().' не найдена — проверьте config/nexor.php.');
+        // Работу делает отдельная команда: ту же починку запускают и потом,
+        // не повторяя установку целиком.
+        $this->call('nexor:user-model', $this->option('force') ? ['--force' => true] : []);
+    }
 
-            return;
+    /**
+     * Модель готова к работе с панелью.
+     *
+     * Судим по файлу, если загруженный класс ещё не знает о правке: её могли
+     * сделать только что, в этом же процессе.
+     */
+    protected function userModelReady(): bool
+    {
+        if (UserModelSetup::missing() === []) {
+            return true;
         }
 
         $file = UserModelSetup::file();
 
-        if ($file === null) {
-            $this->explainUserModel('Модель пользователя недоступна для записи.');
-
-            return;
-        }
-
-        $relative = str_replace(base_path().DIRECTORY_SEPARATOR, '', $file);
-
-        if (! $this->option('force') && ! $this->components->confirm("Дописать модель {$relative} для работы с панелью?", true)) {
-            $this->explainUserModel('Модель оставлена как есть.');
-
-            return;
-        }
-
-        if (! UserModelSetup::patch($file) || UserModelSetup::missing() !== []) {
-            $this->explainUserModel('Разметка модели непривычная — дописать её автоматически не вышло.');
-
-            return;
-        }
-
-        $this->components->task('Модель пользователя: '.$relative, fn () => true);
-    }
-
-    protected function explainUserModel(string $reason): void
-    {
-        $this->components->warn($reason.' Допишите её сами, иначе панель не заработает:');
-        $this->newLine();
-        $this->line('<fg=cyan>'.UserModelSetup::snippet().'</>');
-        $this->newLine();
+        return $file !== null && UserModelSetup::sourceReady((string) file_get_contents($file));
     }
 
     /**

@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Nexor\Cms\Support\UserModelSetup;
 use Tests\TestCase;
 
@@ -13,6 +15,9 @@ use Tests\TestCase;
  */
 class UserModelSetupTest extends TestCase
 {
+    // База нужна только экрану панели: до него доходит middleware настроек.
+    use RefreshDatabase;
+
     /** Модель пользователя, как её создаёт свежий Laravel. */
     protected function stockModel(): string
     {
@@ -136,4 +141,37 @@ PHP;
     {
         $this->assertSame([], UserModelSetup::missing(User::class));
     }
+
+    public function test_a_patched_model_needs_nothing_more(): void
+    {
+        // Так проверяется только что дописанный файл: загруженный класс в том
+        // же процессе остался прежним и соврал бы.
+        $this->assertFalse(UserModelSetup::sourceReady($this->lines()));
+        $this->assertTrue(UserModelSetup::sourceReady(UserModelSetup::apply($this->lines())));
+    }
+
+    public function test_the_command_sees_a_ready_model(): void
+    {
+        $this->artisan('nexor:user-model')->assertSuccessful();
+    }
+
+    public function test_the_panel_explains_an_unprepared_model(): void
+    {
+        config(['nexor.user_model' => UnpreparedUser::class]);
+
+        // Раньше тут падал BadMethodCallException из потрохов фреймворка —
+        // по нему никто не догадается, что дописать.
+        $this->get(route('admin.login'))
+            ->assertStatus(503)
+            ->assertSee('Модель пользователя не подготовлена')
+            ->assertSee('php artisan nexor:user-model')
+            ->assertSee('roles');
+
+        $this->getJson('/admin/api/bootstrap')
+            ->assertStatus(503)
+            ->assertJsonPath('message', fn (string $message) => str_contains($message, 'nexor:user-model'));
+    }
 }
+
+/** Модель приложения, к которой ещё не приложили руки. */
+class UnpreparedUser extends Authenticatable {}

@@ -21,6 +21,7 @@ use Nexor\Cms\Console\PublishComponentCommand;
 use Nexor\Cms\Console\RunUpdateCommand;
 use Nexor\Cms\Console\ScanContentCommand;
 use Nexor\Cms\Console\SetPasswordCommand;
+use Nexor\Cms\Console\SiteAssetsCommand;
 use Nexor\Cms\Console\SyncPermissionsCommand;
 use Nexor\Cms\Console\UserModelCommand;
 use Nexor\Cms\Contracts\NexorUser;
@@ -101,6 +102,7 @@ class NexorServiceProvider extends ServiceProvider
                 SetPasswordCommand::class,
                 PruneCookieConsentsCommand::class,
                 ScanContentCommand::class,
+                SiteAssetsCommand::class,
                 SyncPermissionsCommand::class,
                 UserModelCommand::class,
             ]);

@@ -8,6 +8,8 @@ use Nexor\Cms\Http\Controllers\Site\CookieAssetController;
 use Nexor\Cms\Http\Controllers\Site\CookieConsentController;
 use Nexor\Cms\Http\Controllers\Site\FormController;
 use Nexor\Cms\Http\Controllers\Site\InlineAssetController;
+use Nexor\Cms\Http\Controllers\Site\SiteAssetController;
+use Nexor\Cms\Support\SiteAssets;
 
 /**
  * Публичные маршруты пакета: приём форм компонента `form` и страница соглашения.
@@ -18,6 +20,14 @@ use Nexor\Cms\Http\Controllers\Site\InlineAssetController;
 Route::post('nexor/form', FormController::class)
     ->middleware('throttle:10,1')
     ->name('nexor.form');
+
+/*
+ * Сборка шаблонов сайта, залитая вне `public`: на хостинге без node её кладут
+ * в storage/app/build, а отдаёт её PHP.
+ */
+Route::get(SiteAssets::PREFIX.'/{path}', SiteAssetController::class)
+    ->where('path', '.+')
+    ->name('nexor.asset');
 
 // Полный текст соглашения — ссылка у галочки формы, когда всплывающее окно выключено.
 Route::get('agreement/{code}', AgreementController::class)

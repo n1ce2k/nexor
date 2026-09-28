@@ -31,7 +31,7 @@
     />
 
     <script src="https://cdn.jsdelivr.net/npm/swiper@12/swiper-bundle.min.js"></script>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <x-nexor::assets />
 </head>
 <body class="flex min-h-full flex-col font-sans">
     <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">

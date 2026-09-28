@@ -21,6 +21,7 @@ use Nexor\Cms\Support\License\LicenseKey;
 use Nexor\Cms\Support\Licensing;
 use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\Permissions;
+use Nexor\Cms\Support\SiteAssets;
 use Nexor\Cms\Support\TailwindSources;
 use Nexor\Cms\Support\UserModelSetup;
 use Throwable;
@@ -93,6 +94,13 @@ class InstallCommand extends Command
         if (! $this->userModelReady()) {
             $this->components->error('Панель не заработает: модель пользователя не подготовлена.');
             $this->line('  Допишите её: <fg=cyan>php artisan nexor:user-model</>');
+            $this->newLine();
+        }
+
+        if (! SiteAssets::ready()) {
+            $this->components->warn('Сборки шаблонов сайта нет — страницы откроются без стилей и скриптов.');
+            $this->line('  Соберите её у себя <fg=cyan>npm run build</>, залейте архив и выполните');
+            $this->line('  <fg=cyan>php artisan nexor:assets storage/app/build.zip</>');
             $this->newLine();
         }
 

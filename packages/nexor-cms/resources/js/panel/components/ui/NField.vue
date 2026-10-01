@@ -11,10 +11,15 @@ defineProps({
 
 <template>
     <div class="space-y-1.5">
-        <label v-if="label" class="block text-sm font-medium text-[var(--text-strong)]">
-            {{ label }}
-            <span v-if="required" class="text-red-500">*</span>
-        </label>
+        <!-- Кнопки рядом с подписью (#label-actions) — сразу справа от текста, а не у края поля. -->
+        <div v-if="label" class="flex items-center gap-1">
+            <label class="block text-sm font-medium text-[var(--text-strong)]">
+                {{ label }}
+                <span v-if="required" class="text-red-500">*</span>
+            </label>
+
+            <slot name="label-actions" />
+        </div>
 
         <slot />
 

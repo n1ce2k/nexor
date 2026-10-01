@@ -21,7 +21,7 @@ class SettingController extends Controller
 
     public function index(): View
     {
-        $groups = Setting::query()->ordered()->get()->groupBy('group');
+        $groups = Setting::query()->defined()->ordered()->get()->groupBy('group');
 
         return view('nexor::admin.settings.index', [
             'groups' => $groups,
@@ -31,12 +31,14 @@ class SettingController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
-        $settings = Setting::query()->get()->keyBy('key');
+        // Только настройки экрана: служебные значения модулей форма не
+        // присылает, и без фильтра они бы обнулились.
+        $settings = Setting::query()->defined()->get()->keyBy('key');
 
         $request->validate($this->rules($settings));
 
         foreach ($settings as $key => $setting) {
-            $setting->value = $setting->type === 'image'
+            $setting->value = $setting->isFile()
                 ? Uploads::handle($request, 'file_'.$this->inputKey($key), $setting->value, 'settings')
                 : $this->scalarValue($request, $setting);
 
@@ -76,8 +78,8 @@ class SettingController extends Controller
         foreach ($settings as $key => $setting) {
             $input = $this->inputKey($key);
 
-            $rules[$setting->type === 'image' ? 'file_'.$input : 'settings.'.$input] = match ($setting->type) {
-                'image' => ['nullable', 'image', 'max:4096'],
+            $rules[$setting->isFile() ? 'file_'.$input : 'settings.'.$input] = match ($setting->type) {
+                'file', 'image' => ['nullable', 'file', 'max:'.Setting::FILE_MAX_KB, 'mimes:'.Setting::FILE_EXTENSIONS],
                 'boolean' => ['nullable'],
                 'integer' => ['nullable', 'integer'],
                 'text' => ['nullable', 'string', 'max:65535'],

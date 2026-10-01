@@ -175,17 +175,30 @@
     picker.style.display = 'none';
     document.body.appendChild(picker);
 
-    let target = null;
+    // Что делать с выбранным файлом: картинка и фон грузятся одинаково, а
+    // показываются по-разному.
+    let onPick = null;
 
-    const uploadImage = (element, file) => {
-        if (!file || !file.type.startsWith('image/')) {
-            return;
-        }
+    const pick = (callback) => {
+        onPick = callback;
+        picker.click();
+    };
 
+    const upload = (key, file) => {
         const body = new FormData();
         body.append('image', file);
 
-        send(`${base}/${encodeURIComponent(element.dataset.nexorEdit)}/image`, { method: 'POST', body })
+        return send(`${base}/${encodeURIComponent(key)}/image`, { method: 'POST', body });
+    };
+
+    const isImage = (file) => Boolean(file && file.type.startsWith('image/'));
+
+    const uploadImage = (element, file) => {
+        if (!isImage(file)) {
+            return;
+        }
+
+        upload(element.dataset.nexorEdit, file)
             .then((data) => {
                 element.src = `${data.url}?v=${Date.now()}`;
                 element.dataset.nexorEdited = '1';
@@ -195,24 +208,144 @@
     };
 
     picker.addEventListener('change', () => {
-        if (target) {
-            uploadImage(target, picker.files[0]);
-        }
-
+        onPick?.(picker.files[0]);
+        onPick = null;
         picker.value = '';
     });
 
     // ----------------------------------------------------------------- сброс
 
-    const reset = (element) => {
+    const reset = (element, key = element.dataset.nexorEdit) => {
         if (!confirm('Вернуть блок к тому, что написано в шаблоне?')) {
             return;
         }
 
-        send(`${base}/${encodeURIComponent(element.dataset.nexorEdit)}`, { method: 'DELETE' })
+        send(`${base}/${encodeURIComponent(key)}`, { method: 'DELETE' })
             .then(() => window.location.reload())
             .catch((error) => flash(element, false, error.message));
     };
+
+    // -------------------------------------------------------------------- фон
+    //
+    // Секция с @editBackground получает кнопки в правом верхнем углу. Рамки у
+    // самой секции нет: внутри неё свои правимые тексты со своими рамками.
+    // Пунктир виден, только пока курсор на кнопках, — чтобы было понятно, к
+    // какой области относится фон.
+    //
+    // Кнопки живут в отдельном слое поверх страницы, а не внутри секции:
+    // чтобы поставить их в угол изнутри, секции пришлось бы дать
+    // position: relative, и у вёрстки сайта поехали бы её элементы.
+
+    const layer = document.createElement('div');
+    layer.className = 'nexor-bg-layer';
+    document.body.appendChild(layer);
+
+    const showBackground = (section, url) => {
+        const value = `url("${url.replace(/"/g, '%22')}")`;
+        const variable = section.dataset.nexorBgVar;
+
+        if (variable) {
+            section.style.setProperty(variable, value);
+        } else {
+            section.style.backgroundImage = value;
+        }
+    };
+
+    const backgrounds = [...document.querySelectorAll('[data-nexor-bg]')].map((section) => {
+        const box = document.createElement('div');
+        box.className = 'nexor-bg-controls';
+
+        const change = document.createElement('button');
+        change.type = 'button';
+        change.className = 'nexor-bg-button';
+        change.textContent = 'Фон';
+        change.title = 'Сменить фон секции. Картинку можно и перетащить на кнопку.';
+
+        const restore = document.createElement('button');
+        restore.type = 'button';
+        restore.className = 'nexor-bg-button nexor-bg-button--muted';
+        restore.textContent = 'Вернуть';
+        restore.title = 'Вернуть фон из шаблона';
+        restore.hidden = section.dataset.nexorEdited !== '1';
+
+        box.append(change, restore);
+        layer.appendChild(box);
+
+        const uploadBackground = (file) => {
+            if (!isImage(file)) {
+                return;
+            }
+
+            upload(section.dataset.nexorBg, file)
+                .then((data) => {
+                    showBackground(section, `${data.url}?v=${Date.now()}`);
+                    section.dataset.nexorEdited = '1';
+                    restore.hidden = false;
+                    flash(section, true);
+                })
+                .catch((error) => flash(section, false, error.message));
+        };
+
+        change.addEventListener('click', () => pick(uploadBackground));
+        restore.addEventListener('click', () => reset(section, section.dataset.nexorBg));
+
+        box.addEventListener('mouseenter', () => section.classList.add('nexor-bg--hover'));
+        box.addEventListener('mouseleave', () => section.classList.remove('nexor-bg--hover'));
+
+        box.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            box.classList.add('nexor-edit--drop');
+            section.classList.add('nexor-bg--hover');
+        });
+
+        box.addEventListener('dragleave', () => {
+            box.classList.remove('nexor-edit--drop');
+            section.classList.remove('nexor-bg--hover');
+        });
+
+        box.addEventListener('drop', (event) => {
+            event.preventDefault();
+            box.classList.remove('nexor-edit--drop');
+            section.classList.remove('nexor-bg--hover');
+            uploadBackground(event.dataTransfer?.files?.[0]);
+        });
+
+        return { section, box };
+    });
+
+    // Кнопки стоят по координатам секции в документе: пересчитываем, когда
+    // вёрстка могла сдвинуться — догрузились картинки, шрифты, сменилась ширина.
+    let placing = false;
+
+    const place = () => {
+        if (placing) {
+            return;
+        }
+
+        placing = true;
+
+        requestAnimationFrame(() => {
+            placing = false;
+
+            backgrounds.forEach(({ section, box }) => {
+                const rect = section.getBoundingClientRect();
+
+                box.hidden = rect.width === 0 && rect.height === 0;
+                box.style.top = `${rect.top + window.scrollY + 8}px`;
+                box.style.left = `${rect.right + window.scrollX - box.offsetWidth - 8}px`;
+            });
+        });
+    };
+
+    if (backgrounds.length > 0) {
+        place();
+        window.addEventListener('load', place);
+        window.addEventListener('resize', place);
+
+        if ('ResizeObserver' in window) {
+            new ResizeObserver(place).observe(document.body);
+        }
+    }
 
     // -------------------------------------------------------------- события
 
@@ -232,8 +365,7 @@
 
         if (element.dataset.nexorType === 'image') {
             event.preventDefault();
-            target = element;
-            picker.click();
+            pick((file) => uploadImage(element, file));
 
             return;
         }

@@ -106,6 +106,11 @@ async function save() {
     }
 }
 
+/** Настройка-файл. `image` — тип прежних версий, до миграции он ещё встречается. */
+function isFile(setting) {
+    return ['file', 'image'].includes(setting.type);
+}
+
 function pickFile(setting, event) {
     files.value[setting.input] = event.target.files?.[0] ?? null;
 }
@@ -216,8 +221,16 @@ defineExpose({ save, busy, load });
 
             <div class="grid gap-5 sm:grid-cols-2">
                 <div v-for="setting in inGroup(group.key)" :key="setting.id"
-                     :class="['relative', ['text', 'html', 'image'].includes(setting.type) && 'sm:col-span-2']">
+                     :class="['relative', (['text', 'html'].includes(setting.type) || isFile(setting)) && 'sm:col-span-2']">
                     <NField :label="setting.name" :hint="setting.hint">
+                        <template v-if="manageable && canEdit" #label-actions>
+                            <button type="button" title="Изменить свойство"
+                                    class="rounded p-1 text-[var(--text-faint)] transition hover:text-[var(--text-strong)]"
+                                    @click="openEditor(setting)">
+                                <NIcon name="pencil" size="size-3.5" />
+                            </button>
+                        </template>
+
                         <NToggle v-if="setting.type === 'boolean'" v-model="values[setting.input]" label="Включено" />
 
                         <NEditor v-else-if="setting.type === 'html'" v-model="values[setting.input]" rows="14rem" />
@@ -229,12 +242,11 @@ defineExpose({ save, busy, load });
                         <NSelect v-else-if="setting.type === 'select'" v-model="values[setting.input]"
                                  :options="setting.options ?? []" placeholder="— не выбрано —" />
 
-                        <div v-else-if="setting.type === 'image'" class="flex items-center gap-3">
+                        <div v-else-if="isFile(setting)" class="flex items-center gap-3">
                             <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--surface-border-strong)] px-3 py-2 text-sm font-medium text-[var(--text-base)] transition hover:bg-[var(--surface-muted)]">
                                 <NIcon name="upload" size="size-4" />
                                 Выбрать файл
-                                <input type="file" accept="image/*" class="sr-only"
-                                       @change="pickFile(setting, $event)">
+                                <input type="file" class="sr-only" @change="pickFile(setting, $event)">
                             </label>
 
                             <span class="truncate text-xs text-[var(--text-muted)]">
@@ -255,12 +267,6 @@ defineExpose({ save, busy, load });
                     <div v-if="manageable && canEdit"
                          class="absolute top-0 right-0 flex items-center gap-0.5">
                         <NBadge v-if="setting.is_system" color="gray">системная</NBadge>
-
-                        <button type="button" title="Изменить свойство"
-                                class="rounded p-1 text-[var(--text-faint)] transition hover:text-[var(--text-strong)]"
-                                @click="openEditor(setting)">
-                            <NIcon name="pencil" size="size-3.5" />
-                        </button>
 
                         <button v-if="!setting.is_system" type="button" title="Удалить свойство"
                                 class="rounded p-1 text-[var(--text-faint)] transition hover:text-red-600"

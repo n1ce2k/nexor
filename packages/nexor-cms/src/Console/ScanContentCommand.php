@@ -135,6 +135,21 @@ class ScanContentCommand extends Command
             $blocks[$key] = ['type' => 'image', 'value' => (string) $this->attribute($match[1], 'src')];
         }
 
+        // Фон: <section @editBackground('main.bg', '/img/hero.jpg')>
+        preg_match_all('#@editBackground\(([^\n]*)#u', $source, $backgrounds, PREG_SET_ORDER);
+
+        foreach ($backgrounds as $match) {
+            // Ключ и картинка берутся, только если написаны строкой: asset(...)
+            // или переменную команда не вычислит.
+            if (! preg_match('#^\s*([\'"])([^\'"]+)\1\s*(?:,\s*([\'"])([^\'"]*)\3)?#u', $match[1], $arguments)) {
+                $this->skipped($file, $match[0]);
+
+                continue;
+            }
+
+            $blocks[$arguments[2]] = ['type' => 'image', 'value' => $arguments[4] ?? ''];
+        }
+
         return $blocks;
     }
 

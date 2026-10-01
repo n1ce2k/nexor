@@ -6,8 +6,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Storage;
+use InvalidArgumentException;
 use Nexor\Cms\Models\ContentBlock;
 use Nexor\Cms\Support\ContentBlocks;
+use Nexor\Cms\Support\InlineBackground;
 use Nexor\Cms\Support\InlineEditor;
 use Tests\Concerns\CreatesAdminUsers;
 use Tests\TestCase;
@@ -247,6 +249,103 @@ class ContentBlockTest extends TestCase
         $single = Blade::render('<x-nexor::edit key="about.title" as="h2">Заголовок</x-nexor::edit>');
 
         $this->assertStringNotContainsString('data-nexor-breaks', $single);
+    }
+
+    // -------------------------------------------------------------------- фон
+
+    public function test_a_background_falls_back_to_the_one_in_the_markup(): void
+    {
+        $html = Blade::render(<<<'BLADE'
+            <section class="main_section" @editBackground('main.bg', '/img/hero.jpg')>x</section>
+            BLADE);
+
+        $this->assertStringContainsString('<section class="main_section" style="background-image: url(/img/hero.jpg)">', $html);
+
+        ContentBlocks::put('main.bg', 'image', 'content/bg.jpg');
+
+        $html = Blade::render(<<<'BLADE'
+            <section @editBackground('main.bg', '/img/hero.jpg')>x</section>
+            BLADE);
+
+        $this->assertStringContainsString('/storage/content/bg.jpg', $html);
+        $this->assertStringNotContainsString('hero.jpg', $html);
+    }
+
+    public function test_a_background_can_go_into_a_css_variable(): void
+    {
+        $html = Blade::render(<<<'BLADE'
+            <section @editBackground('main.bg', '/img/hero.jpg', var: '--main-bg')>x</section>
+            BLADE);
+
+        // Как накладывать картинку, решает CSS сайта: директива даёт только значение.
+        $this->assertStringContainsString('style="--main-bg: url(/img/hero.jpg)"', $html);
+        $this->assertStringNotContainsString('background-image', $html);
+    }
+
+    public function test_a_background_is_marked_for_the_editor_only_in_edit_mode(): void
+    {
+        $template = <<<'BLADE'
+            <section @editBackground('main.bg', '/img/hero.jpg', var: '--main-bg')>x</section>
+            BLADE;
+
+        $this->assertStringNotContainsString('data-nexor-bg', Blade::render($template));
+
+        $this->actingAs($this->editor())->get('/?nexor-edit=1');
+
+        $html = Blade::render($template);
+
+        $this->assertStringContainsString('data-nexor-bg="main.bg"', $html);
+        $this->assertStringContainsString('data-nexor-bg-var="--main-bg"', $html);
+        // Не data-nexor-edit: иначе любой клик внутри секции открывал бы правку текста.
+        $this->assertStringNotContainsString('data-nexor-edit=', $html);
+        $this->assertStringNotContainsString('data-nexor-edited', $html);
+
+        ContentBlocks::put('main.bg', 'image', 'content/bg.jpg');
+
+        $this->assertStringContainsString('data-nexor-edited="1"', Blade::render($template));
+    }
+
+    public function test_a_background_address_cannot_break_out_of_the_style(): void
+    {
+        $html = InlineBackground::attributes('main.bg', "/img/x');color:red;(\".jpg")->toHtml();
+
+        // Кавычки и скобки закодированы: url() закрывается только своей скобкой.
+        $this->assertStringContainsString('url(/img/x%27%29;color:red;%28%22.jpg)', $html);
+        $this->assertStringNotContainsString("')", $html);
+    }
+
+    public function test_a_wrong_variable_name_is_refused(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        InlineBackground::attributes('main.bg', '/img/hero.jpg', var: 'color');
+    }
+
+    public function test_the_command_collects_backgrounds_too(): void
+    {
+        $views = storage_path('framework/testing/content-backgrounds');
+
+        @mkdir($views, 0777, true);
+        file_put_contents($views.'/page.blade.php', <<<'BLADE'
+            <section class="main_section" @editBackground('scan.bg', '/img/hero.jpg', var: '--scan-bg')>
+            <section @editBackground("scan.plain", "/img/plain.jpg")>
+            <section @editBackground('scan.asset', asset('img/a.jpg'))>
+            <section @editBackground($key, '/img/computed.jpg')>
+            BLADE);
+
+        $this->artisan('nexor:content:scan', ['--path' => [$views]])->assertSuccessful();
+
+        ContentBlocks::forgetCache();
+        $blocks = ContentBlocks::all();
+
+        $this->assertSame(['type' => 'image', 'value' => '/img/hero.jpg'], array_intersect_key($blocks['scan.bg'], ['type' => 1, 'value' => 1]));
+        $this->assertSame('/img/plain.jpg', $blocks['scan.plain']['value']);
+        // Картинка из asset() не вычисляется, но ключ известен.
+        $this->assertSame('', $blocks['scan.asset']['value']);
+        $this->assertCount(3, $blocks);
+
+        @unlink($views.'/page.blade.php');
+        @rmdir($views);
     }
 
     // ------------------------------------------------------------ автозапись

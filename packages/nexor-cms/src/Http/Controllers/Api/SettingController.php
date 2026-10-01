@@ -32,6 +32,7 @@ class SettingController extends ApiController
     public function index(Request $request): JsonResponse
     {
         $settings = Setting::query()
+            ->defined()
             ->when($request->filled('group'), fn ($query) => $query->where('group', $request->get('group')))
             ->ordered()
             ->get();
@@ -49,14 +50,14 @@ class SettingController extends ApiController
      */
     public function update(Request $request): JsonResponse
     {
-        $settings = Setting::query()->get()->keyBy('key');
+        $settings = Setting::query()->defined()->get()->keyBy('key');
 
         $request->validate($this->rules($settings));
 
         foreach ($settings as $key => $setting) {
             $input = $this->inputKey($key);
 
-            if ($setting->type === 'image') {
+            if ($setting->isFile()) {
                 if ($request->hasFile('file_'.$input) || $request->boolean('file_'.$input.'_remove')) {
                     $setting->value = Uploads::handle($request, 'file_'.$input, $setting->value, Nexor::directory('settings'));
                     $setting->save();
@@ -126,7 +127,7 @@ class SettingController extends ApiController
         }
 
         ActivityLogger::deleted($setting, 'Настройка: '.$setting->key);
-        Uploads::delete($setting->type === 'image' ? $setting->value : null);
+        Uploads::delete($setting->isFile() ? $setting->value : null);
         $setting->delete();
 
         return $this->ok('Настройка удалена.');
@@ -185,8 +186,8 @@ class SettingController extends ApiController
         foreach ($settings as $key => $setting) {
             $input = $this->inputKey($key);
 
-            $rules[$setting->type === 'image' ? 'file_'.$input : 'settings.'.$input] = match ($setting->type) {
-                'image' => ['nullable', 'image', 'max:4096'],
+            $rules[$setting->isFile() ? 'file_'.$input : 'settings.'.$input] = match ($setting->type) {
+                'file', 'image' => ['nullable', 'file', 'max:'.Setting::FILE_MAX_KB, 'mimes:'.Setting::FILE_EXTENSIONS],
                 'boolean' => ['nullable'],
                 'integer' => ['nullable', 'integer'],
                 'text', 'html' => ['nullable', 'string', 'max:65535'],

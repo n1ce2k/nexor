@@ -80,3 +80,71 @@
     width: 16px;
     height: 16px;
 }
+
+/*
+ * Фон секции (@editBackground). Секцию не обводим постоянно: внутри неё свои
+ * правимые блоки. Пунктир — только пока курсор на её кнопках.
+ */
+[data-nexor-bg].nexor-bg--hover {
+    outline: 2px dashed #2563eb;
+    outline-offset: -2px;
+}
+
+[data-nexor-bg].nexor-edit--saved {
+    outline: 2px solid #16a34a;
+    outline-offset: -2px;
+}
+
+[data-nexor-bg].nexor-edit--failed {
+    outline: 2px solid #dc2626;
+    outline-offset: -2px;
+}
+
+/* Слой кнопок: поверх страницы, по координатам секций в документе. */
+.nexor-bg-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    z-index: 2147482500;
+}
+
+.nexor-bg-controls {
+    position: absolute;
+    display: flex;
+    gap: 6px;
+}
+
+.nexor-bg-button {
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 8px;
+    background: #2563eb;
+    color: #fff;
+    font: 500 12px/1.2 system-ui, -apple-system, 'Segoe UI', sans-serif;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.3);
+    cursor: pointer;
+}
+
+.nexor-bg-button:hover {
+    background: #1d4ed8;
+}
+
+.nexor-bg-button--muted {
+    background: #0f172a;
+}
+
+.nexor-bg-button--muted:hover {
+    background: #1e293b;
+}
+
+.nexor-bg-controls.nexor-edit--drop .nexor-bg-button {
+    background: #16a34a;
+}
+
+/* Свой display у класса перебил бы атрибут hidden. */
+.nexor-bg-controls[hidden],
+.nexor-bg-button[hidden] {
+    display: none;
+}

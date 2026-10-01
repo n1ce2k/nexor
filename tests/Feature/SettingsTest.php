@@ -7,6 +7,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Nexor\Cms\Database\Seeders\SettingSeeder;
 use Nexor\Cms\Models\Setting;
+use Nexor\Cms\Support\Cookies;
 use Tests\Concerns\CreatesAdminUsers;
 use Tests\TestCase;
 
@@ -63,7 +64,7 @@ class SettingsTest extends TestCase
         $this->assertFalse(Setting::get('site.maintenance'));
     }
 
-    public function test_an_image_setting_stores_the_uploaded_file(): void
+    public function test_a_logo_is_stored_as_a_file(): void
     {
         Storage::fake('public');
 
@@ -78,6 +79,97 @@ class SettingsTest extends TestCase
 
         $this->assertNotNull($path);
         Storage::disk('public')->assertExists($path);
+    }
+
+    public function test_a_file_setting_takes_documents_too(): void
+    {
+        Storage::fake('public');
+        Setting::query()->create(['key' => 'contacts.price', 'type' => 'file', 'group' => 'contacts', 'name' => 'Прайс']);
+
+        $this->actingAs($this->adminWith(['settings.view', 'settings.update']))
+            ->post('/admin/api/settings', [
+                '_method' => 'PUT',
+                'file_contacts__price' => UploadedFile::fake()->create('price.pdf', 120, 'application/pdf'),
+            ])
+            ->assertOk();
+
+        Storage::disk('public')->assertExists((string) Setting::get('contacts.price'));
+    }
+
+    public function test_a_file_setting_refuses_files_that_would_run_on_the_site(): void
+    {
+        Storage::fake('public');
+        Setting::query()->create(['key' => 'contacts.price', 'type' => 'file', 'group' => 'contacts', 'name' => 'Прайс']);
+
+        // Файл ложится в публичное хранилище: .php и .html оттуда исполнились
+        // бы на домене сайта.
+        foreach (['shell.php' => 'text/x-php', 'page.html' => 'text/html', 'logo.svg' => 'image/svg+xml'] as $name => $mime) {
+            $this->actingAs($this->adminWith(['settings.view', 'settings.update']))
+                ->post('/admin/api/settings', [
+                    '_method' => 'PUT',
+                    'file_contacts__price' => UploadedFile::fake()->create($name, 1, $mime),
+                ], ['Accept' => 'application/json'])
+                ->assertUnprocessable();
+        }
+
+        $this->assertNull(Setting::get('contacts.price'));
+    }
+
+    public function test_the_type_is_offered_as_a_file(): void
+    {
+        $this->assertArrayHasKey('file', Setting::types());
+        $this->assertArrayNotHasKey('image', Setting::types());
+
+        // Логотип и favicon — тоже файлы.
+        $this->assertSame('file', Setting::query()->where('key', 'site.logo')->value('type'));
+    }
+
+    public function test_a_setting_of_the_old_image_type_still_takes_a_file(): void
+    {
+        Storage::fake('public');
+        Setting::query()->where('key', 'site.logo')->update(['type' => 'image']);
+
+        $this->actingAs($this->adminWith(['settings.view', 'settings.update']))
+            ->post('/admin/api/settings', [
+                '_method' => 'PUT',
+                'file_site__logo' => UploadedFile::fake()->image('logo.png'),
+            ])
+            ->assertOk();
+
+        Storage::disk('public')->assertExists((string) Setting::get('site.logo'));
+    }
+
+    // ------------------------------------------------- служебные значения модулей
+
+    public function test_module_values_stay_off_the_settings_screen(): void
+    {
+        Cookies::save(['enabled' => true, 'banner_title' => 'Про cookie']);
+
+        // Модуль пишет в общую таблицу, но у него своя группа и свой экран.
+        $this->assertSame('cookies', Setting::query()->where('key', 'cookies.enabled')->value('group'));
+
+        $keys = $this->actingAs($this->adminWith(['settings.view']))
+            ->getJson('/admin/api/settings')
+            ->assertOk()
+            ->json('data.*.key');
+
+        $this->assertNotContains('cookies.enabled', $keys);
+        $this->assertNotContains('cookies.banner_title', $keys);
+        $this->assertContains('site.name', $keys);
+    }
+
+    public function test_saving_the_settings_screen_keeps_module_values(): void
+    {
+        Cookies::save(['enabled' => true, 'banner_title' => 'Про cookie']);
+
+        // Классический экран сохраняет всё, что видит, — значения модуля он
+        // раньше обнулял, потому что форма их не присылала.
+        $this->actingAs($this->adminWith(['settings.view', 'settings.update']))
+            ->put(route('admin.settings.update'), ['settings' => ['site__name' => 'NEXOR']])
+            ->assertRedirect();
+
+        $this->assertTrue(Cookies::get('enabled'));
+        $this->assertSame('Про cookie', Cookies::get('banner_title'));
     }
 
     public function test_saved_values_are_read_back_through_the_cache(): void

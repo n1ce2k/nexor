@@ -18,9 +18,9 @@
                         @php $input = str_replace('.', '__', $setting->key); @endphp
 
                         <x-nexor::admin.field :label="$setting->name ?? $setting->key"
-                                       :name="$setting->type === 'image' ? 'file_'.$input : 'settings.'.$input"
+                                       :name="$setting->isFile() ? 'file_'.$input : 'settings.'.$input"
                                        :hint="$setting->hint"
-                                       class="{{ in_array($setting->type, ['text', 'image'], true) ? 'sm:col-span-2' : '' }}">
+                                       class="{{ $setting->type === 'text' || $setting->isFile() ? 'sm:col-span-2' : '' }}">
                             @switch ($setting->type)
                                 @case ('boolean')
                                     <x-nexor::admin.toggle :name="'settings['.$input.']'"
@@ -34,8 +34,9 @@
                                                       :class="Str::contains($setting->key, ['robots', 'counters']) ? 'font-mono text-xs' : ''" />
                                     @break
 
+                                @case ('file')
                                 @case ('image')
-                                    <x-nexor::admin.file-input :name="'file_'.$input" :value="$setting->value" accept="image/*" />
+                                    <x-nexor::admin.file-input :name="'file_'.$input" :value="$setting->value" />
                                     @break
 
                                 @case ('integer')

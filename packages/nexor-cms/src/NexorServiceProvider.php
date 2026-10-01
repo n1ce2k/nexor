@@ -37,6 +37,7 @@ use Nexor\Cms\Http\Middleware\InjectCookieCounters;
 use Nexor\Cms\Http\Middleware\InjectInlineEditor;
 use Nexor\Cms\Services\InfoBlockService;
 use Nexor\Cms\Support\Cookies;
+use Nexor\Cms\Support\InlineBackground;
 use Nexor\Cms\Support\MailConfig;
 use Nexor\Cms\Support\Modules\ModuleManager;
 use Nexor\Cms\Support\Nexor;
@@ -321,6 +322,10 @@ class NexorServiceProvider extends ServiceProvider
         // `list` — зарезервированное слово PHP, класса `News\List` не бывает.
         // А имя `news.list` привычное, поэтому тег связан с классом псевдонимом.
         Blade::component(NewsListing::class, 'nexor::news.list');
+
+        // <section @editBackground('main.bg', '/img/hero.jpg')> — фон, правимый на
+        // странице. Директива, а не компонент: атрибуты пишутся в чужой тег.
+        Blade::directive('editBackground', fn (string $expression): string => '<?php echo \\'.InlineBackground::class."::attributes({$expression}); ?>");
 
         // Форма обратной связи без перезагрузки: <livewire:nexor::feedback-form :form-id="3" />
         // (обычно её подключает сам <x-nexor::form :id="3" />).

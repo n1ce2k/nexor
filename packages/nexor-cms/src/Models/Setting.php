@@ -20,6 +20,17 @@ class Setting extends Model
     public const MASK = '••••••••';
 
     /**
+     * Что принимает настройка-файл.
+     *
+     * Список разрешённых, а не запрещённых: файл ложится в публичное
+     * хранилище, и .php, .html или .svg оттуда исполнились бы на домене сайта.
+     */
+    public const FILE_EXTENSIONS = 'jpg,jpeg,png,gif,webp,avif,ico,pdf,doc,docx,xls,xlsx,ppt,pptx,odt,ods,rtf,txt,csv,zip,rar,7z,mp3,mp4,webm';
+
+    /** Размер файла настройки, КБ. */
+    public const FILE_MAX_KB = 10240;
+
+    /**
      * Editable value types.
      *
      * @return array<string, string>
@@ -33,7 +44,7 @@ class Setting extends Model
             'select' => 'Список',
             'boolean' => 'Да / Нет',
             'integer' => 'Число',
-            'image' => 'Изображение',
+            'file' => 'Файл',
             //            'password' => 'Пароль (хранится зашифрованным)',
         ];
     }
@@ -78,11 +89,29 @@ class Setting extends Model
     {
         $setting = self::query()->firstOrNew(['key' => $key]);
 
+        // Новая строка без определения — служебное значение модуля. Группа по
+        // началу ключа (cookies.enabled → cookies), иначе база поставила бы
+        // «general», и значение всплыло бы на экране настроек сайта.
+        if (! $setting->exists) {
+            $setting->group = str_contains($key, '.') ? strstr($key, '.', true) : 'general';
+        }
+
         $setting->value = $setting->type === 'password' && filled($value)
             ? Crypt::encryptString((string) $value)
             : (is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : $value);
 
         $setting->save();
+    }
+
+    /**
+     * Значение настройки — загружаемый файл.
+     *
+     * Тип `image` остался от прежних версий: до миграции он встречается в
+     * базе, и такие настройки должны работать как раньше.
+     */
+    public function isFile(): bool
+    {
+        return in_array($this->type, ['file', 'image'], true);
     }
 
     public function castValue(): mixed
@@ -125,6 +154,20 @@ class Setting extends Model
         }
 
         return $this->castValue();
+    }
+
+    /**
+     * Настройки с определением — то, что показывает экран настроек.
+     *
+     * Строки без названия пишет сам код (`Setting::put()` из модулей, например
+     * cookies.*): у них свой экран, а здесь они выглядели бы пустыми полями —
+     * и затирались бы при сохранении.
+     *
+     * @param  Builder<$this>  $query
+     */
+    public function scopeDefined(Builder $query): void
+    {
+        $query->whereNotNull('name');
     }
 
     /**

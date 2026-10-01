@@ -33,8 +33,8 @@ class SettingSeeder extends Seeder
         return [
             ['key' => 'site.name', 'value' => 'NEXOR', 'type' => 'string', 'group' => 'general', 'name' => 'Название сайта', 'sort' => 100],
             ['key' => 'site.tagline', 'value' => 'Панель управления сайтом', 'type' => 'string', 'group' => 'general', 'name' => 'Слоган', 'sort' => 110],
-            ['key' => 'site.logo', 'value' => null, 'type' => 'image', 'group' => 'general', 'name' => 'Логотип', 'sort' => 120],
-            ['key' => 'site.favicon', 'value' => null, 'type' => 'image', 'group' => 'general', 'name' => 'Favicon', 'sort' => 130],
+            ['key' => 'site.logo', 'value' => null, 'type' => 'file', 'group' => 'general', 'name' => 'Логотип', 'sort' => 120],
+            ['key' => 'site.favicon', 'value' => null, 'type' => 'file', 'group' => 'general', 'name' => 'Favicon', 'sort' => 130],
             ['key' => 'site.maintenance', 'value' => '0', 'type' => 'boolean', 'group' => 'general', 'name' => 'Режим обслуживания', 'hint' => 'Публичная часть закрывается заглушкой для всех, кроме авторизованных.', 'sort' => 140],
             ['key' => 'site.maintenance_message', 'value' => '', 'type' => 'text', 'group' => 'general', 'name' => 'Текст заглушки', 'hint' => 'Показывается на странице обслуживания. Пусто — текст по умолчанию.', 'sort' => 150],
 

@@ -84,7 +84,7 @@ enum MenuItemType: string
             self::Page => ['iblock_id', 'element_id', 'title'],
             self::Section => ['iblock_id', 'section_id', 'title'],
             self::Sections => ['iblock_id', 'section_id', 'max_depth', 'with_elements', 'with_title', 'title'],
-            self::Submenu => ['title', 'url', 'target', 'max_depth', 'with_title'],
+            self::Submenu => ['title', 'url', 'target', 'max_depth'],
             self::Heading => ['title'],
             self::Divider => [],
         };

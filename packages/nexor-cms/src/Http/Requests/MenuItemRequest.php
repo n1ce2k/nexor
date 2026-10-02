@@ -116,7 +116,7 @@ class MenuItemRequest extends FormRequest
     /**
      * Заголовок и разделитель никуда не ведут, но заголовку нужна подпись.
      *
-     * Подменю по умолчанию — один уровень ссылок, выпадающих из своего пункта.
+     * Подменю по умолчанию — один уровень ссылок.
      */
     protected function prepareForValidation(): void
     {
@@ -125,10 +125,7 @@ class MenuItemRequest extends FormRequest
         }
 
         if ($this->input('type') === MenuItemType::Submenu->value) {
-            $this->merge([
-                'max_depth' => $this->input('max_depth') ?: 1,
-                'with_title' => $this->has('with_title') ? $this->boolean('with_title') : true,
-            ]);
+            $this->merge(['max_depth' => $this->input('max_depth') ?: 1]);
         }
     }
 

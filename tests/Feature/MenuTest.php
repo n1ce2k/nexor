@@ -542,17 +542,18 @@ class MenuTest extends TestCase
         $this->assertSame(2, $tree[0]['children'][0]['level']);
     }
 
-    public function test_a_submenu_without_its_title_puts_the_links_in_its_place(): void
+    public function test_a_submenu_keeps_its_links_in_children_whatever_the_title_flag(): void
     {
         $menu = $this->menu();
-        $submenu = $this->submenu($menu, ['with_title' => false]);
+        // Так сохраняется подменю, в которое превратили ссылку: флаг выключен.
+        $submenu = $this->submenu($menu, ['with_title' => false, 'max_depth' => 2]);
 
         MenuItem::factory()->for($menu)->create(['parent_id' => $submenu->id, 'title' => 'Доставка', 'url' => '/delivery']);
 
         $tree = $this->resolver()->tree('main', url('/'));
 
-        $this->assertSame(['Доставка'], array_column($tree, 'name'));
-        $this->assertSame(1, $tree[0]['level']);
+        $this->assertSame(['Услуги'], array_column($tree, 'name'));
+        $this->assertSame(['Доставка'], array_column($tree[0]['children'], 'name'));
     }
 
     public function test_a_submenu_shows_no_deeper_than_its_depth(): void
@@ -570,7 +571,7 @@ class MenuTest extends TestCase
         $this->assertSame(['Курьером'], array_column($this->resolver()->tree('main', url('/'))[0]['children'][0]['children'], 'name'));
     }
 
-    public function test_a_new_submenu_is_one_level_deep_and_shows_its_title(): void
+    public function test_a_new_submenu_is_one_level_deep(): void
     {
         $menu = $this->menu();
 
@@ -578,7 +579,6 @@ class MenuTest extends TestCase
             ->postJson("/admin/api/menus/{$menu->id}/items", ['type' => 'submenu', 'title' => 'Услуги'])
             ->assertCreated()
             ->assertJsonPath('data.max_depth', 1)
-            ->assertJsonPath('data.with_title', true)
             ->assertJsonPath('data.accepts_children', true)
             ->json('data.id');
 

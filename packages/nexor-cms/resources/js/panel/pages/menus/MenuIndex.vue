@@ -357,10 +357,6 @@ onMounted(load);
                             @change="saveOrder" @edit="editItem" @remove="removeItem"
                             @move="move" @add="addChild" @saved="onInlineSaved" @cancel="inline = null" />
 
-                <p v-if="items.length && canEdit" class="mt-3 text-xs text-[var(--text-muted)]">
-                    Вложить пункт: перетащите его за ⋮⋮ в «Подменю».
-                </p>
-
                 <p class="mt-4 text-xs text-[var(--text-muted)]">
                     Выводится так:
                     <code class="font-mono text-[var(--text-base)]">&lt;x-nexor::menu code="{{ current.code }}" /&gt;</code>

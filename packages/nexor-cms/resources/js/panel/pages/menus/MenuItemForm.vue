@@ -75,10 +75,9 @@ const shows = computed(() => {
         depthHint: submenu
             ? 'Сколько уровней ссылок можно вложить: 1 — только ссылки, 2 — у ссылок свои ссылки.'
             : 'Сколько уровней разделов разворачивать.',
-        withTitle: ['sections', 'submenu'].includes(type),
-        withTitleHint: submenu
-            ? 'Включено — ссылки выпадают из своего пункта. Выключено — встают на его место, как разделы инфоблока.'
-            : 'Выключено — разделы встают на место пункта. Включено — пункт рисуется сам, разделы уходят внутрь него.',
+        // У подменю переключателя нет: его ссылки всегда внутри своего пункта.
+        withTitle: type === 'sections',
+        withTitleHint: 'Выключено — разделы встают на место пункта. Включено — пункт рисуется сам, разделы уходят внутрь него.',
         title: type !== 'divider',
         // У динамического пункта своего названия нет — он раскрывается в разделы.
         titleRequired: ['link', 'heading', 'submenu'].includes(type),
@@ -139,15 +138,16 @@ watch(() => props.modelValue || props.inline, (open) => {
     }
 }, { immediate: true });
 
-// Новому подменю — один уровень ссылок, выпадающих из своего пункта; разделам
-// инфоблока — прежние два уровня на месте пункта.
+// Подменю — один уровень ссылок, разделам инфоблока — прежние два уровня на
+// месте пункта. Срабатывает и при правке, когда пункту меняют тип: иначе
+// бывшая ссылка становилась подменю с её глубиной.
 watch(() => form.fields.type, (type, previous) => {
-    if (isEdit.value || previous === undefined) {
+    if (previous === undefined || type === props.item?.type) {
         return;
     }
 
     if (type === 'submenu') {
-        Object.assign(form.fields, { max_depth: 1, with_title: true });
+        form.fields.max_depth = 1;
     } else if (type === 'sections') {
         Object.assign(form.fields, { max_depth: 2, with_title: false });
     }

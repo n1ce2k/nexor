@@ -10,6 +10,9 @@ import NToggle from '../../components/ui/NToggle.vue';
  * Одни и те же поля показываются в окне (пункт в корне меню) и прямо в списке
  * ссылок подменю. Вся логика — загрузка инфоблока, сохранение — у формы, здесь
  * только разметка.
+ *
+ * Порядок полей задаётся через order, а не повтором разметки: у подменю
+ * название и ссылка поднимаются сразу под тип — это главное, что в нём правят.
  */
 defineProps({
     form: { type: Object, required: true },
@@ -27,8 +30,8 @@ defineProps({
 </script>
 
 <template>
-    <div class="space-y-5">
-        <NField label="Тип пункта" required :hint="typeHint" :error="form.error('type')">
+    <div class="flex flex-col gap-5">
+        <NField label="Тип пункта" required :hint="typeHint" :error="form.error('type')" class="-order-2">
             <NSelect v-model="form.fields.type" :options="types" />
         </NField>
 
@@ -73,18 +76,20 @@ defineProps({
         <NField v-if="shows.title" :label="shows.titleRequired ? 'Название' : 'Название (необязательно)'"
                 :required="shows.titleRequired"
                 :hint="titleHint"
-                :error="form.error('title')">
+                :error="form.error('title')"
+                :class="shows.linkFirst && '-order-1'">
             <NInput v-model="form.fields.title" />
         </NField>
 
-        <NField v-if="shows.url" :label="shows.urlRequired ? 'Адрес' : 'Адрес (необязательно)'"
+        <NField v-if="shows.url" :label="shows.urlLabel"
                 :required="shows.urlRequired"
                 :hint="shows.urlHint"
-                :error="form.error('url')">
+                :error="form.error('url')"
+                :class="shows.linkFirst && '-order-1'">
             <NInput v-model="form.fields.url" class="font-mono" placeholder="/katalog" />
         </NField>
 
-        <div v-if="shows.link" class="grid gap-5 sm:grid-cols-2">
+        <div v-if="shows.link" :class="['grid gap-5 sm:grid-cols-2', shows.linkFirst && '-order-1']">
             <NField label="Открывать">
                 <NSelect v-model="form.fields.target"
                          :options="[{ value: '', label: 'В этой вкладке' }, { value: '_blank', label: 'В новой вкладке' }]" />

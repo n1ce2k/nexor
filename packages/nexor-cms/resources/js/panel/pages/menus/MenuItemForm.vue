@@ -61,9 +61,12 @@ const shows = computed(() => {
     return {
         url: ['link', 'submenu'].includes(type),
         urlRequired: type === 'link',
+        urlLabel: submenu ? 'Ссылка (необязательно)' : 'Адрес',
         urlHint: submenu
-            ? 'Пусто — пункт только раскрывает список ссылок.'
+            ? 'Куда ведёт сам пункт: /uslugi, https://…, #contacts. Пусто — пункт только раскрывает список ссылок.'
             : 'Внешняя ссылка, якорь или свой путь: /katalog, https://…, #contacts',
+        // У подменю название и ссылка — сразу под типом, глубина и вид — ниже.
+        linkFirst: submenu,
         iblock: ['page', 'section', 'sections'].includes(type),
         element: type === 'page',
         section: type === 'section',

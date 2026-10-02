@@ -1,10 +1,11 @@
-import { registerPage } from './core.js';
+import { registerPage, registerWidget } from './core.js';
 
 import CartSettings from './pages/CartSettings.vue';
 import CheckoutSettings from './pages/CheckoutSettings.vue';
 import OrderIndex from './pages/OrderIndex.vue';
 import OrderShow from './pages/OrderShow.vue';
 import PromocodeIndex from './pages/PromocodeIndex.vue';
+import DeliveryNotices from './widgets/DeliveryNotices.vue';
 
 /**
  * Страницы модуля «Магазин» в панели.
@@ -60,4 +61,12 @@ registerPage({
     feature: 'shop.checkout',
     props: false,
     menu: { label: 'Доставка и оплата', icon: 'truck', group },
+});
+
+// Попапы о заказах, у которых сменился статус доставки, пока в панели никого не было.
+registerWidget({
+    name: 'shop.delivery-notices',
+    component: DeliveryNotices,
+    permission: 'shop.orders.view',
+    feature: 'shop',
 });

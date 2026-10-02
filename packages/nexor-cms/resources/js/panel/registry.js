@@ -10,6 +10,7 @@ import { markRaw, shallowReactive } from 'vue';
  *   window.Nexor.registerField('geo', MyMapField)
  *   window.Nexor.registerPage({ path: 'reports', name: 'reports', component: Reports })
  *   window.Nexor.registerMenuItem({ label: 'Отчёты', to: { name: 'reports' }, icon: 'chart', group: 'Контент' })
+ *   window.Nexor.registerWidget({ name: 'notices', component: Notices, permission: 'shop.orders.view' })
  */
 export const registry = shallowReactive({
     fields: {},
@@ -17,8 +18,20 @@ export const registry = shallowReactive({
     menuItems: [],
     columns: {},
     formFields: {},
+    widgets: [],
     hooks: {},
 });
+
+/**
+ * Компонент, который живёт поверх всех экранов панели: попапы, индикаторы.
+ *
+ * Рисуется, пока человек в панели, и не пересоздаётся при переходах между
+ * страницами. `permission` и `feature` — как у страниц: без права или на
+ * лицензии без модуля виджета нет вовсе.
+ */
+export function registerWidget({ name, component, permission = null, feature = null }) {
+    registry.widgets.push({ name, component: markRaw(component), permission, feature });
+}
 
 /**
  * Поле формы элемента от модуля: `registerFormField('pagebuilder.content', BuilderField)`.

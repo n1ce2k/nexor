@@ -11,6 +11,7 @@ const Nexor = window.Nexor;
 export const api = Nexor.api;
 export const toFormData = Nexor.toFormData;
 export const registerPage = Nexor.registerPage;
+export const registerWidget = Nexor.registerWidget;
 export const useForm = Nexor.useForm;
 export const useSession = Nexor.stores.useSession;
 export const useUi = Nexor.stores.useUi;

@@ -140,7 +140,7 @@ class Cdek
      * Состояние заявки (`ACCEPTED` — принята и обрабатывается, `SUCCESSFUL` —
      * обработана, `INVALID` — отклонена) объясняет, почему номера ещё нет.
      *
-     * @return array{track: string|null, status: string|null, state: string|null, error: string|null}
+     * @return array{track: string|null, status: string|null, code: string|null, state: string|null, error: string|null}
      *
      * @throws DeliveryException
      */
@@ -157,6 +157,8 @@ class Cdek
                 : null,
             // Статусы приходят по возрастанию даты — последний и есть текущий.
             'status' => filled(end($statuses)['name'] ?? null) ? (string) end($statuses)['name'] : null,
+            // Код того же статуса (DELIVERED, INVALID…): по нему видно, что следить дальше незачем.
+            'code' => filled(end($statuses)['code'] ?? null) ? (string) end($statuses)['code'] : null,
             'state' => filled(end($requests)['state'] ?? null) ? (string) end($requests)['state'] : null,
             'error' => self::requestError($response),
         ];

@@ -142,7 +142,7 @@ onMounted(load);
 <template>
     <div v-if="data" class="space-y-6">
         <NPageHeader :title="`Заказ №${data.number}`" :back="{ name: 'shop.orders' }"
-                     :description="`Оформлен ${formatDate(data.created_at)} · корзина ${data.edition === 'ultimate' ? 'Ultimate' : 'Basic'}`">
+                     :description="`Оформлен ${formatDate(data.created_at)}`">
             <template #actions>
                 <NBadge :color="data.status_color">{{ data.status_label }}</NBadge>
                 <NButton v-if="session.can('shop.orders.delete')" variant="ghost" size="sm" icon="trash" @click="remove">

@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Nexor\Shop\Http\Controllers\Api\DeliveryMethodController;
 use Nexor\Shop\Http\Controllers\Api\OrderController;
 use Nexor\Shop\Http\Controllers\Api\OrderDeliveryController;
+use Nexor\Shop\Http\Controllers\Api\OrderEventController;
 use Nexor\Shop\Http\Controllers\Api\OrderFieldController;
 use Nexor\Shop\Http\Controllers\Api\OrderPaymentController;
 use Nexor\Shop\Http\Controllers\Api\PaymentMethodController;
@@ -31,6 +32,12 @@ Route::prefix('shop')->name('shop.')->group(function (): void {
         ->name('order-fields.update')->middleware('nexor.permission:shop.cart.update');
     Route::delete('order-fields/{field}', [OrderFieldController::class, 'destroy'])
         ->name('order-fields.destroy')->middleware('nexor.permission:shop.cart.update');
+
+    // Попапы панели: что случилось с заказами, пока человека не было.
+    Route::get('notices', [OrderEventController::class, 'index'])
+        ->name('notices.index')->middleware('nexor.permission:shop.orders.view');
+    Route::post('notices/seen', [OrderEventController::class, 'seen'])
+        ->name('notices.seen')->middleware('nexor.permission:shop.orders.view');
 
     Route::get('orders', [OrderController::class, 'index'])
         ->name('orders.index')->middleware('nexor.permission:shop.orders.view');

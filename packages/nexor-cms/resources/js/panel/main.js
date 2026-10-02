@@ -86,6 +86,7 @@ const Nexor = {
     registerMenuItem: registry.registerMenuItem,
     registerColumn: registry.registerColumn,
     registerFormField: registry.registerFormField,
+    registerWidget: registry.registerWidget,
     on: registry.on,
     emit: registry.emit,
     stores: { useSession, useUi },

@@ -2,6 +2,7 @@
 
 namespace Nexor\Shop;
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Http\Request;
@@ -10,6 +11,7 @@ use Livewire\Livewire;
 use Nexor\Cms\Support\Nexor;
 use Nexor\Shop\Console\InstallCommand;
 use Nexor\Shop\Console\PublishComponentCommand;
+use Nexor\Shop\Console\SyncShipmentsCommand;
 use Nexor\Shop\Support\Cart;
 
 class ShopServiceProvider extends ServiceProvider
@@ -50,6 +52,12 @@ class ShopServiceProvider extends ServiceProvider
             }
         }
 
+        // Статусы посылок — по расписанию. Работает, если на сервере есть строка
+        // cron: * * * * * php artisan schedule:run
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
+            $schedule->command('shop:shipments:sync')->everyThirtyMinutes()->withoutOverlapping();
+        });
+
         // <livewire:nexor-shop::cart-page /> → Nexor\Shop\Livewire\CartPage
         Livewire::addNamespace('nexor-shop', classNamespace: 'Nexor\\Shop\\Livewire');
 
@@ -57,6 +65,7 @@ class ShopServiceProvider extends ServiceProvider
             $this->commands([
                 InstallCommand::class,
                 PublishComponentCommand::class,
+                SyncShipmentsCommand::class,
             ]);
 
             $this->publishes([

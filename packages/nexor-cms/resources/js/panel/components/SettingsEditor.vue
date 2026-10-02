@@ -221,7 +221,7 @@ defineExpose({ save, busy, load });
 
             <div class="grid gap-5 sm:grid-cols-2">
                 <div v-for="setting in inGroup(group.key)" :key="setting.id"
-                     :class="['relative', (['text', 'html'].includes(setting.type) || isFile(setting)) && 'sm:col-span-2']">
+                     :class="['relative', ['text', 'html'].includes(setting.type) && 'sm:col-span-2']">
                     <NField :label="setting.name" :hint="setting.hint">
                         <template v-if="manageable && canEdit" #label-actions>
                             <button type="button" title="Изменить свойство"

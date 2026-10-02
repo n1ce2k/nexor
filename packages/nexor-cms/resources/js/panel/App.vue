@@ -1,13 +1,18 @@
 <script setup>
-import { onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
 import AdminLayout from './layouts/AdminLayout.vue';
 import NConfirm from './components/ui/NConfirm.vue';
 import NToasts from './components/ui/NToasts.vue';
+import { registry } from './registry';
 import { useSession } from './stores/session';
 import { useUi } from './stores/ui';
 
 const session = useSession();
 const ui = useUi();
+
+// Виджеты модулей: только те, на которые у человека есть право и лицензия.
+const widgets = computed(() => registry.widgets.filter((widget) => (!widget.permission || session.can(widget.permission))
+    && (!widget.feature || session.feature(widget.feature))));
 
 onMounted(() => {
     ui.applyTheme();
@@ -35,6 +40,10 @@ onMounted(() => {
     </div>
 
     <AdminLayout v-else />
+
+    <template v-if="session.ready">
+        <component :is="widget.component" v-for="widget in widgets" :key="widget.name" />
+    </template>
 
     <NToasts />
     <NConfirm />

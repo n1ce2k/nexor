@@ -101,6 +101,7 @@ class Shipments
             },
             'delivery_track' => $shipment['track'] ?? $order->delivery_track,
             'delivery_status' => $shipment['status'] ?? self::stateLabel($shipment['state']) ?? $order->delivery_status,
+            'delivery_status_code' => $shipment['code'] ?? $order->delivery_status_code,
             'delivery_error' => $shipment['error'],
             'delivery_synced_at' => now(),
         ])->save();

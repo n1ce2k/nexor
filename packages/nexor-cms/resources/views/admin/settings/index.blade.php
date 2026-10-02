@@ -20,7 +20,7 @@
                         <x-nexor::admin.field :label="$setting->name ?? $setting->key"
                                        :name="$setting->isFile() ? 'file_'.$input : 'settings.'.$input"
                                        :hint="$setting->hint"
-                                       class="{{ $setting->type === 'text' || $setting->isFile() ? 'sm:col-span-2' : '' }}">
+                                       class="{{ $setting->type === 'text' ? 'sm:col-span-2' : '' }}">
                             @switch ($setting->type)
                                 @case ('boolean')
                                     <x-nexor::admin.toggle :name="'settings['.$input.']'"

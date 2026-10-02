@@ -21,7 +21,8 @@ use Nexor\Shop\Enums\OrderStatus;
     'subtotal', 'discount', 'delivery_price', 'total',
     'promocode_id', 'promocode_code',
     'delivery_method_id', 'delivery_name', 'delivery_data', 'payment_method_id', 'payment_name',
-    'delivery_state', 'delivery_request_id', 'delivery_track', 'delivery_status', 'delivery_error', 'delivery_synced_at',
+    'delivery_state', 'delivery_request_id', 'delivery_track', 'delivery_status', 'delivery_status_code',
+    'delivery_error', 'delivery_synced_at',
     'manager_comment', 'ip', 'payment_status', 'paid_at',
 ])]
 class Order extends Model
@@ -97,6 +98,14 @@ class Order extends Model
     public function deliveryMethod(): BelongsTo
     {
         return $this->belongsTo(DeliveryMethod::class, 'delivery_method_id');
+    }
+
+    /**
+     * @return HasMany<OrderEvent, $this>
+     */
+    public function events(): HasMany
+    {
+        return $this->hasMany(OrderEvent::class)->latest('id');
     }
 
     /**

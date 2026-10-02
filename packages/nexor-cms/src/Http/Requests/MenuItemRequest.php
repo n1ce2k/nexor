@@ -2,10 +2,12 @@
 
 namespace Nexor\Cms\Http\Requests;
 
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Nexor\Cms\Enums\MenuItemType;
 use Nexor\Cms\Enums\MenuVisibility;
+use Nexor\Cms\Support\MenuNesting;
 
 /**
  * Пункт меню.
@@ -37,12 +39,13 @@ class MenuItemRequest extends FormRequest
                 'nullable', 'integer',
                 Rule::exists('menu_items', 'id')->where('menu_id', $menu?->id),
                 Rule::notIn(array_filter([$item?->id])),
+                $this->placement(...),
             ],
 
             // У страницы и раздела имя берётся из сущности, у динамического пункта
             // своего имени нет вовсе — он раскрывается в разделы.
             'title' => [
-                in_array($type, [MenuItemType::Link, MenuItemType::Heading], true) ? 'required' : 'nullable',
+                in_array($type, [MenuItemType::Link, MenuItemType::Heading, MenuItemType::Submenu], true) ? 'required' : 'nullable',
                 'string', 'max:255',
             ],
 
@@ -79,12 +82,53 @@ class MenuItemRequest extends FormRequest
     }
 
     /**
+     * Можно ли положить пункт туда, куда его кладут.
+     *
+     * Проверяется, только когда родитель меняется: пункт, вложенный в другой
+     * до появления «Подменю», остаётся на месте и правится как обычно.
+     *
+     * @param  Closure(string): void  $fail
+     */
+    protected function placement(string $attribute, mixed $value, Closure $fail): void
+    {
+        $menu = $this->route('menu');
+        $item = $this->route('item');
+        $type = MenuItemType::tryFrom((string) $this->input('type'));
+
+        if ($menu === null || $type === null || $value === null) {
+            return;
+        }
+
+        if ($item !== null && (int) $item->parent_id === (int) $value) {
+            return;
+        }
+
+        $id = $item?->id ?? 'new';
+        $problem = MenuNesting::of($menu)
+            ->with($id, (int) $value, $type, (int) ($this->input('max_depth') ?: 1))
+            ->problem($id);
+
+        if ($problem !== null) {
+            $fail($problem);
+        }
+    }
+
+    /**
      * Заголовок и разделитель никуда не ведут, но заголовку нужна подпись.
+     *
+     * Подменю по умолчанию — один уровень ссылок, выпадающих из своего пункта.
      */
     protected function prepareForValidation(): void
     {
         if ($this->input('type') === MenuItemType::Divider->value) {
             $this->merge(['title' => $this->input('title') ?: '—']);
+        }
+
+        if ($this->input('type') === MenuItemType::Submenu->value) {
+            $this->merge([
+                'max_depth' => $this->input('max_depth') ?: 1,
+                'with_title' => $this->has('with_title') ? $this->boolean('with_title') : true,
+            ]);
         }
     }
 

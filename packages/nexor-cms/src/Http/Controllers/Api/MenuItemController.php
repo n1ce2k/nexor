@@ -9,6 +9,7 @@ use Nexor\Cms\Http\Resources\MenuItemResource;
 use Nexor\Cms\Models\Menu;
 use Nexor\Cms\Models\MenuItem;
 use Nexor\Cms\Support\ActivityLogger;
+use Nexor\Cms\Support\MenuNesting;
 use Nexor\Cms\Support\MenuResolver;
 
 class MenuItemController extends ApiController
@@ -81,6 +82,21 @@ class MenuItemController extends ApiController
                 'parent_id' => in_array($parent, $own, true) ? $parent : null,
                 'sort' => ($index + 1) * 10,
             ];
+        }
+
+        // Вкладывать можно только в «Подменю» и на его глубину. Проверяем тех,
+        // кого перенесли к другому родителю: старые вложения остаются как были.
+        $before = MenuNesting::of($menu);
+        $after = $before->moved(array_map(fn (array $position) => $position['parent_id'], $positions));
+
+        foreach ($positions as $id => $position) {
+            if ($position['parent_id'] === $before->parentOf($id)) {
+                continue;
+            }
+
+            if ($problem = $after->problem($id)) {
+                return response()->json(['message' => $problem], 422);
+            }
         }
 
         foreach ($positions as $id => $position) {

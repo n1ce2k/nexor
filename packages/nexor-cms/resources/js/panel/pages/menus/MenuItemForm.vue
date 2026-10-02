@@ -1,11 +1,8 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
+import MenuItemFields from './MenuItemFields.vue';
 import NButton from '../../components/ui/NButton.vue';
-import NField from '../../components/ui/NField.vue';
-import NInput from '../../components/ui/NInput.vue';
 import NModal from '../../components/ui/NModal.vue';
-import NSelect from '../../components/ui/NSelect.vue';
-import NToggle from '../../components/ui/NToggle.vue';
 import { api } from '../../api';
 import { useForm } from '../../composables/useForm';
 import { useSession } from '../../stores/session';
@@ -17,37 +14,36 @@ import { useUi } from '../../stores/ui';
  * Набор полей зависит от типа: у ссылки адрес, у страницы выбор элемента, у
  * динамического пункта — инфоблок и глубина. Показывать всё сразу нельзя, иначе
  * форма требует лишнего и путает.
+ *
+ * Открывается окном, а с `inline` — прямо в списке ссылок подменю, как поле в
+ * редакторе формы обратной связи.
  */
 const props = defineProps({
     modelValue: { type: Boolean, default: false },
     menu: { type: Object, default: null },
     item: { type: Object, default: null },
+    // Новый пункт кладётся внутрь этого пункта
+    parentId: { type: Number, default: null },
+    inline: { type: Boolean, default: false },
     types: { type: Array, default: () => [] },
     visibility: { type: Array, default: () => [] },
 });
 
-const emit = defineEmits(['update:modelValue', 'saved']);
+const emit = defineEmits(['update:modelValue', 'saved', 'cancel']);
 
 const session = useSession();
 const ui = useUi();
 
-const form = useForm({
-    type: 'link',
-    title: '',
-    url: '',
-    iblock_id: null,
-    element_id: null,
-    section_id: null,
-    max_depth: 2,
-    with_elements: false,
-    with_title: false,
-    target: '',
-    css_class: '',
-    icon: '',
-    visibility: 'all',
-    highlight_children: true,
-    is_active: true,
-});
+/** Пустой пункт: тип по умолчанию — ссылка. */
+function blank() {
+    return {
+        type: 'link', title: '', url: '', iblock_id: null, element_id: null, section_id: null,
+        max_depth: 2, with_elements: false, with_title: false, target: '', css_class: '', icon: '',
+        visibility: 'all', highlight_children: true, is_active: true,
+    };
+}
+
+const form = useForm(blank());
 
 const elements = ref([]);
 const sections = ref([]);
@@ -58,18 +54,34 @@ const isEdit = computed(() => Boolean(props.item?.id));
 const typeHint = computed(() => props.types.find((one) => one.value === form.fields.type)?.hint);
 
 /** Поля, которые показывает форма этого типа. */
-const shows = computed(() => ({
-    url: form.fields.type === 'link',
-    iblock: ['page', 'section', 'sections'].includes(form.fields.type),
-    element: form.fields.type === 'page',
-    section: form.fields.type === 'section',
-    root: form.fields.type === 'sections',
-    depth: form.fields.type === 'sections',
-    title: form.fields.type !== 'divider',
-    // У динамического пункта своего названия нет — он раскрывается в разделы.
-    titleRequired: ['link', 'heading'].includes(form.fields.type),
-    link: ['link', 'page', 'section'].includes(form.fields.type),
-}));
+const shows = computed(() => {
+    const type = form.fields.type;
+    const submenu = type === 'submenu';
+
+    return {
+        url: ['link', 'submenu'].includes(type),
+        urlRequired: type === 'link',
+        urlHint: submenu
+            ? 'Пусто — пункт только раскрывает список ссылок.'
+            : 'Внешняя ссылка, якорь или свой путь: /katalog, https://…, #contacts',
+        iblock: ['page', 'section', 'sections'].includes(type),
+        element: type === 'page',
+        section: type === 'section',
+        root: type === 'sections',
+        depth: ['sections', 'submenu'].includes(type),
+        depthHint: submenu
+            ? 'Сколько уровней ссылок можно вложить: 1 — только ссылки, 2 — у ссылок свои ссылки.'
+            : 'Сколько уровней разделов разворачивать.',
+        withTitle: ['sections', 'submenu'].includes(type),
+        withTitleHint: submenu
+            ? 'Включено — ссылки выпадают из своего пункта. Выключено — встают на его место, как разделы инфоблока.'
+            : 'Выключено — разделы встают на место пункта. Включено — пункт рисуется сам, разделы уходят внутрь него.',
+        title: type !== 'divider',
+        // У динамического пункта своего названия нет — он раскрывается в разделы.
+        titleRequired: ['link', 'heading', 'submenu'].includes(type),
+        link: ['link', 'page', 'section', 'submenu'].includes(type),
+    };
+});
 
 /** Откуда возьмётся название, если своё не задали. */
 const titleHint = computed(() => {
@@ -92,11 +104,8 @@ const sectionedOnly = computed(() => session.iblocks
     .filter((one) => one.has_sections)
     .map((one) => ({ value: one.id, label: one.name })));
 
-watch(() => props.modelValue, (open) => {
-    if (!open) {
-        return;
-    }
-
+/** Заполняет форму пунктом или пустыми значениями. */
+function fill() {
     form.reset(props.item
         ? {
             type: props.item.type,
@@ -115,13 +124,30 @@ watch(() => props.modelValue, (open) => {
             highlight_children: props.item.highlight_children ?? true,
             is_active: props.item.is_active ?? true,
         }
-        : {
-            type: 'link', title: '', url: '', iblock_id: null, element_id: null, section_id: null,
-            max_depth: 2, with_elements: false, with_title: false, target: '', css_class: '', icon: '',
-            visibility: 'all', highlight_children: true, is_active: true,
-        });
+        : blank());
 
     loadSource();
+}
+
+// Окно заполняется при открытии, встроенная форма — сразу.
+watch(() => props.modelValue || props.inline, (open) => {
+    if (open) {
+        fill();
+    }
+}, { immediate: true });
+
+// Новому подменю — один уровень ссылок, выпадающих из своего пункта; разделам
+// инфоблока — прежние два уровня на месте пункта.
+watch(() => form.fields.type, (type, previous) => {
+    if (isEdit.value || previous === undefined) {
+        return;
+    }
+
+    if (type === 'submenu') {
+        Object.assign(form.fields, { max_depth: 1, with_title: true });
+    } else if (type === 'sections') {
+        Object.assign(form.fields, { max_depth: 2, with_title: false });
+    }
 });
 
 // Сменили инфоблок — прежние страница и раздел к нему уже не относятся.
@@ -166,6 +192,10 @@ async function loadSource() {
     }
 }
 
+function close() {
+    props.inline ? emit('cancel') : emit('update:modelValue', false);
+}
+
 async function save() {
     const payload = { ...form.fields };
 
@@ -179,114 +209,53 @@ async function save() {
         isEdit.value
             ? `menus/${props.menu.id}/items/${props.item.id}`
             : `menus/${props.menu.id}/items`,
-        { body: { ...payload, parent_id: props.item?.parent_id ?? null } },
+        { body: { ...payload, parent_id: props.item?.parent_id ?? props.parentId ?? null } },
     );
 
     if (data) {
-        emit('saved');
-        emit('update:modelValue', false);
+        emit('saved', data.data);
+
+        if (!props.inline) {
+            emit('update:modelValue', false);
+        }
     }
 }
+
+const fieldProps = computed(() => ({
+    form,
+    shows: shows.value,
+    types: props.types,
+    visibility: props.visibility,
+    typeHint: typeHint.value,
+    titleHint: titleHint.value,
+    iblockOptions: iblockOptions.value,
+    sectionedOnly: sectionedOnly.value,
+    elements: elements.value,
+    sections: sections.value,
+    loadingSource: loadingSource.value,
+}));
 </script>
 
 <template>
-    <NModal :model-value="modelValue" :title="isEdit ? 'Пункт меню' : 'Новый пункт меню'" max-width="max-w-2xl"
-            @update:model-value="emit('update:modelValue', $event)">
-        <div class="space-y-5">
-            <NField label="Тип пункта" required :hint="typeHint" :error="form.error('type')">
-                <NSelect v-model="form.fields.type" :options="types" />
-            </NField>
+    <div v-if="inline" class="surface space-y-4 rounded-xl border p-4">
+        <p class="text-sm font-medium text-[var(--text-strong)]">
+            {{ isEdit ? 'Ссылка подменю' : 'Новая ссылка подменю' }}
+        </p>
 
-            <NField v-if="shows.iblock" label="Инфоблок" required :error="form.error('iblock_id')">
-                <NSelect v-model="form.fields.iblock_id"
-                         :options="shows.root ? sectionedOnly : iblockOptions"
-                         placeholder="Выберите инфоблок" />
-            </NField>
+        <MenuItemFields v-bind="fieldProps" />
 
-            <NField v-if="shows.element" label="Страница" required
-                    hint="Адрес считается сам и переживёт переименование кода."
-                    :error="form.error('element_id')">
-                <NSelect v-model="form.fields.element_id" :options="elements"
-                         :placeholder="loadingSource ? 'Загружаем…' : 'Выберите страницу'" />
-            </NField>
-
-            <NField v-if="shows.section" label="Раздел" required :error="form.error('section_id')">
-                <NSelect v-model="form.fields.section_id" :options="sections"
-                         :placeholder="loadingSource ? 'Загружаем…' : 'Выберите раздел'" />
-            </NField>
-
-            <template v-if="shows.root">
-                <NField label="От какого раздела" hint="Пусто — от корня инфоблока."
-                        :error="form.error('section_id')">
-                    <NSelect v-model="form.fields.section_id" :options="sections"
-                             placeholder="— весь инфоблок —" />
-                </NField>
-
-                <div class="grid gap-5 sm:grid-cols-2">
-                    <NField label="Глубина" hint="Сколько уровней разделов разворачивать."
-                            :error="form.error('max_depth')">
-                        <NInput v-model="form.fields.max_depth" type="number" min="1" max="5" />
-                    </NField>
-
-                    <NField label="Элементы">
-                        <NToggle v-model="form.fields.with_elements" label="Показывать и элементы" />
-                    </NField>
-                </div>
-
-                <NField label="Свой пункт"
-                        hint="Выключено — разделы встают на место пункта. Включено — пункт рисуется сам, разделы уходят внутрь него.">
-                    <NToggle v-model="form.fields.with_title" label="Выводить название" />
-                </NField>
-            </template>
-
-            <NField v-if="shows.title" :label="shows.titleRequired ? 'Название' : 'Название (необязательно)'"
-                    :required="shows.titleRequired"
-                    :hint="titleHint"
-                    :error="form.error('title')">
-                <NInput v-model="form.fields.title" />
-            </NField>
-
-            <NField v-if="shows.url" label="Адрес" required
-                    hint="Внешняя ссылка, якорь или свой путь: /katalog, https://…, #contacts"
-                    :error="form.error('url')">
-                <NInput v-model="form.fields.url" class="font-mono" placeholder="/katalog" />
-            </NField>
-
-            <div v-if="shows.link" class="grid gap-5 sm:grid-cols-2">
-                <NField label="Открывать">
-                    <NSelect v-model="form.fields.target"
-                             :options="[{ value: '', label: 'В этой вкладке' }, { value: '_blank', label: 'В новой вкладке' }]" />
-                </NField>
-
-                <NField label="Подсветка">
-                    <NToggle v-model="form.fields.highlight_children"
-                             label="Активен и на вложенных страницах" />
-                </NField>
-            </div>
-
-            <div class="grid gap-5 sm:grid-cols-2">
-                <NField label="Кому виден" :error="form.error('visibility')">
-                    <NSelect v-model="form.fields.visibility" :options="visibility" />
-                </NField>
-
-                <NField label="Активность">
-                    <NToggle v-model="form.fields.is_active" label="Показывать на сайте" />
-                </NField>
-            </div>
-
-            <div class="grid gap-5 sm:grid-cols-2">
-                <NField label="CSS-класс" :error="form.error('css_class')">
-                    <NInput v-model="form.fields.css_class" class="font-mono" />
-                </NField>
-
-                <NField label="Иконка" hint="Имя иконки для вашего шаблона." :error="form.error('icon')">
-                    <NInput v-model="form.fields.icon" class="font-mono" />
-                </NField>
-            </div>
+        <div class="flex justify-end gap-2">
+            <NButton variant="secondary" size="sm" @click="close">Отмена</NButton>
+            <NButton size="sm" :loading="form.busy.value" @click="save">Сохранить</NButton>
         </div>
+    </div>
+
+    <NModal v-else :model-value="modelValue" :title="isEdit ? 'Пункт меню' : 'Новый пункт меню'" max-width="max-w-2xl"
+            @update:model-value="emit('update:modelValue', $event)">
+        <MenuItemFields v-bind="fieldProps" />
 
         <template #footer>
-            <NButton variant="secondary" size="sm" @click="emit('update:modelValue', false)">Отмена</NButton>
+            <NButton variant="secondary" size="sm" @click="close">Отмена</NButton>
             <NButton size="sm" :loading="form.busy.value" @click="save">Сохранить</NButton>
         </template>
     </NModal>

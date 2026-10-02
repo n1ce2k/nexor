@@ -6,7 +6,10 @@
     @elseif ($item['kind'] === 'heading')
         <p class="px-3 py-1.5 text-xs font-semibold tracking-wide text-slate-400 uppercase">{{ $item['name'] }}</p>
     @else
-        <a href="{{ $item['url'] }}"
+        {{-- Без адреса (подменю) — подпись, а не пустая ссылка. --}}
+        @php $tag = $item['url'] ? 'a' : 'span'; @endphp
+
+        <{{ $tag }} @if ($item['url']) href="{{ $item['url'] }}" @endif
            @if ($item['target']) target="{{ $item['target'] }}" rel="noopener" @endif
            @class([
                'block rounded-lg px-3 py-1.5 text-sm transition',
@@ -15,7 +18,7 @@
                $item['class'] => $item['class'] ?? false,
            ])>
             {{ $item['name'] }}
-        </a>
+        </{{ $tag }}>
     @endif
 
     @if ($item['children'])

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, provide, ref } from 'vue';
 import MenuBranch from './MenuBranch.vue';
 import MenuItemForm from './MenuItemForm.vue';
 import NButton from '../../components/ui/NButton.vue';
@@ -22,6 +22,8 @@ import { useUi } from '../../stores/ui';
  * Дерево правится перетаскиванием и кнопками; после любой перестановки на
  * сервер уезжает весь порядок разом — одно перетаскивание меняет и родителя, и
  * позицию сразу у нескольких пунктов.
+ *
+ * Пункт в корне правится в окне, ссылка внутри «Подменю» — прямо в списке.
  */
 const session = useSession();
 const ui = useUi();
@@ -37,6 +39,11 @@ const savingOrder = ref(false);
 const menuOpen = ref(false);
 const itemOpen = ref(false);
 const editingItem = ref(null);
+// Правка прямо в списке подменю: { mode: 'edit', id } или { mode: 'create', parentId }
+const inline = ref(null);
+
+// Идёт ли перетаскивание — ветки дерева показывают, куда можно бросить.
+provide('menuDragging', ref(false));
 
 const menuForm = useForm({ code: '', name: '', description: '', is_active: true, sort: 500 });
 const codeTouched = ref(false);
@@ -124,9 +131,9 @@ async function saveOrder() {
     }
 }
 
-// ------------------------------------------------------------ кнопки-стрелки
+// --------------------------------------------------------------- стрелки
 
-/** Список, в котором лежит пункт, и его позиция там. */
+/** Список, в котором лежит пункт, его позиция там и родитель. */
 function locate(node, nodes = items.value, parent = null) {
     const index = nodes.findIndex((one) => one.id === node.id);
 
@@ -157,45 +164,45 @@ function move({ node, delta }) {
     saveOrder();
 }
 
-function nest({ node, into }) {
-    const at = locate(node);
-
-    if (into) {
-        // Вкладываем в соседа сверху — тот, кто выше, становится родителем.
-        const above = at.list[at.index - 1];
-
-        if (!above || above.accepts_children === false) {
-            ui.notify('Пункт выше не может содержать вложенные.', 'error');
-
-            return;
-        }
-
-        at.list.splice(at.index, 1);
-        (above.children ??= []).push(node);
-    } else {
-        if (!at.parent) {
-            return;
-        }
-
-        const parentAt = locate(at.parent);
-
-        at.list.splice(at.index, 1);
-        parentAt.list.splice(parentAt.index + 1, 0, node);
-    }
-
-    saveOrder();
-}
-
 // ------------------------------------------------------------------ пункты
 
+/** Лежит ли пункт внутри «Подменю» — тогда он правится прямо в списке. */
+function insideSubmenu(node) {
+    for (let parent = locate(node)?.parent; parent; parent = locate(parent)?.parent) {
+        if (parent.type === 'submenu') {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function addItem() {
+    inline.value = null;
     editingItem.value = null;
     itemOpen.value = true;
 }
 
 function editItem(node) {
+    if (insideSubmenu(node)) {
+        inline.value = { mode: 'edit', id: node.id };
+
+        return;
+    }
+
+    inline.value = null;
     editingItem.value = node;
     itemOpen.value = true;
+}
+
+/** «Добавить ссылку» в блоке подменю. */
+function addChild(node) {
+    inline.value = { mode: 'create', parentId: node.id };
+}
+
+async function onInlineSaved() {
+    inline.value = null;
+    await select(current.value.id);
 }
 
 async function removeItem(node) {
@@ -346,8 +353,13 @@ onMounted(load);
                 </p>
 
                 <MenuBranch v-else :items="items" :disabled="!canEdit"
+                            :inline="inline" :menu="current" :types="types" :visibility="visibility"
                             @change="saveOrder" @edit="editItem" @remove="removeItem"
-                            @move="move" @nest="nest" />
+                            @move="move" @add="addChild" @saved="onInlineSaved" @cancel="inline = null" />
+
+                <p v-if="items.length && canEdit" class="mt-3 text-xs text-[var(--text-muted)]">
+                    Вложить пункт: перетащите его за ⋮⋮ в «Подменю».
+                </p>
 
                 <p class="mt-4 text-xs text-[var(--text-muted)]">
                     Выводится так:

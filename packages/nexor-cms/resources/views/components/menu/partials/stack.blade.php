@@ -8,7 +8,11 @@
             {{ $item['name'] }}
         </p>
     @else
-        <a href="{{ $item['url'] }}" @if ($item['target']) target="{{ $item['target'] }}" rel="noopener" @endif
+        {{-- Без адреса (подменю) — подпись, а не пустая ссылка. --}}
+        @php $tag = $item['url'] ? 'a' : 'span'; @endphp
+
+        <{{ $tag }} @if ($item['url']) href="{{ $item['url'] }}" @endif
+           @if ($item['target']) target="{{ $item['target'] }}" rel="noopener" @endif
            @class([
                'rounded-lg px-3 py-2 text-sm transition',
                'font-medium text-brand-600' => $item['active'],
@@ -17,7 +21,7 @@
            ])
            @style(['margin-left: '.($level * 0.75).'rem' => $level > 0])>
             {{ $item['name'] }}
-        </a>
+        </{{ $tag }}>
     @endif
 
     @if ($item['children'])

@@ -60,6 +60,22 @@ class MenuTest extends TestCase
         return $iblock;
     }
 
+    /**
+     * «Подменю» с одним уровнем ссылок и своим пунктом, как ставит панель.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    protected function submenu(Menu $menu, array $attributes = []): MenuItem
+    {
+        return MenuItem::factory()->for($menu)->create($attributes + [
+            'type' => MenuItemType::Submenu,
+            'title' => 'Услуги',
+            'url' => null,
+            'max_depth' => 1,
+            'with_title' => true,
+        ]);
+    }
+
     // ------------------------------------------------------------------ сборка
 
     public function test_hand_written_links_come_back_in_order(): void
@@ -477,7 +493,7 @@ class MenuTest extends TestCase
     {
         $menu = $this->menu();
         $first = MenuItem::factory()->for($menu)->create(['title' => 'Первый', 'sort' => 100]);
-        $second = MenuItem::factory()->for($menu)->create(['title' => 'Второй', 'sort' => 200]);
+        $second = $this->submenu($menu, ['title' => 'Второй', 'sort' => 200]);
 
         $this->actingAs($this->adminWith(['menus.update']))
             ->putJson("/admin/api/menus/{$menu->id}/reorder", [
@@ -504,6 +520,165 @@ class MenuTest extends TestCase
 
         $this->assertNull($other->refresh()->parent_id);
         $this->assertSame(500, $other->sort);
+    }
+
+    // -------------------------------------------------------------- подменю
+
+    public function test_a_submenu_brings_its_links_like_iblock_sections(): void
+    {
+        $menu = $this->menu();
+        $submenu = $this->submenu($menu);
+
+        MenuItem::factory()->for($menu)->create(['parent_id' => $submenu->id, 'title' => 'Доставка', 'url' => '/delivery', 'sort' => 100]);
+        MenuItem::factory()->for($menu)->create(['parent_id' => $submenu->id, 'title' => 'Оплата', 'url' => '/payment', 'sort' => 200]);
+
+        $tree = $this->resolver()->tree('main', url('/'));
+
+        $this->assertSame('submenu', $tree[0]['kind']);
+        $this->assertSame('Услуги', $tree[0]['name']);
+        // Без адреса пункт только раскрывает список.
+        $this->assertNull($tree[0]['url']);
+        $this->assertSame(['Доставка', 'Оплата'], array_column($tree[0]['children'], 'name'));
+        $this->assertSame(2, $tree[0]['children'][0]['level']);
+    }
+
+    public function test_a_submenu_without_its_title_puts_the_links_in_its_place(): void
+    {
+        $menu = $this->menu();
+        $submenu = $this->submenu($menu, ['with_title' => false]);
+
+        MenuItem::factory()->for($menu)->create(['parent_id' => $submenu->id, 'title' => 'Доставка', 'url' => '/delivery']);
+
+        $tree = $this->resolver()->tree('main', url('/'));
+
+        $this->assertSame(['Доставка'], array_column($tree, 'name'));
+        $this->assertSame(1, $tree[0]['level']);
+    }
+
+    public function test_a_submenu_shows_no_deeper_than_its_depth(): void
+    {
+        $menu = $this->menu();
+        $submenu = $this->submenu($menu);
+        $link = MenuItem::factory()->for($menu)->create(['parent_id' => $submenu->id, 'title' => 'Доставка', 'url' => '/delivery']);
+        MenuItem::factory()->for($menu)->create(['parent_id' => $link->id, 'title' => 'Курьером', 'url' => '/delivery/courier']);
+
+        // Глубину уменьшили у готового подменю — лишний уровень просто не выводится.
+        $this->assertSame([], $this->resolver()->tree('main', url('/'))[0]['children'][0]['children']);
+
+        $submenu->update(['max_depth' => 2]);
+
+        $this->assertSame(['Курьером'], array_column($this->resolver()->tree('main', url('/'))[0]['children'][0]['children'], 'name'));
+    }
+
+    public function test_a_new_submenu_is_one_level_deep_and_shows_its_title(): void
+    {
+        $menu = $this->menu();
+
+        $id = $this->actingAs($this->adminWith(['menus.update']))
+            ->postJson("/admin/api/menus/{$menu->id}/items", ['type' => 'submenu', 'title' => 'Услуги'])
+            ->assertCreated()
+            ->assertJsonPath('data.max_depth', 1)
+            ->assertJsonPath('data.with_title', true)
+            ->assertJsonPath('data.accepts_children', true)
+            ->json('data.id');
+
+        $this->assertSame(MenuItemType::Submenu, MenuItem::query()->findOrFail($id)->type);
+    }
+
+    public function test_links_go_only_into_a_submenu(): void
+    {
+        $menu = $this->menu();
+        $link = MenuItem::factory()->for($menu)->create(['title' => 'Контакты', 'url' => '/contacts']);
+        $submenu = $this->submenu($menu);
+        $admin = $this->adminWith(['menus.update']);
+
+        $this->actingAs($admin)
+            ->postJson("/admin/api/menus/{$menu->id}/items", ['type' => 'link', 'title' => 'Карта', 'url' => '/map', 'parent_id' => $link->id])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['parent_id' => 'Подменю']);
+
+        $this->actingAs($admin)
+            ->postJson("/admin/api/menus/{$menu->id}/items", ['type' => 'link', 'title' => 'Доставка', 'url' => '/delivery', 'parent_id' => $submenu->id])
+            ->assertCreated();
+    }
+
+    public function test_a_submenu_refuses_links_deeper_than_its_depth(): void
+    {
+        $menu = $this->menu();
+        $submenu = $this->submenu($menu);
+        $link = MenuItem::factory()->for($menu)->create(['parent_id' => $submenu->id, 'title' => 'Доставка', 'url' => '/delivery']);
+        $admin = $this->adminWith(['menus.update']);
+        $deeper = ['type' => 'link', 'title' => 'Курьером', 'url' => '/delivery/courier', 'parent_id' => $link->id];
+
+        $this->actingAs($admin)->postJson("/admin/api/menus/{$menu->id}/items", $deeper)->assertUnprocessable();
+
+        $submenu->update(['max_depth' => 2]);
+
+        $this->actingAs($admin)->postJson("/admin/api/menus/{$menu->id}/items", $deeper)->assertCreated();
+    }
+
+    public function test_a_submenu_inside_a_submenu_does_not_lift_the_outer_limit(): void
+    {
+        $menu = $this->menu();
+        $outer = $this->submenu($menu, ['title' => 'Внешнее']);
+        $inner = $this->submenu($menu, ['title' => 'Внутреннее', 'parent_id' => $outer->id, 'max_depth' => 3]);
+
+        // Внешнее подменю разрешает один уровень — ссылка внутри внутреннего уже второй.
+        $this->actingAs($this->adminWith(['menus.update']))
+            ->postJson("/admin/api/menus/{$menu->id}/items", ['type' => 'link', 'title' => 'Ссылка', 'url' => '/x', 'parent_id' => $inner->id])
+            ->assertUnprocessable();
+    }
+
+    public function test_dragging_into_a_plain_link_is_refused(): void
+    {
+        $menu = $this->menu();
+        $first = MenuItem::factory()->for($menu)->create(['title' => 'Первый', 'sort' => 100]);
+        $second = MenuItem::factory()->for($menu)->create(['title' => 'Второй', 'sort' => 200]);
+
+        $this->actingAs($this->adminWith(['menus.update']))
+            ->putJson("/admin/api/menus/{$menu->id}/reorder", [
+                'items' => [
+                    ['id' => $second->id, 'parent_id' => null],
+                    ['id' => $first->id, 'parent_id' => $second->id],
+                ],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Вложить пункт можно только в «Подменю».');
+
+        $this->assertNull($first->refresh()->parent_id);
+    }
+
+    public function test_links_nested_before_submenus_keep_working(): void
+    {
+        $menu = $this->menu();
+        $parent = MenuItem::factory()->for($menu)->create(['title' => 'Услуги', 'url' => '/services', 'sort' => 100]);
+        $child = MenuItem::factory()->for($menu)->create(['parent_id' => $parent->id, 'title' => 'Доставка', 'url' => '/delivery']);
+        $admin = $this->adminWith(['menus.update']);
+
+        // Порядок сохраняется, хотя ссылка лежит в ссылке, а не в подменю.
+        $this->actingAs($admin)
+            ->putJson("/admin/api/menus/{$menu->id}/reorder", [
+                'items' => [['id' => $parent->id, 'parent_id' => null], ['id' => $child->id, 'parent_id' => $parent->id]],
+            ])
+            ->assertOk();
+
+        // И сам пункт правится, не переезжая.
+        $this->actingAs($admin)
+            ->putJson("/admin/api/menus/{$menu->id}/items/{$child->id}", ['type' => 'link', 'title' => 'Доставка и оплата', 'url' => '/delivery', 'parent_id' => $parent->id])
+            ->assertOk();
+    }
+
+    public function test_a_submenu_without_an_address_is_not_an_empty_link_on_the_site(): void
+    {
+        $menu = $this->menu();
+        $submenu = $this->submenu($menu);
+        MenuItem::factory()->for($menu)->create(['parent_id' => $submenu->id, 'title' => 'Доставка', 'url' => '/delivery']);
+
+        $html = Blade::render('<x-nexor::menu code="main" />');
+
+        $this->assertStringContainsString('Услуги', $html);
+        $this->assertStringContainsString('href="/delivery"', $html);
+        $this->assertStringNotContainsString('href=""', $html);
     }
 
     public function test_the_menu_screen_is_closed_without_the_permission(): void

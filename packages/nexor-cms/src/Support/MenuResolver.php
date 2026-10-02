@@ -137,6 +137,12 @@ class MenuResolver
                 continue;
             }
 
+            if ($item->type === MenuItemType::Submenu) {
+                array_push($branch, ...$this->submenu($items, $item, $level));
+
+                continue;
+            }
+
             $branch[] = $this->node($item, $level) + [
                 'children' => $item->type->acceptsChildren()
                     ? $this->branch($items, $item->id, $level + 1)
@@ -145,6 +151,52 @@ class MenuResolver
         }
 
         return $branch;
+    }
+
+    /**
+     * Подменю: свой пункт и ссылки внутри — не глубже, чем ему задано.
+     *
+     * Глубину обрезаем и здесь, а не только при сохранении: уменьшили её у
+     * готового подменю — лишние уровни пропадают с сайта, ничего не удаляя.
+     * Без «Выводить название» ссылки встают на место пункта, как разделы
+     * инфоблока.
+     *
+     * @param  Collection<int, MenuItem>  $items
+     * @return array<int, array<string, mixed>>
+     */
+    protected function submenu(Collection $items, MenuItem $item, int $level): array
+    {
+        $children = $this->trim(
+            $this->branch($items, $item->id, $level + 1),
+            max(1, (int) $item->max_depth),
+        );
+
+        if (! $item->with_title) {
+            return $this->deepen($children, -1);
+        }
+
+        return [$this->node($item, $level) + ['children' => $children]];
+    }
+
+    /**
+     * Оставляет у ветки не больше `$depth` уровней.
+     *
+     * @param  array<int, array<string, mixed>>  $nodes
+     * @return array<int, array<string, mixed>>
+     */
+    protected function trim(array $nodes, int $depth): array
+    {
+        if ($depth < 1) {
+            return [];
+        }
+
+        foreach ($nodes as &$node) {
+            $node['children'] = $this->trim($node['children'] ?? [], $depth - 1);
+        }
+
+        unset($node);
+
+        return $nodes;
     }
 
     /**
@@ -196,6 +248,8 @@ class MenuResolver
     {
         return match ($item->type) {
             MenuItemType::Link => $item->url,
+            // Адрес у подменю необязателен: без него пункт только раскрывает список.
+            MenuItemType::Submenu => filled($item->url) ? $item->url : null,
             MenuItemType::Page => $item->element?->url(),
             MenuItemType::Section => $item->section && $item->iblock
                 ? $item->section->url()

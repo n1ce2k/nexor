@@ -8,6 +8,9 @@ namespace Nexor\Cms\Enums;
  * Типы `Page` и `Section` хранят ссылку на сущность, а адрес считают при
  * выводе — переименование символьного кода их не ломает, в отличие от
  * записанного руками URL.
+ *
+ * Вкладывать пункты можно только в `Submenu`: у него своя глубина, а на сайте
+ * он выводится так же, как раскрытые разделы инфоблока.
  */
 enum MenuItemType: string
 {
@@ -15,6 +18,7 @@ enum MenuItemType: string
     case Page = 'page';
     case Section = 'section';
     case Sections = 'sections';
+    case Submenu = 'submenu';
     case Heading = 'heading';
     case Divider = 'divider';
 
@@ -25,6 +29,7 @@ enum MenuItemType: string
             self::Page => 'Страница',
             self::Section => 'Раздел',
             self::Sections => 'Разделы инфоблока',
+            self::Submenu => 'Подменю',
             self::Heading => 'Заголовок',
             self::Divider => 'Разделитель',
         };
@@ -37,6 +42,7 @@ enum MenuItemType: string
             self::Page => 'Элемент инфоблока; адрес считается сам.',
             self::Section => 'Раздел инфоблока; адрес считается сам.',
             self::Sections => 'Развернётся в дерево разделов при выводе меню; с «Выводить название» — внутрь своего пункта.',
+            self::Submenu => 'Пункт с вложенными ссылками, которые вы задаёте сами. На сайте выводится так же, как разделы инфоблока.',
             self::Heading => 'Подпись без ссылки — для больших меню в подвале.',
             self::Divider => 'Горизонтальная черта между пунктами.',
         };
@@ -78,6 +84,7 @@ enum MenuItemType: string
             self::Page => ['iblock_id', 'element_id', 'title'],
             self::Section => ['iblock_id', 'section_id', 'title'],
             self::Sections => ['iblock_id', 'section_id', 'max_depth', 'with_elements', 'with_title', 'title'],
+            self::Submenu => ['title', 'url', 'target', 'max_depth', 'with_title'],
             self::Heading => ['title'],
             self::Divider => [],
         };

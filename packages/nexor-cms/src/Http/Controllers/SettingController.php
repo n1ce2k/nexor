@@ -79,7 +79,7 @@ class SettingController extends Controller
             $input = $this->inputKey($key);
 
             $rules[$setting->isFile() ? 'file_'.$input : 'settings.'.$input] = match ($setting->type) {
-                'file', 'image' => ['nullable', 'file', 'max:'.Setting::FILE_MAX_KB, 'mimes:'.Setting::FILE_EXTENSIONS],
+                'file', 'image' => Setting::fileRules(),
                 'boolean' => ['nullable'],
                 'integer' => ['nullable', 'integer'],
                 'text' => ['nullable', 'string', 'max:65535'],

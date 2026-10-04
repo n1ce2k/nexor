@@ -103,7 +103,7 @@ class SettingsTest extends TestCase
 
         // Файл ложится в публичное хранилище: .php и .html оттуда исполнились
         // бы на домене сайта.
-        foreach (['shell.php' => 'text/x-php', 'page.html' => 'text/html', 'logo.svg' => 'image/svg+xml'] as $name => $mime) {
+        foreach (['shell.php' => 'text/x-php', 'page.html' => 'text/html'] as $name => $mime) {
             $this->actingAs($this->adminWith(['settings.view', 'settings.update']))
                 ->post('/admin/api/settings', [
                     '_method' => 'PUT',
@@ -113,6 +113,65 @@ class SettingsTest extends TestCase
         }
 
         $this->assertNull(Setting::get('contacts.price'));
+    }
+
+    public function test_an_svg_is_taken_but_loses_everything_that_runs(): void
+    {
+        Storage::fake('public');
+
+        $svg = <<<'SVG'
+            <?xml version="1.0" encoding="UTF-8"?>
+            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 10 10" onload="alert(1)">
+                <script>alert(document.cookie)</script>
+                <style>@import url(http://evil.test/x.css); .logo { fill: #2563eb; }</style>
+                <a xlink:href="javascript:alert(2)"><circle class="logo" cx="5" cy="5" r="4" onclick="alert(3)"/></a>
+                <foreignObject><body xmlns="http://www.w3.org/1999/xhtml"><img src="x" onerror="alert(4)"/></body></foreignObject>
+                <use href="http://evil.test/sprite.svg#icon"/>
+                <path d="M1 1h8v8H1z" fill="none"/>
+            </svg>
+            SVG;
+
+        $this->actingAs($this->adminWith(['settings.view', 'settings.update']))
+            ->post('/admin/api/settings', [
+                '_method' => 'PUT',
+                'file_site__logo' => UploadedFile::fake()->createWithContent('logo.svg', $svg),
+            ])
+            ->assertOk();
+
+        $path = (string) Setting::get('site.logo');
+        $stored = Storage::disk('public')->get($path);
+
+        $this->assertStringEndsWith('.svg', $path);
+
+        // Рисунок на месте.
+        $this->assertStringContainsString('<circle', $stored);
+        $this->assertStringContainsString('M1 1h8v8H1z', $stored);
+        $this->assertStringContainsString('fill: #2563eb', $stored);
+
+        // Всё, что выполнилось бы на домене сайта, вырезано.
+        foreach (['<script', 'onload', 'onclick', 'onerror', 'javascript:', 'foreignObject', '@import', 'evil.test'] as $danger) {
+            $this->assertStringNotContainsString($danger, $stored);
+        }
+    }
+
+    public function test_a_file_that_only_calls_itself_svg_is_refused(): void
+    {
+        Storage::fake('public');
+        $admin = $this->adminWith(['settings.view', 'settings.update']);
+
+        // Сущности из DOCTYPE — чтение чужих файлов и «миллиард смеха».
+        $bomb = '<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY x SYSTEM "file:///etc/passwd">]><svg xmlns="http://www.w3.org/2000/svg">&x;</svg>';
+
+        foreach (['<html><body>не svg</body></html>', $bomb] as $content) {
+            $this->actingAs($admin)
+                ->post('/admin/api/settings', [
+                    '_method' => 'PUT',
+                    'file_site__logo' => UploadedFile::fake()->createWithContent('logo.svg', $content),
+                ], ['Accept' => 'application/json'])
+                ->assertUnprocessable();
+        }
+
+        $this->assertNull(Setting::get('site.logo'));
     }
 
     public function test_the_type_is_offered_as_a_file(): void

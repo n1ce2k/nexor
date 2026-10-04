@@ -2,12 +2,15 @@
 
 namespace Nexor\Cms\Models;
 
+use Closure;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
+use Nexor\Cms\Support\SvgSanitizer;
 
 #[Fillable([
     'key', 'value', 'type', 'group', 'name', 'hint', 'options', 'sort', 'is_system', 'is_encrypted',
@@ -25,10 +28,33 @@ class Setting extends Model
      * Список разрешённых, а не запрещённых: файл ложится в публичное
      * хранилище, и .php, .html или .svg оттуда исполнились бы на домене сайта.
      */
-    public const FILE_EXTENSIONS = 'jpg,jpeg,png,gif,webp,avif,ico,pdf,doc,docx,xls,xlsx,ppt,pptx,odt,ods,rtf,txt,csv,zip,rar,7z,mp3,mp4,webm';
+    public const FILE_EXTENSIONS = 'jpg,jpeg,png,gif,webp,avif,ico,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,odt,ods,rtf,txt,csv,zip,rar,7z,mp3,mp4,webm';
 
     /** Размер файла настройки, КБ. */
     public const FILE_MAX_KB = 10240;
+
+    /**
+     * Правила для файла настройки — одни на обе панели.
+     *
+     * SVG принимается, только если разбирается как SVG: при сохранении из него
+     * вырезается всё исполняемое (`Uploads::handle`), а то, что вычистить
+     * нельзя, сюда не проходит.
+     *
+     * @return array<int, mixed>
+     */
+    public static function fileRules(): array
+    {
+        return [
+            'nullable', 'file', 'max:'.self::FILE_MAX_KB, 'mimes:'.self::FILE_EXTENSIONS,
+            function (string $attribute, mixed $value, Closure $fail): void {
+                if ($value instanceof UploadedFile
+                    && strtolower($value->getClientOriginalExtension()) === 'svg'
+                    && SvgSanitizer::clean((string) file_get_contents($value->getRealPath())) === null) {
+                    $fail('Файл не похож на SVG — загрузите корректное изображение.');
+                }
+            },
+        ];
+    }
 
     /**
      * Editable value types.

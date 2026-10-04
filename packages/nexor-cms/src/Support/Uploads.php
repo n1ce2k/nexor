@@ -26,7 +26,7 @@ class Uploads
         if ($request->hasFile($field)) {
             self::delete($current);
 
-            return $request->file($field)->store($directory, self::disk());
+            return self::sanitize((string) $request->file($field)->store($directory, self::disk()));
         }
 
         if ($request->boolean($field.'_remove')) {
@@ -36,6 +36,33 @@ class Uploads
         }
 
         return $current;
+    }
+
+    /**
+     * SVG пересохраняется без скриптов и обработчиков: файл лежит в публичном
+     * хранилище, и по прямому адресу они выполнились бы на домене сайта.
+     * Остальные файлы остаются как есть.
+     *
+     * @return string|null Путь к файлу; null — SVG не разобрался и удалён
+     */
+    public static function sanitize(string $path): ?string
+    {
+        if (strtolower(pathinfo($path, PATHINFO_EXTENSION)) !== 'svg') {
+            return $path;
+        }
+
+        $disk = Storage::disk(self::disk());
+        $clean = SvgSanitizer::clean((string) $disk->get($path));
+
+        if ($clean === null) {
+            $disk->delete($path);
+
+            return null;
+        }
+
+        $disk->put($path, $clean);
+
+        return $path;
     }
 
     /**

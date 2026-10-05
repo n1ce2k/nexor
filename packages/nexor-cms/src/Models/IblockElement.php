@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Storage;
 use Nexor\Cms\Contracts\NexorUser;
 use Nexor\Cms\Database\Factories\IblockElementFactory;
 use Nexor\Cms\Enums\ElementUrl;
+use Nexor\Cms\Models\Concerns\HasPropertyValues;
 use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\Site;
 
@@ -31,7 +32,7 @@ use Nexor\Cms\Support\Site;
 class IblockElement extends Model
 {
     /** @use HasFactory<IblockElementFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, HasPropertyValues, SoftDeletes;
 
     /**
      * Laravel guesses factories from the application namespace, which never
@@ -158,57 +159,15 @@ class IblockElement extends Model
     }
 
     /**
-     * Property values keyed by property code.
+     * Свойства элементов его инфоблока.
      *
-     * Multiple properties return a collection of values, single ones a scalar.
-     *
-     * @return Collection<string, mixed>
+     * @return Collection<int, IblockProperty>
      */
-    public function propertyValues(): Collection
+    public function propertyDefinitions(): Collection
     {
-        $this->loadMissing(['values.property', 'values.enum', 'iblock.properties']);
+        $this->loadMissing('iblock.properties');
 
-        return $this->iblock->properties->mapWithKeys(function (IblockProperty $property) {
-            $values = $this->values
-                ->where('property_id', $property->id)
-                ->map(fn (IblockElementValue $value) => $value->resolved())
-                ->values();
-
-            return [$property->code => $property->is_multiple ? $values : $values->first()];
-        });
-    }
-
-    public function property(string $code): mixed
-    {
-        return $this->propertyValues()->get($code);
-    }
-
-    /**
-     * Описания значений — той же формы, что и сами значения: у множественного
-     * свойства коллекция, у обычного одна строка.
-     *
-     * @return Collection<string, mixed>
-     */
-    public function propertyDescriptions(): Collection
-    {
-        $this->loadMissing(['values.property', 'iblock.properties']);
-
-        return $this->iblock->properties->mapWithKeys(function (IblockProperty $property) {
-            $descriptions = $this->values
-                ->where('property_id', $property->id)
-                ->map(fn (IblockElementValue $value) => $value->description)
-                ->values();
-
-            return [$property->code => $property->is_multiple ? $descriptions : $descriptions->first()];
-        });
-    }
-
-    /**
-     * Описание значения свойства: подпись к файлу, текст ссылки, примечание.
-     */
-    public function propertyDescription(string $code): mixed
-    {
-        return $this->propertyDescriptions()->get($code);
+        return $this->iblock->properties;
     }
 
     /**

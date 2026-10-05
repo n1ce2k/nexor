@@ -10,7 +10,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Nexor\Cms\Enums\Currency;
 use Nexor\Cms\Enums\ProductType;
-use Nexor\Cms\Enums\PropertyType;
 use Nexor\Cms\Http\Requests\IblockElementRequest;
 use Nexor\Cms\Http\Resources\IblockElementResource;
 use Nexor\Cms\Http\Resources\IblockPropertyResource;
@@ -20,11 +19,11 @@ use Nexor\Cms\Models\CatalogProduct;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\IblockElement;
 use Nexor\Cms\Models\IblockProperty;
-use Nexor\Cms\Models\IblockSection;
 use Nexor\Cms\Support\ActivityLogger;
 use Nexor\Cms\Support\ElementFormLayout;
 use Nexor\Cms\Support\Modules\ModuleFields;
 use Nexor\Cms\Support\Nexor;
+use Nexor\Cms\Support\PropertyOptions;
 use Nexor\Cms\Support\PropertyValues;
 use Nexor\Cms\Support\Uploads;
 
@@ -145,7 +144,7 @@ class IblockElementController extends ApiController
                 $iblock->has_sections ? $iblock->sections()->ordered()->get() : collect(),
             ),
             'properties' => IblockPropertyResource::collection($properties),
-            'options' => $this->linkOptions($properties),
+            'options' => PropertyOptions::for($properties),
             'form_tabs' => ElementFormLayout::for($iblock),
             'form_fields' => array_values(ElementFormLayout::fields($iblock)),
             'measures' => CatalogProduct::MEASURES,
@@ -177,49 +176,6 @@ class IblockElementController extends ApiController
             'tabs' => $tabs,
             'message' => 'Форма элементов сохранена.',
         ]);
-    }
-
-    /**
-     * Choices for properties that point at another infoblock or at users.
-     *
-     * @param  Collection<int, IblockProperty>  $properties
-     * @return array<string, array<int, array{value: int, label: string}>>
-     */
-    protected function linkOptions(Collection $properties): array
-    {
-        $options = [];
-
-        foreach ($properties as $property) {
-            $options[$property->code] = match ($property->type) {
-                PropertyType::Element => $this->pluckOptions(
-                    IblockElement::query()->where('iblock_id', $property->setting('link_iblock_id'))->ordered(),
-                ),
-                PropertyType::Section => $this->pluckOptions(
-                    IblockSection::query()->where('iblock_id', $property->setting('link_iblock_id'))->ordered(),
-                ),
-                PropertyType::User => $this->pluckOptions(
-                    Nexor::newUser()->newQuery()->where('is_active', true)->orderBy('name'),
-                ),
-                default => null,
-            };
-
-            if ($options[$property->code] === null) {
-                unset($options[$property->code]);
-            }
-        }
-
-        return $options;
-    }
-
-    /**
-     * @return array<int, array{value: int, label: string}>
-     */
-    protected function pluckOptions(Builder $query): array
-    {
-        return $query->limit(500)->get()->map(fn ($model) => [
-            'value' => $model->getKey(),
-            'label' => $model->name,
-        ])->all();
     }
 
     /**

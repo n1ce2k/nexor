@@ -19,6 +19,8 @@ class IblockPropertyResource extends JsonResource
         return [
             'id' => $this->id,
             'iblock_id' => $this->iblock_id,
+            // element — свойство элементов, section — свойство разделов.
+            'target' => $this->target,
             'code' => $this->code,
             'name' => $this->name,
             'hint' => $this->hint,

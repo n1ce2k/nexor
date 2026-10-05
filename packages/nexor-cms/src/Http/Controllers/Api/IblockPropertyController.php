@@ -3,6 +3,7 @@
 namespace Nexor\Cms\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Nexor\Cms\Enums\PropertyType;
 use Nexor\Cms\Http\Requests\IblockPropertyRequest;
@@ -13,24 +14,32 @@ use Nexor\Cms\Support\ActivityLogger;
 
 class IblockPropertyController extends ApiController
 {
-    public function index(Iblock $iblock): AnonymousResourceCollection
+    /**
+     * Свойства элементов, а с `?target=section` — свойства разделов.
+     */
+    public function index(Request $request, Iblock $iblock): AnonymousResourceCollection
     {
-        return IblockPropertyResource::collection(
-            $iblock->properties()->with('enums')->withCount('values')->get(),
-        );
+        $properties = $request->query('target') === IblockProperty::TARGET_SECTION
+            ? $iblock->sectionProperties()->with('enums')->withCount('sectionValues as values_count')->get()
+            : $iblock->properties()->with('enums')->withCount('values')->get();
+
+        return IblockPropertyResource::collection($properties);
     }
 
     public function show(Iblock $iblock, IblockProperty $property): IblockPropertyResource
     {
         abort_unless($property->iblock_id === $iblock->id, 404);
 
-        return IblockPropertyResource::make($property->load('enums')->loadCount('values'));
+        return IblockPropertyResource::make($property->load('enums')->loadCount(
+            $property->isForSections() ? ['sectionValues as values_count'] : ['values'],
+        ));
     }
 
     public function store(IblockPropertyRequest $request, Iblock $iblock): JsonResponse
     {
         $property = new IblockProperty($this->attributes($request));
         $property->iblock_id = $iblock->id;
+        $property->target = $request->target();
         $property->save();
 
         $this->syncEnums($request, $property);
@@ -76,7 +85,8 @@ class IblockPropertyController extends ApiController
      */
     protected function attributes(IblockPropertyRequest $request): array
     {
-        $data = $request->safe()->except(['enums', 'settings']);
+        // target задаётся отдельно: у созданного свойства он не меняется.
+        $data = $request->safe()->except(['enums', 'settings', 'target']);
 
         $type = PropertyType::from($data['type']);
         $settings = array_filter(

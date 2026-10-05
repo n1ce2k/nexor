@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import PropertyField from '../../components/fields/PropertyField.vue';
 import NButton from '../../components/ui/NButton.vue';
 import NCard from '../../components/ui/NCard.vue';
 import NField from '../../components/ui/NField.vue';
@@ -13,14 +14,18 @@ import NTabs from '../../components/ui/NTabs.vue';
 import NToggle from '../../components/ui/NToggle.vue';
 import { api, toFormData } from '../../api';
 import { slugify, useForm } from '../../composables/useForm';
+import {
+    appendPropertyValues, blankPropertyValues, fillPropertyValues, isWideProperty,
+} from '../../composables/usePropertyValues';
 import { useSession } from '../../stores/session';
 import { useUi } from '../../stores/ui';
 
 /**
  * One section of an infoblock, on the same tabbed form the elements use.
  *
- * The tabs are fixed here: a section has no properties of its own, so there is
- * nothing for an operator to rearrange.
+ * Вкладки здесь постоянные. «Свойства» появляется, когда у инфоблока заданы
+ * свойства разделов: поля те же, что у свойств элементов, и значения уходят
+ * на сервер тем же способом.
  */
 const props = defineProps({
     iblock: { type: [String, Number], required: true },
@@ -41,6 +46,12 @@ const pictureUrl = ref(null);
 const removePicture = ref(false);
 
 const activeTab = ref('main');
+
+// Свойства разделов инфоблока и то, что в них введено.
+const properties = ref([]);
+const options = ref({});
+const values = ref({});
+const descriptions = ref({});
 
 const form = useForm({
     parent_id: null,
@@ -69,17 +80,27 @@ function isDescendant(candidate) {
     return candidate.id === id || (candidate.path ?? '').split('/').includes(String(id));
 }
 
-const errorsIn = {
+/** Ошибка свойства: у файлов она приходит под своим ключом. */
+function propertyError(property) {
+    return form.error(`properties.${property.code}`) ?? form.error(`property_files.${property.code}`);
+}
+
+const errorsIn = computed(() => ({
     main: ['name', 'code', 'parent_id', 'is_active', 'sort', 'picture'],
+    properties: properties.value.flatMap((property) => [
+        `properties.${property.code}`, `property_files.${property.code}`,
+    ]),
     description: ['description'],
     seo: ['meta_title', 'meta_description', 'meta_keywords'],
-};
+}));
 
 const tabs = computed(() => [
     { key: 'main', label: 'Основное' },
+    // Вкладки нет, пока разделам инфоблока не задали ни одного свойства.
+    ...(properties.value.length ? [{ key: 'properties', label: 'Свойства' }] : []),
     { key: 'description', label: 'Описание' },
     { key: 'seo', label: 'SEO' },
-].map((tab) => ({ ...tab, mark: errorsIn[tab.key].some((field) => Boolean(form.error(field))) })));
+].map((tab) => ({ ...tab, mark: errorsIn.value[tab.key].some((field) => Boolean(form.error(field))) })));
 
 // A failed save may put the error on a tab the operator is not looking at.
 watch(() => form.errors.value, () => {
@@ -120,6 +141,8 @@ async function save() {
         body.append('picture_remove', '1');
     }
 
+    appendPropertyValues(body, properties.value, values.value, descriptions.value);
+
     const data = await form.submit(
         isEdit.value ? 'put' : 'post',
         isEdit.value
@@ -135,9 +158,16 @@ async function save() {
 
 onMounted(async () => {
     try {
-        const list = await api.get(`iblocks/${props.iblock}/sections`);
+        const [list, schema] = await Promise.all([
+            api.get(`iblocks/${props.iblock}/sections`),
+            api.get(`iblocks/${props.iblock}/section-schema`),
+        ]);
 
         parents.value = list.data;
+        properties.value = schema.properties ?? [];
+        options.value = schema.options ?? {};
+
+        const state = blankPropertyValues(properties.value);
 
         if (isEdit.value) {
             const data = await api.get(`iblocks/${props.iblock}/sections/${props.section}`);
@@ -157,10 +187,15 @@ onMounted(async () => {
 
             pictureUrl.value = section.picture_url;
             codeTouched.value = true;
+
+            fillPropertyValues(properties.value, state, data.properties, data.property_descriptions);
         } else if (route.query.parent) {
             // «Добавить вложенный раздел» arrives with the parent already chosen.
             form.fields.parent_id = Number(route.query.parent);
         }
+
+        values.value = state.values;
+        descriptions.value = state.descriptions;
     } catch (error) {
         ui.notifyError(error);
     } finally {
@@ -234,6 +269,26 @@ onMounted(async () => {
                             </button>
                         </div>
                     </NField>
+                </div>
+
+                <div v-show="activeTab === 'properties'" class="p-5">
+                    <div class="grid gap-5 sm:grid-cols-2">
+                        <div v-for="property in properties" :key="property.id"
+                             :class="isWideProperty(property) && 'sm:col-span-2'">
+                            <PropertyField :property="property" :options="options[property.code] ?? []"
+                                           :error="propertyError(property)"
+                                           v-model="values[property.code]"
+                                           v-model:description="descriptions[property.code]" />
+                        </div>
+                    </div>
+
+                    <p v-if="session.can('iblocks.update')" class="mt-5 text-xs text-[var(--text-muted)]">
+                        Набор полей задаётся в
+                        <router-link :to="{ name: 'properties.index', params: { iblock }, query: { target: 'section' } }"
+                                     class="font-medium text-brand-600 hover:underline dark:text-brand-400">
+                            свойствах разделов
+                        </router-link>.
+                    </p>
                 </div>
 
                 <div v-show="activeTab === 'description'" class="p-5">

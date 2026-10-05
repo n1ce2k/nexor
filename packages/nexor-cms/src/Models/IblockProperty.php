@@ -13,7 +13,7 @@ use Nexor\Cms\Database\Factories\IblockPropertyFactory;
 use Nexor\Cms\Enums\PropertyType;
 
 #[Fillable([
-    'iblock_id', 'code', 'name', 'hint', 'type',
+    'iblock_id', 'target', 'code', 'name', 'hint', 'type',
     'is_multiple', 'is_required', 'is_filterable', 'is_searchable', 'is_shown_in_list', 'is_active',
     'sort', 'default_value', 'with_description', 'settings',
 ])]
@@ -21,6 +21,15 @@ class IblockProperty extends Model
 {
     /** @use HasFactory<IblockPropertyFactory> */
     use HasFactory;
+
+    /** Свойство элементов инфоблока. */
+    public const TARGET_ELEMENT = 'element';
+
+    /** Свойство разделов инфоблока. */
+    public const TARGET_SECTION = 'section';
+
+    /** @var array<string, mixed> */
+    protected $attributes = ['target' => self::TARGET_ELEMENT];
 
     /**
      * Laravel guesses factories from the application namespace, which never
@@ -69,6 +78,21 @@ class IblockProperty extends Model
     public function values(): HasMany
     {
         return $this->hasMany(IblockElementValue::class, 'property_id');
+    }
+
+    /**
+     * Значения у разделов — для свойства разделов.
+     *
+     * @return HasMany<IblockSectionValue, $this>
+     */
+    public function sectionValues(): HasMany
+    {
+        return $this->hasMany(IblockSectionValue::class, 'property_id');
+    }
+
+    public function isForSections(): bool
+    {
+        return $this->target === self::TARGET_SECTION;
     }
 
     /**

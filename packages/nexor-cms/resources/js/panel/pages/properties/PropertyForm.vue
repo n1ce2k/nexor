@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import NBadge from '../../components/ui/NBadge.vue';
 import NButton from '../../components/ui/NButton.vue';
 import NCard from '../../components/ui/NCard.vue';
 import NField from '../../components/ui/NField.vue';
@@ -19,9 +20,22 @@ const props = defineProps({
     property: { type: [String, Number], default: null },
 });
 
+const route = useRoute();
 const router = useRouter();
 const session = useSession();
 const ui = useUi();
+
+// Чьё свойство: элементов или разделов. У нового — из адреса списка, откуда
+// пришли; у существующего — как записано, и уже не меняется.
+const target = ref(route.query.target === 'section' ? 'section' : 'element');
+const forSections = computed(() => target.value === 'section');
+
+/** Список, в который возвращаемся: свойства элементов или свойства разделов. */
+const listRoute = computed(() => ({
+    name: 'properties.index',
+    params: { iblock: props.iblock },
+    query: forSections.value ? { target: 'section' } : {},
+}));
 
 const iblocks = ref([]);
 const enums = ref([]);
@@ -84,7 +98,7 @@ watch(usesEnums, (value) => {
 });
 
 async function save() {
-    const payload = { ...form.fields, enums: usesEnums.value ? enums.value : [] };
+    const payload = { ...form.fields, target: target.value, enums: usesEnums.value ? enums.value : [] };
 
     const data = await form.submit(
         isEdit.value ? 'put' : 'post',
@@ -95,7 +109,7 @@ async function save() {
     );
 
     if (data) {
-        router.push({ name: 'properties.index', params: { iblock: props.iblock } });
+        router.push(listRoute.value);
     }
 }
 
@@ -107,6 +121,8 @@ onMounted(async () => {
 
         if (isEdit.value) {
             const data = await api.get(`iblocks/${props.iblock}/properties/${props.property}`);
+
+            target.value = data.data.target === 'section' ? 'section' : 'element';
 
             form.fill({
                 code: data.data.code,
@@ -136,13 +152,17 @@ onMounted(async () => {
 
 <template>
     <div>
-        <NPageHeader :title="isEdit ? form.fields.name || 'Свойство' : 'Новое свойство'"
-                     :back="{ name: 'properties.index', params: { iblock } }"
+        <NPageHeader :title="isEdit ? form.fields.name || 'Свойство' : (forSections ? 'Новое свойство раздела' : 'Новое свойство')"
+                     :back="listRoute"
                      :breadcrumbs="[
                          { label: 'Инфоблоки', to: { name: 'iblocks.index' } },
-                         { label: 'Свойства', to: { name: 'properties.index', params: { iblock } } },
+                         { label: forSections ? 'Свойства разделов' : 'Свойства', to: listRoute },
                          { label: isEdit ? form.fields.name : 'Новое' },
-                     ]" />
+                     ]">
+            <template v-if="forSections" #actions>
+                <NBadge color="violet">Свойство разделов</NBadge>
+            </template>
+        </NPageHeader>
 
         <form class="grid gap-6 lg:grid-cols-3" @submit.prevent="save">
             <div class="space-y-6 lg:col-span-2">
@@ -281,12 +301,16 @@ onMounted(async () => {
                         <NToggle v-model="form.fields.is_multiple" label="Множественное"
                                  hint="Можно задать несколько значений." />
                         <NToggle v-model="form.fields.is_required" label="Обязательное"
-                                 hint="Элемент нельзя сохранить без значения." />
-                        <NToggle v-model="form.fields.is_filterable" label="Участвует в фильтре"
-                                 hint="Появится в фильтре списка элементов." />
-                        <NToggle v-model="form.fields.is_searchable" label="Участвует в поиске" />
-                        <NToggle v-model="form.fields.is_shown_in_list" label="Колонка в списке"
-                                 hint="Значение будет видно прямо в таблице элементов." />
+                                 :hint="forSections ? 'Раздел нельзя сохранить без значения.' : 'Элемент нельзя сохранить без значения.'" />
+
+                        <!-- Фильтр, поиск и колонка списка работают по элементам — разделу они ни к чему. -->
+                        <template v-if="!forSections">
+                            <NToggle v-model="form.fields.is_filterable" label="Участвует в фильтре"
+                                     hint="Появится в фильтре списка элементов." />
+                            <NToggle v-model="form.fields.is_searchable" label="Участвует в поиске" />
+                            <NToggle v-model="form.fields.is_shown_in_list" label="Колонка в списке"
+                                     hint="Значение будет видно прямо в таблице элементов." />
+                        </template>
                         <NToggle v-model="form.fields.with_description" label="Описание"
                                  hint="Выводить поле для описания свойства." />
                         <NToggle v-model="form.fields.is_active" label="Активно" />
@@ -294,7 +318,8 @@ onMounted(async () => {
                 </NCard>
 
                 <NCard title="Сортировка">
-                    <NField hint="Порядок поля в форме элемента." :error="form.error('sort')">
+                    <NField :hint="forSections ? 'Порядок поля в форме раздела.' : 'Порядок поля в форме элемента.'"
+                            :error="form.error('sort')">
                         <NInput v-model="form.fields.sort" type="number" min="0" />
                     </NField>
                 </NCard>

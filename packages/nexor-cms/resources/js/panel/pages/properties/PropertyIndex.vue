@@ -1,5 +1,6 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import NBadge from '../../components/ui/NBadge.vue';
 import NButton from '../../components/ui/NButton.vue';
 import NCard from '../../components/ui/NCard.vue';
@@ -7,13 +8,37 @@ import NEmpty from '../../components/ui/NEmpty.vue';
 import NIcon from '../../components/ui/NIcon.vue';
 import NPageHeader from '../../components/ui/NPageHeader.vue';
 import NTable from '../../components/ui/NTable.vue';
+import NTabs from '../../components/ui/NTabs.vue';
 import { api } from '../../api';
 import { useSession } from '../../stores/session';
 import { useUi } from '../../stores/ui';
 
+/**
+ * Свойства инфоблока: у элементов и у разделов — свои списки.
+ *
+ * Список один и тот же, переключается адресом `?target=section`: так на
+ * нужный список можно дать ссылку, а после сохранения свойства вернуться туда же.
+ */
 const props = defineProps({ iblock: { type: [String, Number], required: true } });
+const route = useRoute();
+const router = useRouter();
 const session = useSession();
 const ui = useUi();
+
+const target = computed(() => (route.query.target === 'section' ? 'section' : 'element'));
+const forSections = computed(() => target.value === 'section');
+
+/** Адрес этого же списка — для ссылок «назад» и после сохранения. */
+const query = computed(() => (forSections.value ? { target: 'section' } : {}));
+
+const targets = [
+    { key: 'element', label: 'Свойства элементов' },
+    { key: 'section', label: 'Свойства разделов' },
+];
+
+function switchTarget(key) {
+    router.replace({ name: 'properties.index', params: { iblock: props.iblock }, query: key === 'section' ? { target: 'section' } : {} });
+}
 
 const rows = ref([]);
 
@@ -41,7 +66,7 @@ async function load() {
 
     try {
         const [list, meta] = await Promise.all([
-            api.get(`iblocks/${props.iblock}/properties`),
+            api.get(`iblocks/${props.iblock}/properties`, forSections.value ? { target: 'section' } : {}),
             info.value ? Promise.resolve(null) : api.get(`iblocks/${props.iblock}`),
         ]);
 
@@ -81,32 +106,48 @@ async function remove(property) {
 }
 
 onMounted(load);
+
+watch(target, load);
 </script>
 
 <template>
     <div>
-        <NPageHeader :title="`Свойства: ${info?.name ?? ''}`"
+        <NPageHeader :title="`${forSections ? 'Свойства разделов' : 'Свойства'}: ${info?.name ?? ''}`"
                      :back="{ name: 'iblocks.index' }"
-                     description="Набор полей, который будет у каждого элемента этого инфоблока."
+                     :description="forSections
+                         ? 'Набор полей, который будет у каждого раздела этого инфоблока.'
+                         : 'Набор полей, который будет у каждого элемента этого инфоблока.'"
                      :breadcrumbs="[
                          { label: 'Инфоблоки', to: { name: 'iblocks.index' } },
                          { label: info?.name ?? '', to: { name: 'elements.index', params: { iblock } } },
-                         { label: 'Свойства' },
+                         { label: forSections ? 'Свойства разделов' : 'Свойства' },
                      ]">
             <template #actions>
-                <NButton variant="secondary" icon="document" :to="{ name: 'elements.index', params: { iblock } }">
+                <NButton v-if="forSections" variant="secondary" icon="folder"
+                         :to="{ name: 'sections.index', params: { iblock } }">
+                    Разделы
+                </NButton>
+                <NButton v-else variant="secondary" icon="document" :to="{ name: 'elements.index', params: { iblock } }">
                     Наполнение
                 </NButton>
-                <NButton icon="plus" :to="{ name: 'properties.create', params: { iblock } }">
-                    Добавить свойство
+                <NButton icon="plus" :to="{ name: 'properties.create', params: { iblock }, query }">
+                    {{ forSections ? 'Добавить свойство раздела' : 'Добавить свойство' }}
                 </NButton>
             </template>
         </NPageHeader>
 
+        <!-- Свойства разделов есть только у инфоблока с разделами. -->
+        <div v-if="info?.has_sections" class="mb-4">
+            <NTabs :model-value="target" :tabs="targets" @update:model-value="switchTarget" />
+        </div>
+
         <NCard :padding="false">
-            <NEmpty v-if="!loading && rows.length === 0" icon="grip" title="Свойств пока нет"
-                    description="У элементов уже есть базовые поля. Свойства добавляют к ним ваши собственные данные — цену, HEX-код цвета, привязку к другому инфоблоку.">
-                <NButton icon="plus" :to="{ name: 'properties.create', params: { iblock } }">
+            <NEmpty v-if="!loading && rows.length === 0" icon="grip"
+                    :title="forSections ? 'Свойств разделов пока нет' : 'Свойств пока нет'"
+                    :description="forSections
+                        ? 'У раздела уже есть название, картинка и описание. Свойства добавляют к ним ваши собственные данные — баннер, цвет плашки, текст под заголовком.'
+                        : 'У элементов уже есть базовые поля. Свойства добавляют к ним ваши собственные данные — цену, HEX-код цвета, привязку к другому инфоблоку.'">
+                <NButton icon="plus" :to="{ name: 'properties.create', params: { iblock }, query }">
                     Добавить первое свойство
                 </NButton>
             </NEmpty>
@@ -153,7 +194,7 @@ onMounted(load);
 
                 <template #cell-actions="{ row }">
                     <div class="flex items-center justify-end gap-0.5">
-                        <router-link :to="{ name: 'properties.edit', params: { iblock, property: row.id } }"
+                        <router-link :to="{ name: 'properties.edit', params: { iblock, property: row.id }, query }"
                                      title="Изменить"
                                      class="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--text-strong)]">
                             <NIcon name="pencil" size="size-4" />

@@ -7,21 +7,26 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Nexor\Cms\Models\Concerns\HoldsPropertyValue;
 
+/**
+ * Значение свойства раздела. Устроено так же, как значение свойства элемента.
+ */
 #[Fillable([
-    'element_id', 'property_id', 'sort',
+    'section_id', 'property_id', 'sort',
     'value_string', 'value_text', 'value_int', 'value_decimal', 'value_bool',
     'value_date', 'value_json', 'value_enum_id', 'value_element_id', 'value_section_id', 'value_user_id',
     'description',
 ])]
-class IblockElementValue extends Model
+class IblockSectionValue extends Model
 {
     use HoldsPropertyValue;
 
+    protected $table = 'iblock_section_values';
+
     /**
-     * @return BelongsTo<IblockElement, $this>
+     * @return BelongsTo<IblockSection, $this>
      */
-    public function element(): BelongsTo
+    public function section(): BelongsTo
     {
-        return $this->belongsTo(IblockElement::class, 'element_id');
+        return $this->belongsTo(IblockSection::class, 'section_id');
     }
 }

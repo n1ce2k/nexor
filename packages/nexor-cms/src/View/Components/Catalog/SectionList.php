@@ -45,6 +45,8 @@ class SectionList extends Component
         return $this->template($this->template, [
             'block' => $block,
             'parent' => $root,
+            // Свойства раздела, внутри которого стоит список.
+            'parentProperties' => $root?->properties() ?? [],
             'sections' => $this->children($root),
             'showCount' => $this->count,
         ]);
@@ -75,6 +77,8 @@ class SectionList extends Component
                 'picture' => $section->picture_url,
                 'description' => $section->description,
                 'url' => $section->url(),
+                // Свойства раздела: код => значение с описанием свойства.
+                'properties' => $section->properties(),
                 'count' => $this->count ? $this->countIn($section) : null,
             ])
             ->values()

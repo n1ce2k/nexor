@@ -431,10 +431,56 @@ class InfoBlockService
     {
         $iblock = $this->requireSectionedInfoBlock($code);
 
-        return $iblock->sections()
+        $sections = $iblock->sections()
             ->when($activeOnly, fn (Builder $q) => $q->active())
             ->ordered()
             ->get();
+
+        // Значения свойств разделов — одним запросом на весь список, а не по
+        // запросу на раздел, когда шаблон спросит `$section->properties()`.
+        if ($iblock->sectionProperties->isNotEmpty()) {
+            $sections->load(['values.property', 'values.enum', 'values.linkedElement', 'values.linkedSection']);
+        }
+
+        // Инфоблок уже на руках — каждому разделу его заново не ищем.
+        return $sections->each(fn (IblockSection $section) => $section->setRelation('iblock', $iblock));
+    }
+
+    // ------------------------------------------------------ свойства разделов
+
+    /**
+     * Свойства раздела со значениями — по его id или самой модели.
+     *
+     * Ключ массива — код свойства. У каждого свойства: `id`, `code`, `name`,
+     * `type`, `hint`, `multiple`, `sort`, готовое к выводу `value`, значение из
+     * базы `raw`, `description` и построчный список `values`. Раздела нет —
+     * пустой массив.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function getSectionProperties(int|IblockSection $section): array
+    {
+        $section = $section instanceof IblockSection ? $section : IblockSection::query()->find($section);
+
+        return $section?->properties() ?? [];
+    }
+
+    /**
+     * Значение одного свойства раздела, готовое к выводу; null — не заполнено.
+     */
+    public function getSectionProperty(int|IblockSection $section, string $propertyCode): mixed
+    {
+        return $this->getSectionProperties($section)[$propertyCode]['value'] ?? null;
+    }
+
+    /**
+     * Какие свойства заданы разделам инфоблока — без значений.
+     *
+     * @return Collection<int, IblockProperty>
+     */
+    public function getSectionPropertyList(string $code): Collection
+    {
+        return $this->requireInfoBlock($code)->sectionProperties->where('is_active', true)->values();
     }
 
     /**

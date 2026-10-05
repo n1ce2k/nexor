@@ -91,6 +91,8 @@ class Section extends Component
         return $this->template($this->template, [
             'block' => $block,
             'current' => $section,
+            // Свойства открытого раздела: код => значение с описанием свойства.
+            'sectionProperties' => $section?->properties() ?? [],
             'elements' => $elements,
             'cardView' => $this->card,
         ]);

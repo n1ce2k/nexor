@@ -138,7 +138,22 @@ class Iblock extends Model
      */
     public function properties(): HasMany
     {
-        return $this->hasMany(IblockProperty::class)->orderBy('sort')->orderBy('id');
+        // Только свойства элементов: свойства разделов лежат в той же таблице.
+        return $this->hasMany(IblockProperty::class)
+            ->where('target', IblockProperty::TARGET_ELEMENT)
+            ->orderBy('sort')->orderBy('id');
+    }
+
+    /**
+     * Свойства разделов этого инфоблока.
+     *
+     * @return HasMany<IblockProperty, $this>
+     */
+    public function sectionProperties(): HasMany
+    {
+        return $this->hasMany(IblockProperty::class)
+            ->where('target', IblockProperty::TARGET_SECTION)
+            ->orderBy('sort')->orderBy('id');
     }
 
     /**

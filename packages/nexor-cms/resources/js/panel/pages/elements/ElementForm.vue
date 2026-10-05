@@ -17,6 +17,9 @@ import NImageDrop from '../../components/fields/NImageDrop.vue';
 import PropertyField from '../../components/fields/PropertyField.vue';
 import { api, toFormData } from '../../api';
 import { propertyText, useFieldPrefs } from '../../composables/useFieldPrefs';
+import {
+    appendPropertyValues, blankDescription, blankValue, isFileProperty as isFile,
+} from '../../composables/usePropertyValues';
 import { slugify, useForm } from '../../composables/useForm';
 import { emit as emitHook, resolveFormField } from '../../registry';
 import { useSession } from '../../stores/session';
@@ -374,31 +377,6 @@ watch(() => form.errors.value, () => {
     }
 });
 
-function isFile(property) {
-    return property.type === 'file' || property.type === 'image';
-}
-
-/** Описания значений: у обычных свойств по индексу, у файлов — внутри строк файлов. */
-function blankDescription(property) {
-    return property.is_multiple ? [] : '';
-}
-
-function blankValue(property) {
-    if (isFile(property)) {
-        return { stored: [], remove: [], added: [], addedDescriptions: [] };
-    }
-
-    if (property.is_multiple) {
-        return [];
-    }
-
-    if (property.type === 'boolean') {
-        return property.default_value === '1' || property.default_value === 'true';
-    }
-
-    return property.default_value ?? null;
-}
-
 function onName(value) {
     form.fields.name = value;
 
@@ -459,62 +437,7 @@ function buildPayload() {
             : (value ?? ''));
     });
 
-    properties.value.forEach((property) => {
-        const value = values.value[property.code];
-
-        if (isFile(property)) {
-            (value?.remove ?? []).forEach((id) => body.append(`property_remove[${property.code}][]`, id));
-            (value?.added ?? []).forEach((file) => {
-                body.append(`property_files[${property.code}]${property.is_multiple ? '[]' : ''}`, file);
-            });
-
-            if (property.with_description) {
-                (value?.stored ?? []).forEach((file) => {
-                    body.append(`property_descriptions[${property.code}][saved][${file.id}]`, file.description ?? '');
-                });
-
-                (value?.added ?? []).forEach((_, index) => {
-                    body.append(
-                        `property_descriptions[${property.code}][added][]`,
-                        (value?.addedDescriptions ?? [])[index] ?? '',
-                    );
-                });
-            }
-
-            return;
-        }
-
-        const description = descriptions.value[property.code];
-
-        if (property.is_multiple) {
-            // Значение и его описание отправляются парой: сервер отсеет пустые строки вместе.
-            const raw = Array.isArray(value) ? value : [];
-            const rows = raw.map((item, index) => [item, Array.isArray(description) ? (description[index] ?? '') : ''])
-                .filter(([item]) => item !== null && item !== '');
-
-            if (rows.length === 0) {
-                body.append(`properties[${property.code}][]`, '');
-            }
-
-            rows.forEach(([item, text]) => {
-                body.append(`properties[${property.code}][]`, item);
-
-                if (property.with_description) {
-                    body.append(`property_descriptions[${property.code}][]`, text);
-                }
-            });
-
-            return;
-        }
-
-        const scalar = property.type === 'boolean' ? (value ? '1' : '0') : value;
-
-        body.append(`properties[${property.code}]`, scalar ?? '');
-
-        if (property.with_description) {
-            body.append(`property_descriptions[${property.code}]`, typeof description === 'string' ? description : '');
-        }
-    });
+    appendPropertyValues(body, properties.value, values.value, descriptions.value);
 
     return body;
 }

@@ -2,20 +2,24 @@
 
 namespace Nexor\Cms\Support;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Nexor\Cms\Enums\PropertyType;
 use Nexor\Cms\Models\IblockElement;
-use Nexor\Cms\Models\IblockElementValue;
 use Nexor\Cms\Models\IblockProperty;
+use Nexor\Cms\Models\IblockSection;
 
 /**
  * Reads and writes infoblock property values.
  *
  * Values live in a typed EAV table: each property declares which column holds it,
  * so this class only has to cast the submitted input and pick the right column.
+ *
+ * Владелец значений — элемент или раздел: таблицы значений у них одной формы,
+ * а строки отдаёт связь `values`, поэтому код общий.
  */
 class PropertyValues
 {
@@ -132,11 +136,11 @@ class PropertyValues
     }
 
     /**
-     * Replace an element's property values with what the form submitted.
+     * Replace an element's (or a section's) property values with what the form submitted.
      *
      * @param  Collection<int, IblockProperty>  $properties
      */
-    public static function save(IblockElement $element, Collection $properties, Request $request): void
+    public static function save(IblockElement|IblockSection $element, Collection $properties, Request $request): void
     {
         DB::transaction(function () use ($element, $properties, $request): void {
             foreach ($properties as $property) {
@@ -147,7 +151,7 @@ class PropertyValues
         });
     }
 
-    protected static function saveScalarProperty(IblockElement $element, IblockProperty $property, Request $request): void
+    protected static function saveScalarProperty(IblockElement|IblockSection $element, IblockProperty $property, Request $request): void
     {
         $input = $request->input('properties.'.$property->code);
         $descriptions = $property->with_description
@@ -187,7 +191,7 @@ class PropertyValues
     /**
      * Keeps existing files unless explicitly removed, and appends newly uploaded ones.
      */
-    protected static function saveFileProperty(IblockElement $element, IblockProperty $property, Request $request): void
+    protected static function saveFileProperty(IblockElement|IblockSection $element, IblockProperty $property, Request $request): void
     {
         $removed = (array) $request->input('property_remove.'.$property->code, []);
 
@@ -195,7 +199,7 @@ class PropertyValues
             ->where('property_id', $property->id)
             ->whereIn('id', array_filter($removed))
             ->get()
-            ->each(function (IblockElementValue $value): void {
+            ->each(function (Model $value): void {
                 Uploads::delete($value->value_string);
                 $value->delete();
             });
@@ -213,7 +217,7 @@ class PropertyValues
         }
 
         if (! $property->is_multiple) {
-            $element->values()->where('property_id', $property->id)->get()->each(function (IblockElementValue $value): void {
+            $element->values()->where('property_id', $property->id)->get()->each(function (Model $value): void {
                 Uploads::delete($value->value_string);
                 $value->delete();
             });
@@ -241,7 +245,7 @@ class PropertyValues
     /**
      * Подписи к уже загруженным файлам: строки на месте, меняется только текст.
      */
-    protected static function saveFileDescriptions(IblockElement $element, IblockProperty $property, Request $request): void
+    protected static function saveFileDescriptions(IblockElement|IblockSection $element, IblockProperty $property, Request $request): void
     {
         $saved = (array) $request->input('property_descriptions.'.$property->code.'.saved', []);
 
@@ -253,7 +257,7 @@ class PropertyValues
             ->where('property_id', $property->id)
             ->whereIn('id', array_keys($saved))
             ->get()
-            ->each(function (IblockElementValue $value) use ($saved): void {
+            ->each(function (Model $value) use ($saved): void {
                 $description = $saved[$value->id] ?? null;
 
                 $value->update(['description' => filled($description) ? trim((string) $description) : null]);
@@ -282,7 +286,7 @@ class PropertyValues
      *
      * @return array<string, mixed>
      */
-    public static function forForm(IblockElement $element): array
+    public static function forForm(IblockElement|IblockSection $element): array
     {
         if (! $element->exists) {
             return [];
@@ -296,12 +300,12 @@ class PropertyValues
                 $property = $values->first()->property;
 
                 $resolved = $property->type->isFile()
-                    ? $values->map(fn (IblockElementValue $value) => [
+                    ? $values->map(fn (Model $value) => [
                         'id' => $value->id,
                         'path' => $value->value_string,
                         'description' => $value->description,
                     ])
-                    : $values->map(fn (IblockElementValue $value) => $value->raw());
+                    : $values->map(fn (Model $value) => $value->raw());
 
                 return [$property->code => $property->is_multiple || $property->type->isFile()
                     ? $resolved->values()->all()
@@ -316,7 +320,7 @@ class PropertyValues
      *
      * @return array<string, string|array<int, string|null>|null>
      */
-    public static function descriptionsForForm(IblockElement $element): array
+    public static function descriptionsForForm(IblockElement|IblockSection $element): array
     {
         if (! $element->exists) {
             return [];
@@ -333,7 +337,7 @@ class PropertyValues
                     return [];
                 }
 
-                $descriptions = $values->map(fn (IblockElementValue $value) => $value->description);
+                $descriptions = $values->map(fn (Model $value) => $value->description);
 
                 return [$property->code => $property->is_multiple
                     ? $descriptions->values()->all()

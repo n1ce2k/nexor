@@ -107,6 +107,11 @@ onMounted(load);
                     Наполнение
                 </NButton>
 
+                <NButton v-if="session.can('iblocks.update')" variant="secondary" icon="grip"
+                         :to="{ name: 'properties.index', params: { iblock }, query: { target: 'section' } }">
+                    Свойства разделов
+                </NButton>
+
                 <NButton v-if="abilities.create" icon="plus" :to="{ name: 'sections.create', params: { iblock } }">
                     Добавить раздел
                 </NButton>

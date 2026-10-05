@@ -89,6 +89,11 @@ Route::prefix('iblocks/{iblock}')->name('iblocks.')->group(function () use ($gua
         '',
     );
 
+    // Свойства разделов — из них собирается вкладка формы раздела.
+    Route::get('section-schema', [IblockSectionController::class, 'schema'])
+        ->name('sections.schema')
+        ->middleware('nexor.iblock:view');
+
     // Field definitions the element form is built from.
     Route::get('schema', [IblockElementController::class, 'schema'])
         ->name('schema')

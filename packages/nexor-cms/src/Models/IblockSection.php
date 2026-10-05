@@ -11,8 +11,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection as BaseCollection;
 use Illuminate\Support\Facades\Storage;
 use Nexor\Cms\Database\Factories\IblockSectionFactory;
+use Nexor\Cms\Models\Concerns\HasPropertyValues;
 use Nexor\Cms\Support\MenuResolver;
 
 #[Fillable([
@@ -22,7 +24,7 @@ use Nexor\Cms\Support\MenuResolver;
 class IblockSection extends Model
 {
     /** @use HasFactory<IblockSectionFactory> */
-    use HasFactory;
+    use HasFactory, HasPropertyValues;
 
     /**
      * Laravel guesses factories from the application namespace, which never
@@ -90,6 +92,28 @@ class IblockSection extends Model
     public function elements(): HasMany
     {
         return $this->hasMany(IblockElement::class, 'section_id');
+    }
+
+    /**
+     * Значения свойств раздела.
+     *
+     * @return HasMany<IblockSectionValue, $this>
+     */
+    public function values(): HasMany
+    {
+        return $this->hasMany(IblockSectionValue::class, 'section_id')->orderBy('sort')->orderBy('id');
+    }
+
+    /**
+     * Свойства разделов его инфоблока.
+     *
+     * @return BaseCollection<int, IblockProperty>
+     */
+    public function propertyDefinitions(): BaseCollection
+    {
+        $this->loadMissing('iblock.sectionProperties');
+
+        return $this->iblock->sectionProperties;
     }
 
     /**

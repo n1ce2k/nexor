@@ -5,6 +5,7 @@ namespace Nexor\Cms\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Nexor\Cms\Enums\PropertyType;
+use Nexor\Cms\Models\IblockProperty;
 
 class IblockPropertyRequest extends FormRequest
 {
@@ -22,10 +23,15 @@ class IblockPropertyRequest extends FormRequest
         $property = $this->route('property');
 
         return [
+            // Чьё свойство — элементов или разделов. У созданного не меняется.
+            'target' => ['nullable', Rule::in([IblockProperty::TARGET_ELEMENT, IblockProperty::TARGET_SECTION])],
+
             'code' => [
                 'required', 'string', 'max:190', 'regex:/^[A-Za-z0-9_]+$/',
+                // Коды свободны отдельно у элементов и у разделов.
                 Rule::unique('iblock_properties', 'code')
                     ->where('iblock_id', $iblock->id)
+                    ->where('target', $this->target())
                     ->ignore($property?->id),
             ],
             'name' => ['required', 'string', 'max:255'],
@@ -63,6 +69,22 @@ class IblockPropertyRequest extends FormRequest
             'enums.*.sort' => ['nullable', 'integer', 'min:0'],
             'enums.*.is_default' => ['nullable', 'boolean'],
         ];
+    }
+
+    /**
+     * Чьё свойство: у существующего — как записано, у нового — из запроса.
+     */
+    public function target(): string
+    {
+        $property = $this->route('property');
+
+        if ($property instanceof IblockProperty) {
+            return $property->target;
+        }
+
+        return $this->input('target') === IblockProperty::TARGET_SECTION
+            ? IblockProperty::TARGET_SECTION
+            : IblockProperty::TARGET_ELEMENT;
     }
 
     /**

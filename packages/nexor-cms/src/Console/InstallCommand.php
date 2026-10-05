@@ -21,6 +21,7 @@ use Nexor\Cms\Support\License\LicenseKey;
 use Nexor\Cms\Support\Licensing;
 use Nexor\Cms\Support\Nexor;
 use Nexor\Cms\Support\Permissions;
+use Nexor\Cms\Support\RootHtaccess;
 use Nexor\Cms\Support\SiteAssets;
 use Nexor\Cms\Support\TailwindSources;
 use Nexor\Cms\Support\UserModelSetup;
@@ -76,6 +77,8 @@ class InstallCommand extends Command
 
         $this->components->task('Ссылка на хранилище', fn () => $this->linkStorage());
 
+        $this->components->task('Корневой .htaccess', fn () => $this->rootHtaccess());
+
         $this->components->task('Шаблоны сайта', fn () => $this->publishSiteViews() >= 0);
 
         $this->components->task('Tailwind видит шаблоны компонентов', function (): bool {
@@ -130,6 +133,22 @@ class InstallCommand extends Command
      * Laravel делает ссылку отдельной командой, про которую при установке
      * забывают, поэтому зовём её сами.
      */
+    /**
+     * Ставит корневой .htaccess, уводящий запросы в public.
+     *
+     * Нужен на хостинге, где корень сайта — папка проекта; при корне в
+     * `public` файл лежит выше него и ни на что не влияет, поэтому ставим
+     * всегда. Свой файл про другое не трогаем: его заменяет только
+     * `nexor:htaccess --force`.
+     */
+    protected function rootHtaccess(): bool
+    {
+        return match (RootHtaccess::status()) {
+            RootHtaccess::CURRENT, RootHtaccess::FOREIGN => true,
+            default => RootHtaccess::write(),
+        };
+    }
+
     protected function linkStorage(): bool
     {
         if (file_exists(public_path('storage'))) {

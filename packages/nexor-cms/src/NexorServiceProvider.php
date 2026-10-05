@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
 use Nexor\Cms\Console\BindLicenseCommand;
+use Nexor\Cms\Console\HtaccessCommand;
 use Nexor\Cms\Console\InstallCommand;
 use Nexor\Cms\Console\LicenseCommand;
 use Nexor\Cms\Console\LoginLinkCommand;
@@ -33,6 +34,7 @@ use Nexor\Cms\Http\Middleware\CheckPermission;
 use Nexor\Cms\Http\Middleware\EnsureLicensedHost;
 use Nexor\Cms\Http\Middleware\EnsureUserCanAccessAdmin;
 use Nexor\Cms\Http\Middleware\EnsureUserModelIsReady;
+use Nexor\Cms\Http\Middleware\HidePublicFolder;
 use Nexor\Cms\Http\Middleware\InjectCookieCounters;
 use Nexor\Cms\Http\Middleware\InjectInlineEditor;
 use Nexor\Cms\Services\InfoBlockService;
@@ -84,6 +86,7 @@ class NexorServiceProvider extends ServiceProvider
         // The HTTP kernel replaces the router's middleware groups when it is
         // resolved, so the guard is re-attached right after that happens too.
         $this->app->afterResolving(HttpKernel::class, function (): void {
+            $this->registerPublicFolderGuard();
             $this->registerMaintenanceMode();
             $this->registerLicenseGuard();
         });
@@ -92,6 +95,7 @@ class NexorServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerMiddleware();
+        $this->registerPublicFolderGuard();
         $this->registerMaintenanceMode();
         $this->registerLicenseGuard();
         $this->registerInlineEditor();
@@ -119,6 +123,7 @@ class NexorServiceProvider extends ServiceProvider
                 SiteAssetsCommand::class,
                 SyncPermissionsCommand::class,
                 UserModelCommand::class,
+                HtaccessCommand::class,
             ]);
 
             $this->registerPublishing();
@@ -162,6 +167,17 @@ class NexorServiceProvider extends ServiceProvider
     protected function registerMaintenanceMode(): void
     {
         $this->app['router']->pushMiddlewareToGroup('web', CheckMaintenanceMode::class);
+    }
+
+    /**
+     * Папка `public` не попадает в адреса сайта.
+     *
+     * Первым в группе `web`: вернуть на чистый адрес надо раньше, чем
+     * остальные начнут строить ссылки и редиректы с `/public` внутри.
+     */
+    protected function registerPublicFolderGuard(): void
+    {
+        $this->app['router']->prependMiddlewareToGroup('web', HidePublicFolder::class);
     }
 
     /**

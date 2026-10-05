@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
+use Nexor\Cms\Support\RequestCache;
 use Nexor\Cms\Support\SvgSanitizer;
 
 #[Fillable([
@@ -91,8 +91,8 @@ class Setting extends Model
             $setting->is_encrypted = $setting->type === 'password';
         });
 
-        static::saved(fn () => Cache::forget(self::CACHE_KEY));
-        static::deleted(fn () => Cache::forget(self::CACHE_KEY));
+        static::saved(fn () => RequestCache::store()->forget(self::CACHE_KEY));
+        static::deleted(fn () => RequestCache::store()->forget(self::CACHE_KEY));
     }
 
     /**
@@ -100,7 +100,7 @@ class Setting extends Model
      */
     public static function all_cached(): array
     {
-        return Cache::rememberForever(self::CACHE_KEY, fn () => self::query()
+        return RequestCache::store()->rememberForever(self::CACHE_KEY, fn () => self::query()
             ->get()
             ->mapWithKeys(fn (self $setting) => [$setting->key => $setting->castValue()])
             ->all());

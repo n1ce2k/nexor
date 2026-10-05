@@ -3,7 +3,6 @@
 namespace Nexor\Cms\Support;
 
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Nexor\Cms\Enums\MenuItemType;
 use Nexor\Cms\Enums\MenuVisibility;
 use Nexor\Cms\Models\Iblock;
@@ -76,7 +75,7 @@ class MenuResolver
             return $this->build($code);
         }
 
-        return Cache::remember(
+        return RequestCache::store()->remember(
             self::cacheKey($code),
             config('nexor.menu.ttl', self::TTL),
             fn () => $this->build($code),
@@ -94,12 +93,12 @@ class MenuResolver
     public static function forget(?string $code = null): void
     {
         if ($code !== null) {
-            Cache::forget(self::cacheKey($code));
+            RequestCache::store()->forget(self::cacheKey($code));
 
             return;
         }
 
-        Menu::query()->pluck('code')->each(fn (string $one) => Cache::forget(self::cacheKey($one)));
+        Menu::query()->pluck('code')->each(fn (string $one) => RequestCache::store()->forget(self::cacheKey($one)));
     }
 
     /**

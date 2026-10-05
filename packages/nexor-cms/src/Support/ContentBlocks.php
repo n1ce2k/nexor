@@ -2,7 +2,6 @@
 
 namespace Nexor\Cms\Support;
 
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Nexor\Cms\Models\ContentBlock;
@@ -41,7 +40,7 @@ class ContentBlocks
      */
     public static function all(): array
     {
-        return Cache::rememberForever(self::CACHE_KEY, fn () => self::read());
+        return RequestCache::store()->rememberForever(self::CACHE_KEY, fn () => self::read());
     }
 
     /**
@@ -154,7 +153,7 @@ class ContentBlocks
 
     public static function forgetCache(): void
     {
-        Cache::forget(self::CACHE_KEY);
+        RequestCache::store()->forget(self::CACHE_KEY);
     }
 
     /**

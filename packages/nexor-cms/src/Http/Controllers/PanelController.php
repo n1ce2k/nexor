@@ -13,8 +13,11 @@ class PanelController extends Controller
 {
     public function __invoke(): View
     {
+        // Вместе с папкой, из которой открыт сам сайт (`/shop/admin`): роутер,
+        // смонтированный не на том пути, где стоит браузер, переписывает
+        // адрес в бессмыслицу вроде `/admin/public/admin`.
         return view('nexor::admin.panel', [
-            'base' => Nexor::panelBase(),
+            'base' => rtrim((string) parse_url(url(Nexor::panelBase()), PHP_URL_PATH), '/'),
         ]);
     }
 }

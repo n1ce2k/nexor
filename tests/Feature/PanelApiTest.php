@@ -31,6 +31,23 @@ class PanelApiTest extends TestCase
             ->assertSee('nexor-api', false);
     }
 
+    public function test_the_panel_router_is_mounted_where_the_site_is_served_from(): void
+    {
+        $admin = $this->adminWith();
+
+        $this->actingAs($admin)->get('/admin')->assertSee('data-base="/admin"', false);
+
+        // Сайт открыт из подпапки: без неё роутер переписал бы адрес в
+        // /admin/shop/admin.
+        $this->actingAs($admin)
+            ->call('GET', '/shop/admin', server: [
+                'SCRIPT_NAME' => '/shop/index.php',
+                'SCRIPT_FILENAME' => public_path('index.php'),
+            ])
+            ->assertOk()
+            ->assertSee('data-base="/shop/admin"', false);
+    }
+
     public function test_the_panel_shell_is_closed_to_guests(): void
     {
         $this->get('/admin')->assertRedirect(route('admin.login'));

@@ -39,6 +39,9 @@ use RuntimeException;
  */
 class InfoBlockService
 {
+    /** Таблицы инфоблоков на месте — проверено в этом процессе. */
+    protected static bool $installed = false;
+
     /** Колонки самого элемента: по ним можно и фильтровать, и сортировать. */
     public const COLUMNS = [
         'id', 'code', 'name', 'is_active', 'sort', 'section_id',
@@ -1036,11 +1039,20 @@ class InfoBlockService
 
     /**
      * CMS может стоять в приложении, где миграции ещё не прогоняли.
+     *
+     * Запоминаем только «таблица есть»: пропасть она не может, а проверка —
+     * запрос к information_schema, и компоненты страницы делали её десятки раз.
      */
     protected function checkInfoBlocksModule(): void
     {
+        if (self::$installed) {
+            return;
+        }
+
         if (! Schema::hasTable('iblocks')) {
             throw new RuntimeException('Инфоблоки не установлены: выполните php artisan migrate.');
         }
+
+        self::$installed = true;
     }
 }

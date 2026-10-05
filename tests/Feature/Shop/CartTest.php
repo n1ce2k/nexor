@@ -9,6 +9,7 @@ use Livewire\Livewire;
 use Nexor\Cms\Enums\Currency;
 use Nexor\Cms\Models\CatalogProduct;
 use Nexor\Cms\Models\IblockElement;
+use Nexor\Cms\Support\CurrentPage;
 use Nexor\Cms\Support\Nexor;
 use Nexor\Shop\Enums\CartEdition;
 use Nexor\Shop\Livewire\AddToCart;
@@ -325,5 +326,13 @@ class CartTest extends TestCase
         Nexor::modules()->setEnabled('shop', false);
 
         $this->get('/cart')->assertNotFound();
+    }
+
+    public function test_the_cart_page_tells_the_layout_its_breadcrumb(): void
+    {
+        $this->get('/cart')->assertOk();
+
+        // Крошку выведет <x-nexor::breadcrumbs /> в макете сайта — один на все страницы.
+        $this->assertSame(['Корзина'], array_column(CurrentPage::get()->crumbs(), 'name'));
     }
 }

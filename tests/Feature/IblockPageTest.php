@@ -10,6 +10,7 @@ use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\IblockElement;
 use Nexor\Cms\Models\IblockSection;
 use Nexor\Cms\Support\CatalogManager;
+use Nexor\Cms\Support\CurrentPage;
 use Nexor\Cms\Support\PageGenerator;
 use Tests\Concerns\CreatesAdminUsers;
 use Tests\TestCase;
@@ -273,6 +274,33 @@ class IblockPageTest extends TestCase
         $this->assertSame(url('/katalog-test/mebel/stulya/item-1'), $element->refresh()->url());
 
         $this->get('/katalog-test/mebel/stulya/item-1')->assertOk()->assertSee('Товар 1');
+    }
+
+    public function test_the_open_page_is_known_to_the_layout(): void
+    {
+        $iblock = $this->pagedIblock();
+        [$mebel, $stulya] = $this->sections($iblock);
+
+        $element = $this->elements($iblock, 1)[0];
+        $element->update(['section_id' => $stulya->id]);
+
+        // Раздел: макет сайта получает инфоблок и раздел, без параметров на странице.
+        $this->get('/katalog-test/mebel')->assertOk();
+
+        $this->assertSame($iblock->id, CurrentPage::get()->iblock()?->id);
+        $this->assertSame($mebel->id, CurrentPage::get()->section()?->id);
+        $this->assertNull(CurrentPage::get()->element());
+
+        // Элемент — со своим разделом.
+        $this->get('/katalog-test/mebel/stulya/item-1')->assertOk();
+
+        $this->assertSame($element->id, CurrentPage::get()->element()?->id);
+        $this->assertSame($stulya->id, CurrentPage::get()->section()?->id);
+
+        // Следующий запрос начинает с чистого листа.
+        $this->get('/');
+
+        $this->assertNull(CurrentPage::get()->iblock());
     }
 
     public function test_an_element_reached_through_a_foreign_section_goes_to_its_own_address(): void

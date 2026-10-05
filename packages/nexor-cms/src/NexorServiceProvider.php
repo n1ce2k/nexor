@@ -37,6 +37,7 @@ use Nexor\Cms\Http\Middleware\InjectCookieCounters;
 use Nexor\Cms\Http\Middleware\InjectInlineEditor;
 use Nexor\Cms\Services\InfoBlockService;
 use Nexor\Cms\Support\Cookies;
+use Nexor\Cms\Support\CurrentPage;
 use Nexor\Cms\Support\InlineBackground;
 use Nexor\Cms\Support\MailConfig;
 use Nexor\Cms\Support\Modules\ModuleManager;
@@ -67,6 +68,18 @@ class NexorServiceProvider extends ServiceProvider
         // Ядро выборок для публичной части. Один экземпляр на запрос, чтобы
         // компоненты на одной странице не искали инфоблок по коду заново.
         $this->app->singleton(InfoBlockService::class);
+
+        // Открытая страница — одна на запрос. Не синглтон контейнера: между
+        // запросами одного процесса (тесты, Octane) она обязана забываться.
+        $this->app->bind(CurrentPage::class, function ($app): CurrentPage {
+            $request = $app['request'];
+
+            if (! $request->attributes->has(CurrentPage::class)) {
+                $request->attributes->set(CurrentPage::class, new CurrentPage);
+            }
+
+            return $request->attributes->get(CurrentPage::class);
+        });
 
         // The HTTP kernel replaces the router's middleware groups when it is
         // resolved, so the guard is re-attached right after that happens too.
@@ -322,6 +335,10 @@ class NexorServiceProvider extends ServiceProvider
         // `list` — зарезервированное слово PHP, класса `News\List` не бывает.
         // А имя `news.list` привычное, поэтому тег связан с классом псевдонимом.
         Blade::component(NewsListing::class, 'nexor::news.list');
+
+        // @breadcrumb('Корзина') — крошка страницы не из инфоблока; выводит её
+        // <x-nexor::breadcrumbs /> в макете.
+        Blade::directive('breadcrumb', fn (string $expression): string => '<?php \\'.CurrentPage::class."::get()->crumb({$expression}); ?>");
 
         // <section @editBackground('main.bg', '/img/hero.jpg')> — фон, правимый на
         // странице. Директива, а не компонент: атрибуты пишутся в чужой тег.

@@ -67,6 +67,9 @@
     </header>
 
     <main class="flex-1">
+        {{-- Крошки одни на весь сайт: путь берётся из открытой страницы. На главной их нет. --}}
+        <x-nexor::breadcrumbs class="mx-auto w-full max-w-6xl px-4 pt-6 sm:px-6 lg:px-8" />
+
         @yield('content')
     </main>
 

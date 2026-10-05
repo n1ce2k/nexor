@@ -9,6 +9,7 @@ use Illuminate\View\View;
 use Nexor\Cms\Models\Iblock;
 use Nexor\Cms\Models\IblockElement;
 use Nexor\Cms\Models\IblockSection;
+use Nexor\Cms\Support\CurrentPage;
 use Nexor\Cms\Support\PageGenerator;
 use Nexor\Cms\Support\Site;
 
@@ -24,6 +25,8 @@ class PageController extends Controller
     public function show(string $code): View
     {
         if ($iblock = $this->pagedIblock($code)) {
+            CurrentPage::get()->open($iblock);
+
             return view(PageGenerator::view($iblock));
         }
 
@@ -32,6 +35,9 @@ class PageController extends Controller
         abort_if($page === null, 404);
 
         $page->increment('views');
+
+        // Отдельная страница — сразу под главной: инфоблок «Страницы» в путь не идёт.
+        CurrentPage::get()->crumb($page->name);
 
         return view('site.page', compact('page'));
     }
@@ -100,6 +106,8 @@ class PageController extends Controller
 
         $element->increment('views');
 
+        CurrentPage::get()->open($iblock, $section ?? $element->section, $element);
+
         return view($view, [
             'element' => $element,
             'offer' => $offer,
@@ -134,6 +142,8 @@ class PageController extends Controller
         }
 
         abort_unless(view()->exists($view), 404);
+
+        CurrentPage::get()->open($iblock, $section);
 
         return view($view, ['iblock' => $iblock, 'section' => $section]);
     }

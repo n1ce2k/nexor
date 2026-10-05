@@ -13,6 +13,7 @@ use Nexor\Cms\Models\IblockElement;
 use Nexor\Cms\Models\IblockProperty;
 use Nexor\Cms\Models\IblockSection;
 use Nexor\Cms\Services\InfoBlockService;
+use Nexor\Cms\Support\CurrentPage;
 use Tests\Concerns\PreservesPublishedViews;
 use Tests\TestCase;
 
@@ -558,6 +559,75 @@ class ComponentTest extends TestCase
         foreach (['Главная', 'Каталог', 'Мебель', 'Стул'] as $step) {
             $this->assertStringContainsString($step, $html);
         }
+    }
+
+    public function test_breadcrumbs_in_the_layout_take_the_path_from_the_open_page(): void
+    {
+        $iblock = $this->catalogue();
+        $section = IblockSection::factory()->create(['iblock_id' => $iblock->id, 'name' => 'Мебель']);
+        $element = $this->element($iblock, 'Стул', ['section_id' => $section->id]);
+
+        // Так страницу записывает контроллер: макету узнать её неоткуда.
+        CurrentPage::get()->open($iblock, $section, $element);
+
+        $html = Blade::render('<x-nexor::breadcrumbs class="container" />');
+
+        foreach (['Главная', 'Каталог', 'Мебель', 'Стул'] as $step) {
+            $this->assertStringContainsString($step, $html);
+        }
+
+        // Классы компонента ложатся на сам <nav>, без лишней обёртки.
+        $this->assertStringContainsString('container', $html);
+    }
+
+    public function test_breadcrumbs_stay_silent_where_there_is_no_path(): void
+    {
+        // Главная и любая страница, о которой CMS ничего не знает.
+        $this->assertSame('', trim(Blade::render('<x-nexor::breadcrumbs />')));
+    }
+
+    public function test_a_page_outside_infoblocks_names_its_own_crumb(): void
+    {
+        $html = Blade::render("@breadcrumb('Корзина', '/cart')@breadcrumb('Оформление заказа')<x-nexor::breadcrumbs />");
+
+        $this->assertStringContainsString('Главная', $html);
+        $this->assertStringContainsString('href="/cart"', $html);
+        $this->assertStringContainsString('Оформление заказа', $html);
+        // У последней крошки адреса нет — и пустой ссылки тоже.
+        $this->assertStringNotContainsString('href=""', $html);
+    }
+
+    public function test_breadcrumbs_in_the_layout_do_not_repeat_the_ones_on_the_page(): void
+    {
+        $iblock = $this->catalogue();
+        CurrentPage::get()->open($iblock);
+
+        // Страница вывела крошки сама — макет второй раз их не повторяет.
+        $page = Blade::render('<x-nexor::breadcrumbs iblock="katalog" />');
+        $layout = Blade::render('<x-nexor::breadcrumbs />');
+
+        $this->assertStringContainsString('Каталог', $page);
+        $this->assertSame('', trim($layout));
+    }
+
+    public function test_breadcrumbs_can_be_switched_off_for_listed_pages(): void
+    {
+        $template = '<x-nexor::breadcrumbs exclude="/, cart, akcii/*, search" />';
+
+        foreach (['/cart' => false, '/akcii/leto' => false, '/' => false, '/checkout' => true, '/akcii' => true] as $address => $shown) {
+            $this->get($address);
+            CurrentPage::get()->crumb('Страница');
+
+            $html = trim(Blade::render($template));
+
+            $this->assertSame($shown, $html !== '', "Адрес {$address}");
+        }
+
+        // Имя маршрута тоже годится, и список можно передать массивом.
+        $this->get('/search');
+        CurrentPage::get()->crumb('Поиск');
+
+        $this->assertSame('', trim(Blade::render('<x-nexor::breadcrumbs :exclude="[\'search\']" />')));
     }
 
     // ---------------------------------------------------------- catalog.element

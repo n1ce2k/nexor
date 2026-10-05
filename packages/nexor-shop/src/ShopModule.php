@@ -10,7 +10,7 @@ use Nexor\Cms\Support\Modules\Module;
  */
 class ShopModule extends Module
 {
-    public const VERSION = '0.2.15';
+    public const VERSION = '0.2.16';
 
     public function code(): string
     {

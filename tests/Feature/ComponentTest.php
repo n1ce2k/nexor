@@ -597,6 +597,52 @@ class ComponentTest extends TestCase
         $this->assertStringNotContainsString('href=""', $html);
     }
 
+    public function test_a_page_of_the_site_is_named_by_its_own_title(): void
+    {
+        // Свой маршрут сайта: CMS про страницу не знает, но она сама назвала себя.
+        $this->get('/about');
+
+        $html = Blade::render("@section('title', 'О компании & партнёрах')<x-nexor::breadcrumbs />");
+
+        $this->assertStringContainsString('Главная', $html);
+        $this->assertStringContainsString('О компании &amp; партнёрах', $html);
+        // Заголовок не экранируется дважды.
+        $this->assertStringNotContainsString('&amp;amp;', $html);
+    }
+
+    public function test_the_title_is_not_a_crumb_on_the_home_page_or_when_switched_off(): void
+    {
+        $this->get('/');
+        $this->assertSame('', trim(Blade::render("@section('title', 'Магазин')<x-nexor::breadcrumbs />")));
+
+        $this->get('/about');
+        $this->assertSame('', trim(Blade::render("@section('title', 'О компании')<x-nexor::breadcrumbs :page-title=\"false\" />")));
+    }
+
+    public function test_own_crumbs_win_over_the_title(): void
+    {
+        $this->get('/sale/leto');
+
+        $html = Blade::render("@section('title', 'Летняя распродажа — купить')@breadcrumb('Акции', '/sale')@breadcrumb('Лето')<x-nexor::breadcrumbs />");
+
+        $this->assertStringContainsString('Акции', $html);
+        $this->assertStringContainsString('Лето', $html);
+        $this->assertStringNotContainsString('купить', $html);
+    }
+
+    public function test_a_page_of_an_infoblock_is_not_named_by_its_title(): void
+    {
+        $iblock = $this->catalogue();
+        $this->get('/katalog');
+        CurrentPage::get()->open($iblock);
+
+        // У страниц инфоблока заголовок — это SEO-строка, а путь уже известен.
+        $html = Blade::render("@section('title', 'Купить мебель недорого')<x-nexor::breadcrumbs />");
+
+        $this->assertStringContainsString('Каталог', $html);
+        $this->assertStringNotContainsString('Купить мебель', $html);
+    }
+
     public function test_breadcrumbs_in_the_layout_do_not_repeat_the_ones_on_the_page(): void
     {
         $iblock = $this->catalogue();

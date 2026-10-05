@@ -19,7 +19,10 @@ use Nexor\Cms\Support\CurrentPage;
  *
  * Путь берётся из открытой страницы: какой инфоблок, раздел и элемент, знает
  * контроллер страниц. На главной и там, где пути нет, ничего не выводится.
- * Странице не из инфоблока крошку даёт её шаблон: `@breadcrumb('Корзина')`.
+ *
+ * Страница не из инфоблока (свой маршрут, `Route::view`) называется так, как
+ * назвала себя в `@section('title', 'О компании')` — отдельно крошку ей
+ * задавать не нужно. Свои шаги задаёт шаблон: `@breadcrumb('Акции', '/sale')`.
  *
  * Прежний вызов с параметрами работает как раньше:
  *
@@ -40,6 +43,7 @@ class Breadcrumbs extends Component
      * @param  IblockSection|null  $section  Раздел; по умолчанию берётся из адреса
      * @param  string  $template  Имя шаблона вёрстки
      * @param  array<int, string>|string  $exclude  Где крошки не нужны: адреса или имена маршрутов, можно со звёздочкой
+     * @param  bool  $pageTitle  Называть страницу не из инфоблока по её `@section('title')`
      */
     public function __construct(
         public ?string $iblock = null,
@@ -47,6 +51,7 @@ class Breadcrumbs extends Component
         public ?IblockSection $section = null,
         public string $template = 'default',
         public array|string $exclude = [],
+        public bool $pageTitle = true,
     ) {}
 
     public function shouldRender(): bool
@@ -82,7 +87,43 @@ class Breadcrumbs extends Component
      */
     protected function crumbs(): array
     {
-        return $this->crumbs ??= [...$this->trail(), ...CurrentPage::get()->crumbs()];
+        if ($this->crumbs !== null) {
+            return $this->crumbs;
+        }
+
+        $page = CurrentPage::get();
+        $own = $page->crumbs();
+
+        // Страница не из инфоблока и без своих крошек: берём её заголовок.
+        if ($own === [] && $this->iblock === null && $page->iblock() === null && ($title = $this->titleOfPage()) !== null) {
+            $own = [['name' => $title, 'url' => null]];
+        }
+
+        return $this->crumbs = [...$this->trail(), ...$own];
+    }
+
+    /**
+     * Заголовок страницы из её `@section('title')`.
+     *
+     * Blade выполняет шаблон страницы раньше макета, поэтому к этому моменту
+     * секция уже задана. На главной заголовок — название сайта, а не шаг пути.
+     */
+    protected function titleOfPage(): ?string
+    {
+        if (! $this->pageTitle || request()->is('/')) {
+            return null;
+        }
+
+        $view = app('view');
+
+        if (! $view->hasSection('title')) {
+            return null;
+        }
+
+        // Секция хранится уже экранированной, а шаблон крошек экранирует сам.
+        $title = trim(html_entity_decode(strip_tags((string) $view->yieldContent('title')), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+
+        return $title !== '' ? $title : null;
     }
 
     /**
